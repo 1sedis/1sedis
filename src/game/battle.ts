@@ -22,11 +22,25 @@ export interface Unit {
   flash: number;
 }
 
+export interface BattleEvent {
+  type: 'hit' | 'death';
+  uid: number;
+  side: Side;
+  x: number;
+  y: number;
+  amount: number;
+  /** Attacker position, for drawing the strike. */
+  fromX: number;
+  fromY: number;
+}
+
 export interface Battle {
   wave: number;
   units: Unit[];
   tick: number;
   result: 'win' | 'loss' | null;
+  /** Events produced by the latest tick. */
+  events: BattleEvent[];
 }
 
 /** A battle that drags on longer than this (60 s) counts as a loss. */
@@ -37,7 +51,7 @@ export function enemyStatMultiplier(wave: number): number {
 }
 
 export function enemyCount(wave: number): number {
-  return Math.min(16, 1 + Math.ceil(wave * 0.35));
+  return Math.min(16, 1 + Math.floor(wave * 0.35));
 }
 
 function makeUnit(uid: number, side: Side, kind: PieceKind, stars: number, x: number, y: number,
@@ -86,7 +100,7 @@ export function createBattle(s: GameState): Battle {
     const [x, y] = cells[i];
     units.push(makeUnit(uid++, 'enemy', kind, 1, x, y, mult, mult, 1));
   }
-  return { wave, units, tick: 0, result: null };
+  return { wave, units, tick: 0, result: null, events: [] };
 }
 
 function inside(x: number, y: number): boolean {
@@ -145,6 +159,9 @@ function act(b: Battle, u: Unit): void {
     const target = targets[0];
     target.hp -= u.atk;
     target.flash = 2;
+    const base = { uid: target.uid, side: target.side, x: target.x, y: target.y, fromX: u.x, fromY: u.y };
+    b.events.push({ ...base, type: 'hit', amount: u.atk });
+    if (target.hp <= 0) b.events.push({ ...base, type: 'death', amount: 0 });
     u.wait = u.attackCd;
     return;
   }
@@ -174,6 +191,7 @@ function act(b: Battle, u: Unit): void {
 export function stepBattle(b: Battle): void {
   if (b.result) return;
   b.tick++;
+  b.events = [];
   for (const u of b.units) {
     if (u.flash > 0) u.flash--;
     if (u.hp <= 0) continue;
