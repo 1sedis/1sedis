@@ -284,6 +284,14 @@ export function loadGame(): GameState {
   return newGame();
 }
 
+export function hasSave(): boolean {
+  try {
+    return localStorage.getItem(SAVE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
 export function clearSave(): void {
   try {
     localStorage.removeItem(SAVE_KEY);

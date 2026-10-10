@@ -554,3 +554,111 @@ img { image-rendering: pixelated; }
   .wave-title { font-size: 26px; }
   .status { text-align: left; min-width: 0; }
 }
+
+/* ---------- Main menu ---------- */
+[hidden] { display: none !important; }
+
+.menu {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 64px;
+  overflow: hidden;
+}
+
+/* A chessboard floor rolling toward the viewer. */
+.menu-floor {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  bottom: 0;
+  height: 70%;
+  background: repeating-conic-gradient(#3f357d 0 25%, #241d4f 0 50%) 0 0 / 120px 120px;
+  transform: perspective(500px) rotateX(60deg);
+  transform-origin: bottom;
+  animation: floor-roll 3s linear infinite;
+  -webkit-mask-image: linear-gradient(to top, #000 35%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 35%, transparent 100%);
+}
+
+.menu-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.menu-pieces { display: flex; gap: 6px; }
+.menu-pieces img {
+  width: clamp(44px, 10vw, 72px);
+  height: clamp(44px, 10vw, 72px);
+  animation: bob 1s steps(2) infinite;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.4));
+}
+
+.menu-title {
+  display: flex;
+  flex-direction: column;
+  margin: 10px 0 0;
+  font-family: var(--pixel);
+  font-weight: 400;
+  font-size: clamp(48px, 11vw, 104px);
+  line-height: 0.95;
+  text-shadow: 0 6px 0 rgba(0, 0, 0, 0.45);
+}
+.menu-title-accent {
+  background: linear-gradient(90deg, var(--mint), var(--violet) 55%, var(--coral));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.45));
+}
+
+.menu-tag { margin: 4px 0 0; color: var(--muted); font-size: 16px; letter-spacing: 3px; text-transform: uppercase; }
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(320px, 100%);
+  margin-top: 28px;
+}
+.menu-buttons .btn { width: calc(100% - 8px); padding: 14px; font-size: 24px; }
+.menu-main small {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--text);
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.menu-foot {
+  position: absolute;
+  bottom: 14px;
+  z-index: 1;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.menu-btn { font-size: 18px; }
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0;
+}
+
+@keyframes floor-roll { to { background-position: 0 240px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-floor, .menu-pieces img { animation: none; }
+}

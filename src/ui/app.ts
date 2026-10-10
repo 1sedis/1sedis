@@ -3,11 +3,13 @@ import { PIECE_ORDER, PIECES, type PieceKind } from '../game/pieces';
 import {
   BOARD_SIZE, PRESTIGE_MIN_WAVE, UPGRADE_ORDER, UPGRADES,
   applyDefeat, atkMultiplier, benchPieces, buyPiece, buyUpgrade, canPrestige, clearSave,
-  crownMultiplier, crownsForWave, grantVictory, hpMultiplier, isPlayerCell, isUnlocked, loadGame,
+  crownMultiplier, crownsForWave, grantVictory, hasSave, hpMultiplier, isPlayerCell, isUnlocked, loadGame,
   maxSlots, movePiece, newGame, pieceAt, pieceCost, placedPieces, prestige, saveGame, upgradeCost,
   waveReward, type GameState, type UpgradeId,
 } from '../game/state';
 import { fmt } from './format';
+import { buildMenu, openSettings } from './menu';
+import { loadSettings, saveSettings, type Settings } from './settings';
 import { spriteUrl, type Team } from './sprites';
 
 const TICK_MS = 100;
@@ -17,6 +19,7 @@ const RESULT_TICKS = 14;
 const LIVE_FX_LIMIT = 20;
 
 type Phase = 'setup' | 'battle' | 'result';
+type Screen = 'menu' | 'game';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -56,8 +59,12 @@ export class App {
   private battle: Battle | null = null;
   private resultTicks = 0;
   private lastResult: { win: boolean; reward: number } | null = null;
-  private auto = true;
-  private speed = 1;
+  private settings: Settings = loadSettings();
+  private auto = this.settings.auto;
+  private speed: Settings['speed'] = this.settings.speed;
+  private screen: Screen = 'menu';
+  private menuEl!: HTMLElement;
+  private gameEl!: HTMLElement;
   private selected: number | null = null;
   private acc = 0;
   private lastFrame = performance.now();
@@ -96,11 +103,17 @@ export class App {
 
   start(): void {
     this.build();
+    this.showMenu();
     this.addLog('Добро пожаловать! Расставьте фигуры и жмите «В бой».');
-    setInterval(() => saveGame(this.state), 5000);
-    window.addEventListener('beforeunload', () => saveGame(this.state));
+    // Only persist once a game is actually in progress, so the menu does not
+    // offer "Continue" for an untouched new game.
+    const persist = () => {
+      if (this.screen === 'game' || hasSave()) saveGame(this.state);
+    };
+    setInterval(persist, 5000);
+    window.addEventListener('beforeunload', persist);
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) saveGame(this.state);
+      if (document.hidden) persist();
     });
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -110,6 +123,10 @@ export class App {
   private frame(now: number): void {
     const dt = Math.min(now - this.lastFrame, 30 * 60 * 1000);
     this.lastFrame = now;
+    if (this.screen !== 'game') {
+      requestAnimationFrame((t) => this.frame(t));
+      return;
+    }
     this.acc += dt * this.speed;
     this.liveFx = this.acc / TICK_MS < LIVE_FX_LIMIT;
     let steps = 0;
@@ -172,11 +189,62 @@ export class App {
     this.addLog('Отступили для перестановки');
   }
 
+  // ---------------- Screens ----------------
+
+  private showMenu(): void {
+    if (this.screen === 'game') saveGame(this.state);
+    this.screen = 'menu';
+    this.menuEl.replaceWith(this.menuEl = buildMenu({
+      hasSave: hasSave(),
+      summary: `Волна ${this.state.wave} · ${fmt(this.state.gold)} золота`,
+      onContinue: () => this.showGame(),
+      onNewGame: () => this.newGameFromMenu(),
+      onSettings: () => this.openSettings(),
+    }));
+    this.menuEl.hidden = false;
+    this.gameEl.hidden = true;
+  }
+
+  private showGame(): void {
+    this.screen = 'game';
+    this.lastFrame = performance.now();
+    this.acc = 0;
+    this.menuEl.hidden = true;
+    this.gameEl.hidden = false;
+  }
+
+  private async newGameFromMenu(): Promise<void> {
+    if (hasSave()) {
+      const ok = await this.confirm('Новая игра', 'Текущий прогресс, включая короны, будет удалён. Начать заново?');
+      if (!ok) return;
+    }
+    clearSave();
+    this.state = newGame();
+    this.enterSetup();
+    this.selected = null;
+    this.log = [];
+    this.addLog('Новая партия! Расставьте фигуры и жмите «В бой».');
+    saveGame(this.state);
+    this.showGame();
+  }
+
+  private openSettings(): void {
+    openSettings(this.settings, (next) => {
+      this.settings = next;
+      this.speed = next.speed;
+      this.auto = next.auto;
+      saveSettings(next);
+    }, () => this.onReset());
+  }
+
   // ---------------- Build DOM ----------------
 
   private build(): void {
     this.root.innerHTML = '';
+    this.menuEl = el('div');
+    this.root.append(this.menuEl);
     const shell = el('div', 'shell');
+    this.gameEl = shell;
 
     // Top bar
     const top = el('header', 'topbar');
@@ -199,7 +267,9 @@ export class App {
       best: chip('chip-best', 'Рекорд'),
       crowns: chip('chip-crown', 'Короны'),
     };
-    top.append(brand, chipBox);
+    const menuBtn = el('button', 'btn btn-ghost menu-btn', '☰ Меню');
+    menuBtn.addEventListener('click', () => this.showMenu());
+    top.append(menuBtn, brand, chipBox);
 
     const layout = el('main', 'layout');
 
@@ -220,12 +290,20 @@ export class App {
     const speedBox = el('div', 'seg');
     for (const sp of [1, 2, 4]) {
       const b = el('button', 'seg-btn', `×${sp}`);
-      b.addEventListener('click', () => { this.speed = sp; });
+      b.addEventListener('click', () => {
+        this.speed = sp as Settings['speed'];
+        this.settings.speed = this.speed;
+        saveSettings(this.settings);
+      });
       speedBox.append(b);
       this.speedBtns.push(b);
     }
     this.autoBtn = el('button', 'toggle');
-    this.autoBtn.addEventListener('click', () => { this.auto = !this.auto; });
+    this.autoBtn.addEventListener('click', () => {
+      this.auto = !this.auto;
+      this.settings.auto = this.auto;
+      saveSettings(this.settings);
+    });
     controls.append(this.status, speedBox, this.autoBtn, this.fightBtn);
     head.append(titles, controls);
 
@@ -418,6 +496,7 @@ export class App {
     this.selected = null;
     this.log = [];
     this.addLog('Прогресс сброшен');
+    if (this.screen === 'menu') this.showMenu();
   }
 
   // ---------------- Rendering ----------------
@@ -641,7 +720,7 @@ export class App {
 
   private flushFx(): void {
     const events = this.pendingFx.splice(0);
-    if (!this.liveFx || events.length > 60) return;
+    if (!this.liveFx || !this.settings.effects || events.length > 60) return;
     for (const e of events) {
       if (e.type === 'hit') {
         const dmg = el('div', `fx-dmg ${e.side}`, fmt(Math.round(e.amount)));
