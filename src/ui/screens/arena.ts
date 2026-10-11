@@ -5,6 +5,8 @@ import { SYNERGIES, synergyProgress } from '../../game/synergies';
 import { BOSSES, bossFor } from '../../game/bosses';
 import { TERRAIN_INFO, levelTerrain, terrainKinds } from '../../game/terrain';
 import { terrainUrl } from '../terrainArt';
+import { traitUrl } from '../traitIcons';
+import { TRAITS, traitAdjective } from '../../game/elites';
 import { buildReport, pieceName } from '../../game/report';
 import {
   CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, firstReward, getLevel, isAbyss, levelIncome, nextLevelId,
@@ -65,6 +67,7 @@ export class ArenaScreen implements Screen {
   /** performance.now() until which the boss intro plays and the battle waits. */
   private introUntil = 0;
   private terrainRow = el('div', 'terrain-row');
+  private eliteRow = el('div', 'terrain-row elite-row');
   private synergySig = '';
   private autoBtn!: HTMLButtonElement;
   private threatBtn = el('button', 'toggle');
@@ -176,7 +179,7 @@ export class ArenaScreen implements Screen {
       + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
       + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));
     this.hintText.classList.add('task-hint');
-    infoCard.append(taskHead, this.enemyText, this.bossInfo, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
+    infoCard.append(taskHead, this.enemyText, this.bossInfo, this.eliteRow, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
 
     const kingsCard = el('div', 'card');
@@ -263,6 +266,21 @@ export class ArenaScreen implements Screen {
     }));
     if (kinds.length) this.terrainRow.append(infoBtn('Ландшафт', kinds.map((t) => `${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`).join('\n')));
     this.terrainRow.hidden = kinds.length === 0;
+    const elites = this.enemies().filter((p) => p.trait);
+    this.eliteRow.hidden = elites.length === 0;
+    this.eliteRow.replaceChildren(...elites.map((p) => {
+      const chip = el('span', 'terrain-chip');
+      const img = el('img');
+      img.src = traitUrl(p.trait!);
+      img.alt = '';
+      chip.append(img, `${traitAdjective(p.trait!, p.kind)} ${PIECES[p.kind].name.toLowerCase()}`);
+      chip.title = TRAITS[p.trait!].text;
+      return chip;
+    }));
+    if (elites.length) {
+      this.eliteRow.append(infoBtn('Элитные враги', [...new Set(elites.map((p) => p.trait!))]
+        .map((t) => `${TRAITS[t].name[0]}: ${TRAITS[t].text}.`).join('\n') + '\nЭлиту видно по значку над фигурой.'));
+    }
     const bossId = bossFor(this.levelId);
     this.bossInfo.hidden = !bossId;
     if (bossId) {
@@ -330,7 +348,8 @@ export class ArenaScreen implements Screen {
       const def = PIECES[enemy.kind];
       const tier = abilityTier(enemy.level);
       const ability = tier ? ` Приём «${ABILITIES[enemy.kind].name}»${tier === 2 ? ' (усилен)' : ''}.` : '';
-      toast(`${enemy.boss ? getLevel(this.levelId).boss : def.name}, ур. ${enemy.level}: ${def.description}${ability}`);
+      const elite = enemy.trait ? ` ${traitAdjective(enemy.trait, enemy.kind)}: ${TRAITS[enemy.trait].text}.` : '';
+      toast(`${enemy.boss ? getLevel(this.levelId).boss : def.name}, ур. ${enemy.level}.${elite} ${def.description}${ability}`);
       return;
     }
     const t = levelTerrain(this.levelId)[y * 8 + x];
@@ -754,7 +773,7 @@ export class ArenaScreen implements Screen {
     });
     this.enemies().forEach((p, i) => {
       views.push({
-        key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss,
+        key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss, trait: p.trait,
         tier: abilityTier(p.level) as Tier,
       });
     });
@@ -765,7 +784,7 @@ export class ArenaScreen implements Screen {
     return {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
       shield: u.shield / u.maxHp, tier: abilityTier(u.level) as Tier,
-      boss: u.boss, dead: u.hp <= 0,
+      boss: u.boss, trait: u.trait, dead: u.hp <= 0,
     };
   }
 }

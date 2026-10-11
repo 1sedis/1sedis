@@ -1,5 +1,6 @@
 import { KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
 import { BOSSES, MAX_SUMMONS, WARN_TICKS, type BossId } from './bosses';
+import type { Trait } from './elites';
 import { synergyBonus } from './synergies';
 import { FOREST_DEFENSE, HILL_BONUS, parseTerrain, walkable, type Terrain } from './terrain';
 import { abilityOf, abilityTier, type Branch } from './abilities';
@@ -26,6 +27,8 @@ export interface Placement {
   y: number;
   level: number;
   boss?: boolean;
+  /** Elite trait (enemies only). */
+  trait?: Trait;
 }
 
 export interface BattleSetup {
@@ -96,6 +99,9 @@ export interface Unit {
   /** Curse from an enemy bishop: extra damage taken until this tick. */
   cursedUntil: number;
   curseMult: number;
+  trait?: Trait;
+  /** A furious elite has already announced its rage. */
+  raged: boolean;
 }
 
 export interface BattleEvent {
@@ -155,6 +161,7 @@ export interface UnitReport {
   kind: PieceKind;
   boss: boolean;
   promoted: boolean;
+  trait?: Trait;
   startX: number;
   startY: number;
   dealt: number;
@@ -186,10 +193,15 @@ function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult
     atkMult: atkMult * (boss ? BOSS_ATK : 1),
     pawnMoveMult, buff: 1, struck: false,
     tier: abilities ? abilityTier(p.level) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
-    cursedUntil: 0, curseMult: 1,
+    cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false,
   };
   applyStats(u, p.kind);
   u.hp = u.maxHp;
+  if (u.trait === 'swift') {
+    u.pawnMoveMult *= 0.5;
+    u.moveCd = Math.max(1, Math.round(u.moveCd * 0.5));
+    u.attackCd = Math.max(1, Math.round(u.attackCd * 0.8));
+  }
   // Stagger the first actions a little so mirrored armies do not act in lockstep.
   u.wait = uid % 3;
   return u;
@@ -212,7 +224,7 @@ export function createBattle(setup: BattleSetup): Battle {
   const report: Record<number, UnitReport> = {};
   for (const u of units) {
     report[u.uid] = {
-      uid: u.uid, side: u.side, kind: u.kind, boss: u.boss, promoted: false, startX: u.x, startY: u.y,
+      uid: u.uid, side: u.side, kind: u.kind, boss: u.boss, promoted: false, trait: u.trait, startX: u.x, startY: u.y,
       dealt: 0, taken: 0, healed: 0, kills: 0,
     };
   }
@@ -342,6 +354,7 @@ function resetAbilityTimer(b: Battle, u: Unit, share = 1): void {
 /** Attack power of a unit right now, with aura, buffs and battle cry. */
 function baseDamage(b: Battle, u: Unit): number {
   let damage = u.atk * auraBonus(b, u) * u.buff;
+  if (u.trait === 'furious' && u.hp < u.maxHp * 0.5) damage *= 1.5;
   if (RANGED.has(u.kind) && b.terrain[u.y * BOARD_SIZE + u.x] === 'hill') damage *= HILL_BONUS;
   if (b.tick < u.rallyUntil) damage *= u.rallyMult;
   if (has(b, u.side, 'warCry') && b.tick <= 60) damage *= 1.35;
@@ -522,8 +535,10 @@ function pierce(b: Battle, u: Unit, target: Unit, damage: number): void {
   }
 }
 
-function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean): void {
+function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean, reflected = false): void {
   let damage = raw * defense(b, target);
+  const shot = RANGED.has(u.kind) && chebyshev(u, target.x, target.y) > 1;
+  if (target.trait === 'armored' && shot) damage *= 0.6;
   if (target.kind === 'pawn' && has(b, target.side, 'phalanx')) {
     const buddy = [-1, 1].some((dx) => unitAt(b, target.x + dx, target.y)?.kind === 'pawn'
       && unitAt(b, target.x + dx, target.y)?.side === target.side);
@@ -542,6 +557,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
   b.report[target.uid].taken += landed;
   target.hp -= damage;
   target.flash = 2;
+  if (u.trait === 'vampire' && u.hp > 0 && landed > 0) u.hp = Math.min(u.maxHp, u.hp + landed * 0.3);
   const big = target.kind === 'king' || target.boss;
   const base = { uid: target.uid, side: target.side, x: target.x, y: target.y, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, big };
   b.events.push({ ...base, type: 'hit', amount: damage, crit });
@@ -566,7 +582,37 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
         if (Math.max(Math.abs(f.x - target.x), Math.abs(f.y - target.y)) <= 1) f.buff *= 1.15;
       }
     }
+    if (target.trait === 'explosive') explode(b, target);
+  } else if (target.trait === 'furious' && !target.raged && target.hp < target.maxHp * 0.5) {
+    target.raged = true;
+    traitEvent(b, target, 'Ярость!');
   }
+  if (target.trait === 'thorns' && !reflected && !shot && u.hp > 0 && damage > 0) {
+    dealDamage(b, target, u, damage * 0.3, false, true);
+  }
+}
+
+function traitEvent(b: Battle, u: Unit, label: string): void {
+  b.events.push({ type: 'ability', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, label });
+}
+
+/** An explosive elite blows up when it falls, hitting every enemy next to it. */
+function explode(b: Battle, u: Unit): void {
+  const cells: number[] = [];
+  const victims: Unit[] = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const x = u.x + dx;
+      const y = u.y + dy;
+      if (!inside(x, y) || (!dx && !dy)) continue;
+      cells.push(y * BOARD_SIZE + x);
+      const t = unitAt(b, x, y);
+      if (t && t.side !== u.side) victims.push(t);
+    }
+  }
+  traitEvent(b, u, 'Взрыв!');
+  b.events.push({ type: 'blast', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid, cells });
+  for (const t of victims) dealDamage(b, u, t, u.atk * 1.5, false, true);
 }
 
 function royalHeal(b: Battle): void {
@@ -745,8 +791,13 @@ function moveUnit(b: Battle, u: Unit): void {
     return;
   }
   if (u.kind === 'king') {
-    // Kings never advance; they only step away from danger.
-    u.wait = 3;
+    // Kings never advance; they only step away from danger. In a duel of lone kings they meet.
+    const duel = alive(b, u.side).length === 1 && alive(b, u.side === 'ally' ? 'enemy' : 'ally').length === 1;
+    const step = duel ? pathStep(b, u, alive(b, u.side === 'ally' ? 'enemy' : 'ally')) : null;
+    if (step) {
+      [u.x, u.y] = step;
+      u.wait = u.moveCd;
+    } else u.wait = 3;
     return;
   }
   if (u.kind === 'pawn') {

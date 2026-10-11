@@ -1,0 +1,94 @@
+import type { Trait } from '../game/elites';
+
+/** 8x8 badges for elite traits. o outline, a main, b dark, h light. */
+const MAPS: Record<Trait, string[]> = {
+  armored: [
+    '.oooooo.',
+    'ohhaaabo',
+    'ohaaaabo',
+    'ohaaaabo',
+    'oaaaabbo',
+    '.oaabbo.',
+    '..obbo..',
+    '...oo...',
+  ],
+  furious: [
+    '...o....',
+    '..oao...',
+    '..oaao..',
+    '.ohaao.o',
+    '.ohaaaoa',
+    'ohaabaao',
+    'oaabbbao',
+    '.oooooo.',
+  ],
+  vampire: [
+    '...oo...',
+    '..ohao..',
+    '..oaao..',
+    '.ohaaao.',
+    '.ohaabo.',
+    'ohaaabbo',
+    'oaaabbbo',
+    '.oooooo.',
+  ],
+  thorns: [
+    'o..o..o.',
+    'ao.a.oa.',
+    '.oaaao..',
+    'oaahaaao',
+    '.oaabao.',
+    'oaabbbao',
+    '.o.b.o..',
+    'o..o..o.',
+  ],
+  swift: [
+    '....ooo.',
+    '...ohao.',
+    '..ohao..',
+    '.ohaaooo',
+    'oooaabo.',
+    '..oabo..',
+    '.oabo...',
+    '.ooo....',
+  ],
+  explosive: [
+    '.....oh.',
+    '....o.h.',
+    '..oooo..',
+    '.ohaaao.',
+    'ohaaaabo',
+    'oaaaabbo',
+    '.oabbbo.',
+    '..oooo..',
+  ],
+};
+
+const COLORS: Record<Trait, Record<string, string>> = {
+  armored: { o: '#1a1433', h: '#e6ecff', a: '#9fb0d6', b: '#5d6a94' },
+  furious: { o: '#1a1433', h: '#fff1a6', a: '#ff7a2f', b: '#c3261f' },
+  vampire: { o: '#1a1433', h: '#ff9fb5', a: '#e01e4b', b: '#8a0f2e' },
+  thorns: { o: '#1a1433', h: '#d4ff9f', a: '#62c94a', b: '#2f7d33' },
+  swift: { o: '#1a1433', h: '#e8fbff', a: '#6fe3ff', b: '#2a8fc4' },
+  explosive: { o: '#1a1433', h: '#ffcf4a', a: '#5b5470', b: '#332d47' },
+};
+
+const cache = new Map<Trait, string>();
+
+export function traitUrl(t: Trait): string {
+  const hit = cache.get(t);
+  if (hit) return hit;
+  const scale = 6;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 8 * scale;
+  const ctx = canvas.getContext('2d')!;
+  MAPS[t].forEach((row, y) => [...row].forEach((ch, x) => {
+    const c = COLORS[t][ch];
+    if (!c) return;
+    ctx.fillStyle = c;
+    ctx.fillRect(x * scale, y * scale, scale, scale);
+  }));
+  const url = canvas.toDataURL();
+  cache.set(t, url);
+  return url;
+}

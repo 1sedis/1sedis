@@ -5,6 +5,8 @@ import { el, openModal } from './dom';
 import { spriteUrl } from './sprites';
 import { TERRAIN_INFO } from '../game/terrain';
 import { terrainUrl } from './terrainArt';
+import { traitUrl } from './traitIcons';
+import { TRAITS, TRAIT_ORDER } from '../game/elites';
 
 const ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
 
@@ -55,6 +57,21 @@ export function openCodex(): void {
   landBody.append(el('p', '', 'Пешка обходит камень или воду наискосок. Король, оставшийся без армии, больше не убегает.'));
   land.append(landHead, landBody);
   list.append(land);
+  const elite = el('details', 'codex-item');
+  const eliteHead = el('summary', 'codex-head');
+  eliteHead.append(el('span', 'codex-title', '✦ Элитные враги'));
+  const eliteBody = el('div', 'codex-body');
+  eliteBody.append(el('p', '', 'Со 2-й главы часть вражеских фигур — элита со значком над головой.'));
+  for (const t of TRAIT_ORDER) {
+    const row = el('p', 'codex-terrain');
+    const img = el('img');
+    img.src = traitUrl(t);
+    img.alt = '';
+    row.append(img, `${TRAITS[t].name[0]}: ${TRAITS[t].text}.`);
+    eliteBody.append(row);
+  }
+  elite.append(eliteHead, eliteBody);
+  list.append(elite);
   const syn = el('details', 'codex-item');
   const synHead = el('summary', 'codex-head');
   synHead.append(el('span', 'codex-title', '✦ Синергии состава'));

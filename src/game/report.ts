@@ -1,4 +1,5 @@
 import { MAX_TICKS, type Battle, type UnitReport } from './battle';
+import { traitAdjective, type Trait } from './elites';
 import { PIECES, RANGED } from './pieces';
 
 /** Chess notation for a board cell: x 0..7 → a..h, y 0..7 → 8..1. */
@@ -6,8 +7,9 @@ export function square(x: number, y: number): string {
   return `${'abcdefgh'[x]}${8 - y}`;
 }
 
-export function pieceName(r: Pick<UnitReport, 'kind' | 'promoted'>): string {
-  return r.promoted ? 'Ферзь из пешки' : PIECES[r.kind].name;
+export function pieceName(r: Pick<UnitReport, 'kind' | 'promoted'> & { trait?: Trait }): string {
+  if (r.promoted) return 'Ферзь из пешки';
+  return r.trait ? `${traitAdjective(r.trait, r.kind)} ${PIECES[r.kind].name.toLowerCase()}` : PIECES[r.kind].name;
 }
 
 export interface BattleReport {

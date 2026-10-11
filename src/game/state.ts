@@ -5,6 +5,7 @@ import {
 } from './levels';
 import type { Branch } from './abilities';
 import { bossFor } from './bosses';
+import { withElites } from './elites';
 import { levelTerrain, levelTerrainRows, walkable } from './terrain';
 import { PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
@@ -369,7 +370,7 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s) * crownStatMultiplier(s);
   const bonus = prestigeEnemyBonus(s);
-  const enemies = enemyPlacements(getLevel(levelId)).map((p) => ({ ...p, level: p.level + bonus }));
+  const enemies = withElites(levelId, enemyPlacements(getLevel(levelId))).map((p) => ({ ...p, level: p.level + bonus }));
   return {
     allies, enemies,
     allyHpMult: m * (1 + 0.04 * s.altar.deepHide),

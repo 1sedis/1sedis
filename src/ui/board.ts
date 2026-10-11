@@ -6,6 +6,8 @@ import { fmt } from './format';
 import { spriteUrl, type Team, type Tier } from './sprites';
 import { TERRAIN_INFO, walkable, type Terrain } from '../game/terrain';
 import { terrainUrl } from './terrainArt';
+import { traitUrl } from './traitIcons';
+import type { Trait } from '../game/elites';
 
 export interface UnitView {
   key: string;
@@ -20,6 +22,8 @@ export interface UnitView {
   /** Visual tier from the piece level. */
   tier?: Tier;
   boss?: boolean;
+  /** Elite trait badge. */
+  trait?: Trait;
   selected?: boolean;
   dead?: boolean;
 }
@@ -152,6 +156,17 @@ export class BoardView {
       u.node.classList.toggle('tier-2', u.tier === 2);
       u.node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
       u.node.classList.toggle('boss', !!v.boss);
+      if (u.node.dataset.trait !== (v.trait ?? '')) {
+        u.node.dataset.trait = v.trait ?? '';
+        u.node.querySelector('.trait-badge')?.remove();
+        u.node.classList.toggle('elite', !!v.trait);
+        if (v.trait) {
+          const badge = el('img', 'trait-badge');
+          badge.src = traitUrl(v.trait);
+          badge.alt = '';
+          u.node.append(badge);
+        }
+      }
       u.node.classList.toggle('king', v.kind === 'king');
       u.node.classList.toggle('selected', !!v.selected);
       u.node.classList.toggle('dead', !!v.dead);
