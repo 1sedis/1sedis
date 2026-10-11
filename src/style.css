@@ -1280,3 +1280,33 @@ button.ability-chip:hover { opacity: 1; }
 }
 .synergy.active { color: var(--gold); box-shadow: 0 0 0 2px var(--gold-deep); background: #2c2240; }
 .ability-pick { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; } .ability-pick .ability-chip { margin-right: 0; }
+
+/* Codex */
+.codex-modal { width: min(94vw, 560px); max-height: 90vh; overflow-y: auto; }
+.codex-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0 14px; }
+.codex-item { background: var(--bg-2); box-shadow: 0 0 0 2px var(--line); }
+.codex-item[open] { box-shadow: 0 0 0 2px var(--violet); }
+.codex-head { display: flex; align-items: center; gap: 12px; padding: 8px 10px; cursor: pointer; list-style: none; }
+.codex-head::-webkit-details-marker { display: none; }
+.codex-pics { display: flex; flex: none; }
+.codex-pics img { width: 36px; height: 36px; }
+.codex-text { display: flex; flex-direction: column; }
+.codex-title { font-size: 18px; }
+.codex-role { color: var(--muted); font-size: 15px; }
+.codex-stats { color: var(--muted); font-size: 14px; }
+.codex-body { padding: 0 12px 10px; }
+.codex-body p { margin: 6px 0; color: var(--muted); font-size: 15px; line-height: 1.4; }
+.codex-body .codex-ability { color: #8fd3ff; }
+
+/* Compact top bar on wide screens */
+@media (min-width: 1001px) {
+  .topbar { flex-wrap: nowrap; gap: 12px; margin-bottom: 18px; }
+  .topbar .chips { gap: 10px; flex-wrap: nowrap; }
+  .chip { flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; padding: 6px 10px; }
+  .chip-label { font-size: 13px; }
+  .chip b { font-size: 20px; }
+  .brand { font-size: 24px; gap: 8px; }
+  .brand-logo { width: 34px; height: 34px; }
+  .menu-btn, .sound-btn { padding: 6px 10px; }
+}
+@media (min-width: 1001px) and (max-width: 1440px) { .brand span { display: none; } }

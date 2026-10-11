@@ -19,6 +19,7 @@ import { audio } from '../audio';
 import { BoardView, type UnitView } from '../board';
 import { openRelicPicker, relicStrip } from '../relics';
 import { playStory } from '../story';
+import { openCodex } from '../codex';
 import type { Ctx, Screen } from '../context';
 import { el, infoBtn, openModal, setText, toast } from '../dom';
 import { fmt } from '../format';
@@ -151,7 +152,9 @@ export class ArenaScreen implements Screen {
     const side = el('aside', 'arena-side');
     const infoCard = el('div', 'card task-card');
     const taskHead = el('div', 'panel-head');
-    taskHead.append(el('span', 'panel-title', 'Задача'), infoBtn('Как играть',
+    const codexBtn = el('button', 'btn btn-ghost btn-small', 'Фигуры');
+    codexBtn.addEventListener('click', openCodex);
+    taskHead.append(el('span', 'panel-title', 'Задача'), codexBtn, infoBtn('Как играть',
       'Сразите вражеского короля. Если падёт ваш — бой проигран.\n'
       + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
       + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));

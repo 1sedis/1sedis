@@ -11,6 +11,7 @@ import { el, infoBtn, pulse, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { audio } from '../audio';
 import { spriteUrl, type Tier } from '../sprites';
+import { openCodex } from '../codex';
 
 const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
 const SHORT_ALTAR: Record<AltarId, string> = {
@@ -46,7 +47,9 @@ export class CampScreen implements Screen {
     back.addEventListener('click', () => this.ctx.go('map'));
     const titles = el('div', 'arena-titles');
     titles.append(el('h1', 'arena-title', 'Улучшения'));
-    top.append(back, titles);
+    const codexBtn = el('button', 'btn btn-small', 'Справочник');
+    codexBtn.addEventListener('click', openCodex);
+    top.append(back, titles, codexBtn);
 
     const army = el('div', 'card camp-army');
     const armyHead = el('div', 'panel-head');
