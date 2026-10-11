@@ -24,7 +24,7 @@ export class BoardView {
   private unitLayer: HTMLElement;
   private fxLayer: HTMLElement;
   private banner: HTMLElement;
-  private units = new Map<string, { node: HTMLElement; img: HTMLImageElement; fill: HTMLElement; kind: PieceKind }>();
+  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; kind: PieceKind }>();
 
   constructor(onCell: (x: number, y: number) => void) {
     this.root = el('div', 'board');
@@ -59,18 +59,22 @@ export class BoardView {
       let u = this.units.get(v.key);
       if (!u) {
         const node = el('div', `unit ${v.team}`);
+        // The body lunges, the sprite inside it bobs, the node flashes.
+        const body = el('div', 'unit-body');
         node.addEventListener('animationend', (e) => {
           if (e.target === node) node.classList.remove('hit');
+          if (e.target === body) body.classList.remove('lunge');
         });
         const img = el('img', 'unit-sprite');
         img.alt = '';
+        body.append(img);
         const hp = el('div', 'hp');
         const fill = el('div', 'hp-fill');
         hp.append(fill);
-        node.append(img, hp);
+        node.append(body, hp);
         node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
         this.unitLayer.append(node);
-        u = { node, img, fill, kind: v.kind };
+        u = { node, body, img, fill, kind: v.kind };
         img.src = spriteUrl(v.kind, v.team);
         this.units.set(v.key, u);
       }
@@ -96,13 +100,35 @@ export class BoardView {
     }
   }
 
-  /** Briefly flash a unit white. The CSS animation always ends on its own. */
-  flash(key: string): void {
-    const node = this.units.get(key)?.node;
-    if (!node) return;
-    node.classList.remove('hit');
-    void node.offsetWidth;
-    node.classList.add('hit');
+  /**
+   * Cheap reactions that run even with effects turned off: white hit flash,
+   * attacker lunge and board shake. CSS animations always end on their own.
+   */
+  react(events: BattleEvent[], keyOf: (uid: number) => string): void {
+    let shake = 0;
+    for (const e of events) {
+      if (e.type === 'hit') {
+        restart(this.units.get(keyOf(e.uid))?.node, 'hit');
+        const dx = e.x - e.fromX;
+        const dy = e.y - e.fromY;
+        // Melee attackers (adjacent or a knight's jump) lunge at their target.
+        if (Math.max(Math.abs(dx), Math.abs(dy)) <= 2) {
+          const body = this.units.get(keyOf(e.fromUid))?.body;
+          if (body) {
+            const len = Math.hypot(dx, dy) || 1;
+            body.style.setProperty('--lx', `${(dx / len) * 28}%`);
+            body.style.setProperty('--ly', `${(dy / len) * 28}%`);
+            restart(body, 'lunge');
+          }
+        }
+        if (e.crit && e.big) shake = Math.max(shake, 1);
+      } else if (e.type === 'death' && e.big) shake = 2;
+      else if (e.type === 'save' || e.type === 'promote') shake = Math.max(shake, 1);
+    }
+    if (shake) {
+      this.root.classList.toggle('shake-big', shake > 1);
+      restart(this.root, 'shake');
+    }
   }
 
   showBanner(text: string | null, win = false): void {
@@ -116,8 +142,14 @@ export class BoardView {
   fx(events: BattleEvent[]): void {
     for (const e of events) {
       if (e.type === 'hit') {
-        this.place(el('div', `fx-dmg ${e.side}`, fmt(Math.round(e.amount))), e.x, e.y);
+        const text = fmt(Math.round(e.amount)) + (e.crit ? '!' : '');
+        this.place(el('div', `fx-dmg ${e.side}${e.crit ? ' crit' : ''}`, text), e.x, e.y);
         if (Math.max(Math.abs(e.x - e.fromX), Math.abs(e.y - e.fromY)) > 1) this.bolt(e);
+      } else if (e.type === 'heal') {
+        this.place(el('div', 'fx-dmg heal', `+${fmt(Math.round(e.amount))}`), e.x, e.y);
+      } else if (e.type === 'save') {
+        this.place(el('div', 'fx-promote', 'Вторая жизнь!'), e.x, e.y);
+        this.burst(e, 14);
       } else if (e.type === 'promote') {
         this.place(el('div', 'fx-promote', 'Ферзь!'), e.x, e.y);
         this.burst(e, 14);
@@ -129,7 +161,7 @@ export class BoardView {
 
   private burst(e: BattleEvent, count: number): void {
     for (let i = 0; i < count; i++) {
-      const p = el('div', `fx-pixel ${e.type === 'promote' ? 'gold' : e.side}`);
+      const p = el('div', `fx-pixel ${e.type === 'promote' || e.type === 'save' ? 'gold' : e.side}`);
       const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
       const r = 30 + Math.random() * 30;
       p.style.setProperty('--dx', `${Math.cos(angle) * r}px`);
@@ -155,4 +187,12 @@ export class BoardView {
     b.addEventListener('animationend', () => b.remove());
     this.fxLayer.append(b);
   }
+}
+
+/** Restart a one-shot CSS animation class. */
+function restart(node: HTMLElement | undefined, cls: string): void {
+  if (!node) return;
+  node.classList.remove(cls);
+  void node.offsetWidth;
+  node.classList.add(cls);
 }

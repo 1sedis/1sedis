@@ -1,10 +1,13 @@
 import { CHAPTERS, enemyPlacements, levelIncome, type ChapterDef } from '../../game/levels';
+import { RELIC_IDS } from '../../game/relics';
 import {
   collectTreasury, currentLevelId, incomePerMinute, isLevelOpen, treasuryCap, treasuryCapHours,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
 import { el, pulse, setText, stars, toast } from '../dom';
 import { fmt } from '../format';
+import { audio } from '../audio';
+import { openRelicPicker, relicStrip } from '../relics';
 import { spriteUrl } from '../sprites';
 
 // Snake layout of the nine nodes on a 3x3 grid: row 1 left→right, row 2 right→left, row 3 left→right.
@@ -23,6 +26,9 @@ export class MapScreen implements Screen {
   private treasuryFill = el('div', 'bar-fill');
   private treasuryInfo = el('div', 'treasury-info');
   private collectBtn = el('button', 'btn btn-buy', 'Забрать');
+  private relicList = el('div');
+  private relicCount = el('span');
+  private relicBtn = el('button', 'btn btn-up');
 
   constructor(private ctx: Ctx) {
     const main = el('div', 'map-main card');
@@ -43,6 +49,7 @@ export class MapScreen implements Screen {
     this.collectBtn.addEventListener('click', () => {
       const got = collectTreasury(this.ctx.state);
       if (got > 0) {
+        audio.play('coins');
         toast(`+${fmt(got)} золота из казны`, 'good');
         this.ctx.save();
       }
@@ -54,7 +61,13 @@ export class MapScreen implements Screen {
     (camp.firstElementChild as HTMLImageElement).src = spriteUrl('rook', 'ally');
     camp.addEventListener('click', () => this.ctx.go('camp'));
 
-    side.append(treasury, camp);
+    const relics = el('div', 'card relics-card');
+    const rHead = el('div', 'panel-head');
+    rHead.append(el('span', 'panel-title', 'Реликвии'), this.relicCount);
+    this.relicBtn.addEventListener('click', () => openRelicPicker(this.ctx, () => this.renderRelics()));
+    relics.append(rHead, this.relicList, this.relicBtn);
+
+    side.append(treasury, relics, camp);
     this.root.append(main, side);
   }
 
@@ -62,6 +75,7 @@ export class MapScreen implements Screen {
     const current = CHAPTERS.find((c) => c.levels.some((l) => l.id === currentLevelId(this.ctx.state)));
     this.chapter = current?.id ?? 1;
     this.renderChapter();
+    this.renderRelics();
   }
 
   private renderChapter(): void {
@@ -85,6 +99,14 @@ export class MapScreen implements Screen {
     setText(this.chapterTitle, chapter.name);
     setText(this.chapterSub, `${chapter.subtitle} · до ${chapter.limit} фигур в бою`);
     this.renderPath(chapter);
+  }
+
+  private renderRelics(): void {
+    const s = this.ctx.state;
+    setText(this.relicCount, `${s.relics.length}/${RELIC_IDS.length}`);
+    this.relicList.replaceChildren(s.relics.length
+      ? relicStrip(s.relics)
+      : el('p', 'hint', 'Побеждайте боссов и собирайте звёзды: за босса и каждые 12 звёзд — выбор реликвии.'));
   }
 
   private renderPath(chapter: ChapterDef): void {
@@ -135,5 +157,7 @@ export class MapScreen implements Screen {
       ? `+${rate < 100 ? Math.round(rate * 10) / 10 : fmt(rate)} в минуту · копится до ${treasuryCapHours(s)} ч, даже когда игра закрыта`
       : 'Побеждайте в боях — захваченные земли начнут приносить золото');
     this.collectBtn.disabled = amount < 1;
+    this.relicBtn.hidden = s.relicPicks <= 0;
+    setText(this.relicBtn, `Выбрать реликвию (${s.relicPicks})`);
   }
 }

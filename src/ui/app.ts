@@ -3,6 +3,7 @@ import {
   accrue, canAffordUpgrade, clearSave, currentLevelId, hasSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
   type GameState,
 } from '../game/state';
+import { audio } from './audio';
 import type { Ctx, Screen, ScreenId } from './context';
 import { confirmDialog, el, openModal, pulse, setText } from './dom';
 import { fmt } from './format';
@@ -36,6 +37,12 @@ export class App implements Ctx {
   }
 
   start(): void {
+    audio.configure(this.settings.sound, this.settings.music);
+    // A soft click on every button press.
+    document.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button');
+      if (btn && !btn.disabled) audio.play('click');
+    });
     this.build();
     this.go('menu');
     // Persist only once a game is in progress, so the menu does not offer
@@ -152,6 +159,7 @@ export class App implements Ctx {
     openSettings(this.settings, (next) => {
       this.settings = next;
       saveSettings(next);
+      audio.configure(next.sound, next.music);
     }, async () => {
       const ok = await confirmDialog('Сброс', 'Удалить сохранение полностью?', 'Удалить');
       if (!ok) return;

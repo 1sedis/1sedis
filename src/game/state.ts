@@ -3,6 +3,7 @@ import {
   ALL_LEVELS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, levelIncome, levelIndex, replayReward,
 } from './levels';
 import { PIECES, type PieceKind } from './pieces';
+import { RELICS, STARS_PER_RELIC, rollOffer, type RelicId } from './relics';
 
 /** Rows the player may deploy on (bottom three rows). */
 export const PLAYER_ROWS = [5, 6, 7];
@@ -46,6 +47,13 @@ export interface GameState {
   treasury: number;
   /** Wall-clock time of the last treasury accrual. */
   lastTick: number;
+  relics: RelicId[];
+  /** Relic choices earned but not made yet. */
+  relicPicks: number;
+  /** The current 1-of-3 offer, kept so reloading does not reroll it. */
+  relicOffer: RelicId[] | null;
+  /** Star milestones already turned into relic picks. */
+  starMilestones: number;
   stats: { battles: number; wins: number; goldEarned: number };
 }
 
@@ -69,6 +77,10 @@ export function newGame(now = Date.now()): GameState {
     ],
     treasury: 0,
     lastTick: now,
+    relics: [],
+    relicPicks: 0,
+    relicOffer: null,
+    starMilestones: 0,
     stats: { battles: 0, wins: 0, goldEarned: 0 },
   };
 }
@@ -113,8 +125,12 @@ export function buildingCost(s: GameState, id: BuildingId): number {
   return Math.round(def.baseCost * def.growth ** s.buildings[id]);
 }
 
+export function hasRelic(s: GameState, id: RelicId): boolean {
+  return s.relics.includes(id);
+}
+
 export function commandLimit(s: GameState, levelId: string): number {
-  return chapterOf(levelId).limit + s.buildings.hq;
+  return chapterOf(levelId).limit + s.buildings.hq + (hasRelic(s, 'reserve') ? 1 : 0);
 }
 
 export function forgeMultiplier(s: GameState): number {
@@ -123,7 +139,7 @@ export function forgeMultiplier(s: GameState): number {
 
 export function incomePerMinute(s: GameState): number {
   const base = ALL_LEVELS.filter((l) => isCleared(s, l.id)).reduce((sum, l) => sum + levelIncome(l.id), 0);
-  return base * (1 + 0.25 * s.buildings.treasury);
+  return base * (1 + 0.25 * s.buildings.treasury) * (hasRelic(s, 'fertile') ? 1.35 : 1);
 }
 
 export function treasuryCapHours(s: GameState): number {
@@ -277,7 +293,7 @@ export function sanitizeFormation(s: GameState, limit: number): void {
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s);
-  return { allies, enemies: enemyPlacements(getLevel(levelId)), allyHpMult: m, allyAtkMult: m };
+  return { allies, enemies: enemyPlacements(getLevel(levelId)), allyHpMult: m, allyAtkMult: m, relics: [...s.relics] };
 }
 
 // ---------- Results ----------
@@ -290,6 +306,8 @@ export interface BattleOutcome {
   firstClear: boolean;
   reward: number;
   conditions: { win: boolean; king: boolean; losses: boolean };
+  /** Relic picks earned by this battle. */
+  relicsEarned: number;
 }
 
 export function recordResult(s: GameState, levelId: string, b: Battle): BattleOutcome {
@@ -309,13 +327,44 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     reward = firstClear ? firstReward(levelId) : replayReward(levelId);
     // Bonus for every extra star earned for the first time.
     reward += Math.max(0, newStars - (firstClear ? 1 : 0)) * Math.round(firstReward(levelId) * 0.25);
+    if (hasRelic(s, 'plunder')) reward = Math.round(reward * 1.3);
   }
   s.stars[levelId] = Math.max(prev, stars);
+  let relicsEarned = firstClear && level.boss ? 1 : 0;
+  const milestones = Math.floor(totalStars(s) / STARS_PER_RELIC);
+  relicsEarned += Math.max(0, milestones - s.starMilestones);
+  s.starMilestones = Math.max(s.starMilestones, milestones);
+  s.relicPicks += relicsEarned;
   s.gold += reward;
   s.stats.battles++;
   if (win) s.stats.wins++;
   s.stats.goldEarned += reward;
-  return { win, stars, newStars, firstClear, reward, conditions };
+  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned };
+}
+
+// ---------- Relics ----------
+
+/** The relic choice on offer, or null when there is nothing to pick. */
+export function relicOffer(s: GameState): RelicId[] | null {
+  if (s.relicPicks <= 0) return null;
+  if (!s.relicOffer || s.relicOffer.some((id) => !RELICS[id] || s.relics.includes(id))) {
+    const offer = rollOffer(s.relics, s.relics.length * 977 + s.stats.battles * 31 + 7);
+    if (offer.length === 0) {
+      s.relicPicks = 0; // every relic is owned
+      return null;
+    }
+    s.relicOffer = offer;
+  }
+  return s.relicOffer;
+}
+
+export function chooseRelic(s: GameState, id: RelicId): boolean {
+  const offer = relicOffer(s);
+  if (!offer?.includes(id)) return false;
+  s.relics.push(id);
+  s.relicPicks--;
+  s.relicOffer = null;
+  return true;
 }
 
 // ---------- Persistence ----------

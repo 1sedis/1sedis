@@ -3,11 +3,13 @@ export interface Settings {
   speed: 1 | 2 | 4;
   /** Floating damage numbers and particles. */
   effects: boolean;
+  sound: boolean;
+  music: boolean;
 }
 
 const KEY = 'chess-autobattler-settings';
 
-const DEFAULTS: Settings = { speed: 1, effects: true };
+const DEFAULTS: Settings = { speed: 1, effects: true, sound: true, music: true };
 
 export function loadSettings(): Settings {
   try {

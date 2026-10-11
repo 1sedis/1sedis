@@ -8,7 +8,9 @@ import {
   available, battleSetup, clearFormation, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
   moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, type BattleOutcome, type FormationSlot,
 } from '../../game/state';
+import { audio } from '../audio';
 import { BoardView, type UnitView } from '../board';
+import { openRelicPicker, relicStrip } from '../relics';
 import type { Ctx, Screen } from '../context';
 import { el, openModal, setText, stars, toast } from '../dom';
 import { fmt } from '../format';
@@ -49,6 +51,8 @@ export class ArenaScreen implements Screen {
   private conditions = el('ul', 'conditions');
   private rewardText = el('div', 'info-line');
   private hintText = el('p', 'hint-text');
+  private relicCard = el('div', 'card');
+  private relicSlot = el('div');
   private kingBars: Record<'ally' | 'enemy', { fill: HTMLElement; text: HTMLElement }>;
   private battleTime = el('div', 'battle-time');
 
@@ -126,7 +130,8 @@ export class ArenaScreen implements Screen {
     const helpCard = el('div', 'card help-card');
     helpCard.append(el('div', 'panel-title', 'Как расставлять'),
       el('p', 'hint', 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.'));
-    this.infoPanel.append(infoCard, hintCard, helpCard);
+    this.relicCard.append(el('div', 'panel-title', 'Ваши реликвии'), this.relicSlot);
+    this.infoPanel.append(infoCard, hintCard, this.relicCard, helpCard);
 
     const kingsCard = el('div', 'card');
     kingsCard.append(el('div', 'panel-title', 'Короли'));
@@ -202,6 +207,8 @@ export class ArenaScreen implements Screen {
       ? `Лучший результат ${stars(best)} · повтор: +${fmt(replayReward(level.id))} золота`
       : `Награда: +${fmt(firstReward(level.id))} золота и +${levelIncome(level.id)}/мин в казну`);
     setText(this.hintText, level.hint);
+    this.relicCard.hidden = s.relics.length === 0;
+    this.relicSlot.replaceChildren(relicStrip(s.relics));
   }
 
   // ---------- Interaction ----------
@@ -290,7 +297,11 @@ export class ArenaScreen implements Screen {
     this.ctx.save();
     this.phase = 'result';
     this.board.showBanner(outcome.win ? 'Победа' : 'Поражение', outcome.win);
-    setTimeout(() => this.showResult(outcome), 700);
+    audio.play(outcome.win ? 'win' : 'lose');
+    setTimeout(() => {
+      this.showResult(outcome);
+      if (outcome.relicsEarned > 0) setTimeout(() => openRelicPicker(this.ctx), 500);
+    }, 700);
   }
 
   private showResult(o: BattleOutcome): void {
@@ -313,6 +324,7 @@ export class ArenaScreen implements Screen {
     for (const [ok, text] of items) list.append(el('li', ok ? 'done' : 'fail', `${ok ? '✓' : '✗'} ${text}`));
     content.append(list);
 
+    if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', 'Новая реликвия! Выберите одну из трёх.'));
     if (o.win) {
       content.append(el('div', 'result-reward', `+${fmt(o.reward)} золота`));
       if (o.firstClear) {
@@ -386,7 +398,10 @@ export class ArenaScreen implements Screen {
     this.board.setMode(prep, this.selection !== null);
     this.board.setStep(180 / speed);
     this.board.render(this.collectUnits());
-    for (const e of events) if (e.type === 'hit') this.board.flash(`b${e.uid}`);
+    if (events.length) {
+      this.board.react(events, (uid) => `b${uid}`);
+      playBattleSounds(events);
+    }
     if (events.length && this.ctx.settings.effects && events.length <= 60) this.board.fx(events);
 
     setText(this.fightBtn, prep ? '▶ В бой' : '■ Отступить');
@@ -447,4 +462,24 @@ export class ArenaScreen implements Screen {
       boss: u.boss, dead: u.hp <= 0,
     };
   }
+}
+
+function hitSound(e: BattleEvent): 'crit' | 'shot' | 'hit' {
+  if (e.crit) return 'crit';
+  const dx = Math.abs(e.x - e.fromX);
+  const dy = Math.abs(e.y - e.fromY);
+  const knightJump = (dx === 1 && dy === 2) || (dx === 2 && dy === 1);
+  return Math.max(dx, dy) > 1 && !knightJump ? 'shot' : 'hit';
+}
+
+/** One sound per kind per frame keeps big fights readable. */
+function playBattleSounds(events: BattleEvent[]): void {
+  const types = new Set<string>(events.map((e) => (e.type === 'hit' ? hitSound(e) : e.type)));
+  if (types.has('save')) audio.play('save');
+  if (types.has('promote')) audio.play('promote');
+  if (types.has('death')) audio.play('death');
+  if (types.has('crit')) audio.play('crit');
+  else if (types.has('hit')) audio.play('hit');
+  else if (types.has('shot')) audio.play('shot');
+  if (types.has('heal')) audio.play('heal');
 }

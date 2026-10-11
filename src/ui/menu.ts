@@ -80,7 +80,7 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
   });
   row('Скорость боя', seg);
 
-  const toggle = (key: 'effects') => {
+  const toggle = (key: 'effects' | 'sound' | 'music') => {
     const b = el('button', 'toggle');
     b.addEventListener('click', () => {
       s[key] = !s[key];
@@ -88,13 +88,19 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
     });
     return b;
   };
+  const soundBtn = toggle('sound');
+  const musicBtn = toggle('music');
   const fxBtn = toggle('effects');
+  row('Звуки', soundBtn);
+  row('Музыка', musicBtn);
   row('Цифры урона и частицы', fxBtn);
 
   const sync = () => {
     segBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === s.speed));
-    fxBtn.textContent = s.effects ? 'Вкл' : 'Выкл';
-    fxBtn.classList.toggle('on', s.effects);
+    for (const [b, on] of [[soundBtn, s.sound], [musicBtn, s.music], [fxBtn, s.effects]] as const) {
+      b.textContent = on ? 'Вкл' : 'Выкл';
+      b.classList.toggle('on', on);
+    }
     onChange({ ...s });
   };
   sync();

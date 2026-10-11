@@ -7,6 +7,7 @@ import {
 import type { Ctx, Screen } from '../context';
 import { el, pulse, setText } from '../dom';
 import { fmt } from '../format';
+import { audio } from '../audio';
 import { spriteUrl } from '../sprites';
 
 const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
@@ -65,6 +66,7 @@ export class CampScreen implements Screen {
     recruitBtn.addEventListener('click', () => {
       if (recruit(this.ctx.state, kind)) {
         pulse(recruitBtn);
+        audio.play('buy');
         this.ctx.save();
       }
     });
@@ -72,6 +74,7 @@ export class CampScreen implements Screen {
     upgradeBtn.addEventListener('click', () => {
       if (upgradePiece(this.ctx.state, kind)) {
         pulse(upgradeBtn);
+        audio.play('buy');
         this.ctx.save();
       }
     });
@@ -94,6 +97,7 @@ export class CampScreen implements Screen {
     btn.addEventListener('click', () => {
       if (buyBuilding(this.ctx.state, id)) {
         pulse(btn);
+        audio.play('buy');
         this.ctx.save();
       }
     });
