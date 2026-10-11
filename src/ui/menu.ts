@@ -92,8 +92,26 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
   const musicBtn = toggle('music');
   const fxBtn = toggle('effects');
   const hintsBtn = toggle('hints');
-  row('Звуки', soundBtn);
-  row('Музыка', musicBtn);
+  const slider = (key: 'soundVolume' | 'musicVolume') => {
+    const input = el('input', 'volume');
+    input.type = 'range';
+    input.min = '0';
+    input.max = '100';
+    input.id = `setting-${key}`;
+    input.value = String(Math.round(s[key] * 100));
+    input.addEventListener('input', () => {
+      s[key] = Number(input.value) / 100;
+      sync();
+    });
+    return input;
+  };
+  const volumeRow = (toggleBtn: HTMLElement, range: HTMLElement) => {
+    const box = el('div', 'volume-row');
+    box.append(range, toggleBtn);
+    return box;
+  };
+  row('Звуки', volumeRow(soundBtn, slider('soundVolume')));
+  row('Музыка', volumeRow(musicBtn, slider('musicVolume')));
   row('Цифры урона и частицы', fxBtn);
   row('Подсказки обучения', hintsBtn);
   if (onResetTips) {

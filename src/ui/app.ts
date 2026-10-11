@@ -33,6 +33,7 @@ export class App implements Ctx {
   private navAch!: HTMLButtonElement;
   private achBadge = el('span', 'nav-badge');
   private tutorial!: Tutorial;
+  private soundBtn!: HTMLButtonElement;
   private lastAchCheck = 0;
   private lastFrame = performance.now();
   private lastGold = -1;
@@ -44,7 +45,7 @@ export class App implements Ctx {
   }
 
   start(): void {
-    audio.configure(this.settings.sound, this.settings.music);
+    audio.configure(this.settings);
     // A soft click on every button press.
     document.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest('button');
@@ -77,6 +78,8 @@ export class App implements Ctx {
     const fromMenu = this.screenId === 'menu';
     this.tutorial.reset();
     this.screenId = screen;
+    // The arena switches to battle music itself when a fight starts.
+    audio.setTrack(screen === 'menu' ? 'menu' : 'map');
     if (screen === 'menu') {
       this.renderMenu();
       this.menuEl.hidden = false;
@@ -132,7 +135,15 @@ export class App implements Ctx {
     this.navAch.append(this.achBadge);
     this.navAch.addEventListener('click', () => this.go('achievements'));
     nav.append(this.navMap, this.navCamp, this.navAch);
-    top.append(menuBtn, brand, nav, chipBox);
+    this.soundBtn = el('button', 'btn btn-ghost sound-btn');
+    this.soundBtn.title = 'Звук и музыка';
+    this.soundBtn.addEventListener('click', () => {
+      const on = !(this.settings.sound || this.settings.music);
+      this.settings = { ...this.settings, sound: on, music: on };
+      saveSettings(this.settings);
+      audio.configure(this.settings);
+    });
+    top.append(menuBtn, this.soundBtn, brand, nav, chipBox);
 
     this.screens = {
       map: new MapScreen(this),
@@ -176,7 +187,7 @@ export class App implements Ctx {
     openSettings(this.settings, (next) => {
       this.settings = next;
       saveSettings(next);
-      audio.configure(next.sound, next.music);
+      audio.configure(next);
     }, async () => {
       const ok = await confirmDialog('Сброс', 'Удалить сохранение полностью?', 'Удалить');
       if (!ok) return;
@@ -237,6 +248,9 @@ export class App implements Ctx {
     this.navBadge.hidden = this.screenId === 'camp' || !canAffordUpgrade(s);
     this.navAch.classList.toggle('active', this.screenId === 'achievements');
     this.achBadge.hidden = claimableAchievements(s) === 0;
+    const on = this.settings.sound || this.settings.music;
+    setText(this.soundBtn, on ? '♪ Звук' : '♪ Тихо');
+    this.soundBtn.classList.toggle('muted', !on);
     const rate = incomePerMinute(s);
     setText(this.chips.income, `${rate < 100 ? Math.round(rate * 10) / 10 : fmt(rate)}/мин`);
   }
@@ -245,7 +259,7 @@ export class App implements Ctx {
     const fresh = checkAchievements(this.state);
     if (!fresh.length) return;
     this.save();
-    audio.play('relic');
+    audio.play('achievement');
     for (const id of fresh) toast(`Достижение: «${getAchievement(id)?.name}»`, 'good');
   }
 

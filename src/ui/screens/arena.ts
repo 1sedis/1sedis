@@ -180,6 +180,7 @@ export class ArenaScreen implements Screen {
   }
 
   private enterPrep(): void {
+    audio.setTrack('map');
     this.phase = 'prep';
     this.battle = null;
     this.selection = null;
@@ -265,6 +266,7 @@ export class ArenaScreen implements Screen {
       return;
     }
     this.selection = { kind, from: null };
+    audio.play('select');
   }
 
   private returnSelected(): void {
@@ -284,6 +286,8 @@ export class ArenaScreen implements Screen {
     this.selection = null;
     this.battle = createBattle(battleSetup(s, this.levelId));
     this.phase = 'battle';
+    audio.play('start');
+    audio.setTrack(getLevel(this.levelId).boss ? 'boss' : 'battle');
     this.acc = 0;
     this.ctx.save();
   }
@@ -319,6 +323,7 @@ export class ArenaScreen implements Screen {
     for (let i = 0; i < 3; i++) {
       const st = el('span', i < o.stars ? 'on' : '', '★');
       st.style.animationDelay = `${0.15 + i * 0.2}s`;
+      if (i < o.stars) audio.play('star', 0.15 + i * 0.2);
       starRow.append(st);
     }
     content.append(starRow);
@@ -508,4 +513,5 @@ function playBattleSounds(events: BattleEvent[]): void {
   else if (types.has('shot')) audio.play('shot');
   if (types.has('heal')) audio.play('heal');
   if (types.has('ability')) audio.play('ability');
+  if (types.has('shieldBreak')) audio.play('shieldBreak');
 }

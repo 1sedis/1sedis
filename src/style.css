@@ -1139,3 +1139,30 @@ img { image-rendering: pixelated; }
   .ach-card { flex-wrap: wrap; }
   .ach-btn { width: 100%; }
 }
+
+/* ---------- Audio controls ---------- */
+.sound-btn { font-size: 16px; }
+.sound-btn.muted { opacity: 0.6; }
+.volume-row { display: flex; align-items: center; gap: 12px; }
+.volume {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 130px;
+  height: 10px;
+  background: var(--bg-2);
+  box-shadow: 0 0 0 2px var(--line);
+  cursor: pointer;
+}
+.volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 20px;
+  background: var(--mint);
+  box-shadow: 0 0 0 2px #0f4f45;
+}
+.volume::-moz-range-thumb { width: 16px; height: 20px; border: 0; border-radius: 0; background: var(--mint); }
+.volume:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+@media (max-width: 560px) {
+  .volume { width: 90px; }
+  .setting-row { flex-wrap: wrap; }
+}

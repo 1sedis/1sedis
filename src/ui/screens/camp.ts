@@ -80,10 +80,10 @@ export class CampScreen implements Screen {
         pulse(upgradeBtn);
         const tier = abilityTier(this.ctx.state.levels[kind]);
         if (tier > before) {
-          audio.play('relic');
+          audio.play('levelup');
           const ab = ABILITIES[kind];
           toast(tier === 1 ? `${PIECES[kind].name} выучил приём «${ab.name}»!` : `«${ab.name}» усилен!`, 'good');
-        } else audio.play('buy');
+        } else audio.play('levelup');
         this.ctx.save();
       }
     });
