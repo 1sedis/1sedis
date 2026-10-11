@@ -1,3 +1,4 @@
+import { installIconVars } from './icons';
 import { offlineDescent, type OfflineDescent } from '../game/offline';
 import { ALL_LEVELS, chapterOf } from '../game/levels';
 import {
@@ -48,6 +49,7 @@ export class App implements Ctx {
   }
 
   start(): void {
+    installIconVars();
     audio.configure(this.settings);
     // A soft click on every button press.
     document.addEventListener('click', (e) => {

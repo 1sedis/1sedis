@@ -215,8 +215,7 @@ export class CampScreen implements Screen {
       const stats = unlocked
         ? `❤ ${fmt(def.hp * m)}  ⚔ ${fmt(def.atk * m)}${def.range ? `  ◎ ${def.range}` : ''}  `
         : `🔒 после ${UNLOCKED_BY[row.kind]}  `;
-      if (row.stats.firstChild?.nodeType !== Node.TEXT_NODE) row.stats.prepend('');
-      if (row.stats.firstChild!.textContent !== stats) row.stats.firstChild!.textContent = stats;
+      setText(row.stats, stats.trim());
       setText(row.meta, unlocked ? `ур. ${lvl}${row.kind === 'king' ? '' : ` · ×${s.army[row.kind]}`}` : '');
       const chosen = s.abilityBranch[row.kind];
       row.ability.forEach((chip, i) => {

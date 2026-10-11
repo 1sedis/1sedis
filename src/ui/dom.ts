@@ -1,12 +1,22 @@
+import { hasGlyphs, renderRich } from './icons';
+
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
-  if (text !== undefined) node.textContent = text;
+  if (text !== undefined) setText(node, text);
   return node;
 }
 
+/** Set text, drawing glyphs like ★ or ❤ as pixel icons. Skips the DOM when nothing changed. */
 export function setText(node: HTMLElement, text: string): void {
-  if (node.textContent !== text) node.textContent = text;
+  if (node.dataset.text === text) return;
+  if (hasGlyphs(text)) {
+    node.dataset.text = text;
+    renderRich(node, text);
+  } else if (node.textContent !== text || node.dataset.text !== undefined) {
+    delete node.dataset.text;
+    node.textContent = text;
+  }
 }
 
 /** Restart a short "pop" animation on an element. */

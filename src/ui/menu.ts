@@ -1,13 +1,7 @@
 import type { PieceKind } from '../game/pieces';
 import type { Settings } from './settings';
 import { spriteUrl } from './sprites';
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (cls) node.className = cls;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
+import { el } from './dom';
 
 export interface MenuOptions {
   hasSave: boolean;

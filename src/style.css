@@ -1431,3 +1431,14 @@ button.ability-chip:hover { opacity: 1; }
 .unit.enemy .unit-body::before { background: #ff4d6d8c; }
 .unit.boss .unit-body::before { background: #ffcf4ab3; }
 .unit.dead .unit-body::before { opacity: 0; }
+
+/* Pixel icons inline with text */
+.icon { width: 1em; height: 1em; image-rendering: pixelated; vertical-align: -0.12em; display: inline-block; }
+.result-stars span .icon { width: 1em; height: 1em; }
+.result-stars span:not(.on) .icon { filter: grayscale(1) brightness(0.45); }
+.result-stars span.on { text-shadow: none; filter: drop-shadow(0 4px 0 var(--gold-deep)); }
+.unit.boss::after { content: ''; width: 34%; height: 34%; top: -16%; background: var(--icon-crown) center / contain no-repeat; image-rendering: pixelated; }
+.level-stars .icon { width: 14px; height: 14px; }
+.level-tile .icon { width: 26px; height: 26px; }
+.map-king { right: -34px; top: -34px; }
+@media (width <= 560px) { .map-king { right: -22px; top: -26px; } .level-tile .icon { width: 20px; height: 20px; } }
