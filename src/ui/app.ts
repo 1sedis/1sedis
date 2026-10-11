@@ -317,7 +317,7 @@ function wipe(): void {
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const b = el('span');
-        b.style.animationDelay = `${(x + y) * 22}ms`;
+        b.style.animationDelay = `${(x + y) * 12}ms`;
         wipeEl.append(b);
       }
     }

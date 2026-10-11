@@ -135,7 +135,9 @@ export class CampScreen implements Screen {
     });
     if (kind === 'king') recruitBtn.hidden = true;
     actions.append(recruitBtn, upgradeBtn);
-    root.append(icon, body, actions);
+    const portrait = el('div', 'portrait');
+    portrait.append(icon);
+    root.append(portrait, body, actions);
     this.armyRows.push({ kind, root, meta, stats, ability, icon, recruitBtn, upgradeBtn });
     return root;
   }
@@ -229,6 +231,7 @@ export class CampScreen implements Screen {
       const src = spriteUrl(row.kind, 'ally', tier as Tier);
       if (row.icon.src !== src) row.icon.src = src;
       row.icon.classList.toggle('tier-2', tier === 2);
+      row.icon.parentElement!.dataset.tier = String(unlocked ? tier : -1);
 
       const maxedQueen = row.kind === 'queen' && s.army.queen >= 1;
       const rCost = recruitCost(s, row.kind);
