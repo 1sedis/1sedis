@@ -57,6 +57,12 @@ export class BoardView {
     this.calloutEl = el('div', 'boss-callout');
     this.introEl = el('div', 'boss-intro');
     this.root.append(this.unitLayer, this.fxLayer, this.banner, this.calloutEl, this.introEl);
+    // One-shot animations must drop their class when done: a hidden screen that is shown
+    // again restarts every running CSS animation, which would replay old callouts.
+    this.calloutEl.addEventListener('animationend', () => this.calloutEl.classList.remove('show'));
+    this.root.addEventListener('animationend', (e) => {
+      if (e.target === this.root) this.root.classList.remove('shake', 'shake-big');
+    });
 
     // Chess notation around the board: ranks 8..1 on the left, files a..h below.
     this.frame = el('div', 'board-frame');
@@ -76,6 +82,8 @@ export class BoardView {
   /** Drop leftover effects (they never finish while the screen is hidden). */
   clearFx(): void {
     this.fxLayer.replaceChildren();
+    this.calloutEl.classList.remove('show');
+    this.root.classList.remove('shake', 'shake-big');
   }
 
   /** Colour the board for a chapter (1-4). */
