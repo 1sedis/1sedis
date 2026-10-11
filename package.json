@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run tests/",
     "bot": "vitest run scripts/campaign-bot.test.ts --silent=false",
+    "bot:story": "vitest run scripts/story-bot.test.ts --silent=false",
     "typecheck": "tsc --noEmit",
     "build:artifact": "node scripts/build-artifact.mjs"
   },

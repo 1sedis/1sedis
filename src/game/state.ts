@@ -461,12 +461,13 @@ export function terrainFor(s: GameState, levelId: string): Terrain[] {
 
 /**
  * Enemy level in the finale: the Hand knows your strength. The mean level of
- * your five best piece types (the king aside).
+ * your five strongest pieces (the king aside), counting every copy, so a few
+ * neglected pieces cannot drag it down.
  */
 export function finaleLevel(s: GameState): number {
   const levels = (Object.keys(s.army) as PieceKind[])
-    .filter((k) => k !== 'king' && s.army[k] > 0)
-    .map((k) => s.levels[k])
+    .filter((k) => k !== 'king')
+    .flatMap((k) => new Array<number>(s.army[k]).fill(s.levels[k]))
     .sort((a, c) => c - a)
     .slice(0, 5);
   return levels.length ? Math.round(levels.reduce((a, c) => a + c, 0) / levels.length) : 1;
