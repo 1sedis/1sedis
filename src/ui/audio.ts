@@ -243,6 +243,23 @@ class AudioEngine {
 
   // ---------- Sound effects ----------
 
+  /** One syllable of a speaking character: a short blip in the speaker's own register. */
+  blip(voice: 'black' | 'white' | 'hand' | 'soft'): void {
+    if (!this.settings.sound || !this.ensure() || this.ctx!.state !== 'running') return;
+    const t = this.ctx!.currentTime;
+    const jitter = 1 + (Math.random() - 0.5) * 0.18;
+    const out = this.sfxGain;
+    if (voice === 'black') this.voice(150 * jitter, t, 0.06, 0.08, out, { type: 'sawtooth' });
+    else if (voice === 'white') this.voice(520 * jitter, t, 0.045, 0.06, out, { pulse: true });
+    else if (voice === 'soft') this.voice(330 * jitter, t, 0.05, 0.04, out, { type: 'triangle' });
+    else {
+      // The Hand: two low, detuned voices and a hiss.
+      this.voice(62 * jitter, t, 0.09, 0.12, out, { type: 'sawtooth' });
+      this.voice(93 * jitter, t, 0.09, 0.07, out, { type: 'square' });
+      this.noise(t, 0.06, 0.12, out, 'bandpass', 900);
+    }
+  }
+
   play(name: Sfx, delay = 0): void {
     if (!this.settings.sound || !this.ensure() || this.ctx!.state !== 'running') return;
     const t = this.ctx!.currentTime + delay;

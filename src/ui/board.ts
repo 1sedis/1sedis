@@ -296,6 +296,15 @@ export class BoardView {
     ], { duration: 700, easing: 'ease-in-out' }).onfinish = () => ghost.remove();
   }
 
+  /** A short line shouted by a piece in battle. */
+  bark(x: number, y: number, text: string, team: Team | 'hand'): void {
+    const b = el('div', `bark ${team}${y < 2 ? ' below' : ''}${x <= 1 ? ' edge-left' : x >= 6 ? ' edge-right' : ''}`, text);
+    b.style.left = `${(x + 0.5) * 12.5}%`;
+    b.style.top = `${(y < 2 ? y + 1 : y) * 12.5}%`;
+    b.addEventListener('animationend', () => b.remove());
+    this.fxLayer.append(b);
+  }
+
   /** "Переворот доски": the whole board turns over on its axis. */
   flip(): void {
     if (REDUCED_MOTION) return;
@@ -425,7 +434,7 @@ export class BoardView {
   }
 
   /** A dead piece breaks into four pieces of its own sprite that fly apart. */
-  private shatter(x: number, y: number, src: string): void {
+  shatter(x: number, y: number, src: string): void {
     const dirs = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
     dirs.forEach(([dx, dy], i) => {
       const s = el('div', 'fx-shard');

@@ -26,6 +26,7 @@ import { BoardView, type UnitView } from '../board';
 import { openRelicPicker, relicStrip } from '../relics';
 import { playStory } from '../story';
 import { playEnding, playFinaleScene } from '../finale';
+import { skipScenes } from '../cutscene';
 import { handUrl } from '../handArt';
 import { openCodex } from '../codex';
 import type { Ctx, Screen } from '../context';
@@ -230,8 +231,15 @@ export class ArenaScreen implements Screen {
       return;
     }
     this.enterPrep();
-    if (isFinale(this.levelId)) void playFinaleScene(this.ctx.state, finalePhase(this.levelId), () => this.ctx.save());
-    else void playStory(this.ctx.state, this.levelId, () => this.ctx.save());
+    const save = () => this.ctx.save();
+    const cast = this.collectUnits();
+    this.scene = isFinale(this.levelId)
+      ? playFinaleScene(this.ctx.state, finalePhase(this.levelId), save, this.board, cast)
+      : playStory(this.ctx.state, this.levelId, save, this.board, cast);
+    const scene = this.scene;
+    void scene.then(() => {
+      if (this.scene === scene) this.scene = null;
+    });
   }
 
   private enterPrep(): void {
@@ -416,7 +424,11 @@ export class ArenaScreen implements Screen {
     this.selection = null;
   }
 
+  /** A scene playing on the board; the battle waits for it. */
+  private scene: Promise<void> | null = null;
+
   private startBattle(): void {
+    if (this.scene) return;
     const s = this.ctx.state;
     sanitizeFormation(s, this.limit(), this.levelId);
     if (fieldedCount(s) === 0) {
@@ -449,6 +461,7 @@ export class ArenaScreen implements Screen {
   }
 
   private leave(): void {
+    skipScenes();
     if (this.autoTimer !== null) {
       clearTimeout(this.autoTimer);
       this.autoTimer = null;
@@ -478,7 +491,8 @@ export class ArenaScreen implements Screen {
     if (outcome.ending) {
       this.setTimeLock(false);
       setTimeout(() => {
-        void playEnding(this.ctx.state).then(() => this.showResult(outcome));
+        this.board.showBanner(null);
+        void playEnding(this.ctx.state, this.board, this.collectUnits()).then(() => this.showResult(outcome));
       }, 1400);
       return;
     }
@@ -688,6 +702,7 @@ export class ArenaScreen implements Screen {
     this.board.setFxLevel(speed >= 4 ? 0 : speed >= 2 ? 1 : 2);
     this.board.render(this.collectUnits());
     if (events.length) {
+      this.barks(events);
       this.handEvents(events);
       this.bossEvents(events);
       this.firstAbility(events);
@@ -755,6 +770,44 @@ export class ArenaScreen implements Screen {
     setText(this.bossPhase, ratio <= 0 ? 'Повержен' : b.bossPhase === 2 ? `☠ ${BOSSES[b.bossId!].rage}` : `${Math.ceil(ratio * 100)}%`);
     this.bossBar.classList.toggle('enraged', b.bossPhase === 2);
     this.board.setWarnings(b.warnings.flatMap((w) => w.cells));
+  }
+
+  private lastBark = 0;
+  private barked = new Set<string>();
+
+  /** Short lines the pieces shout in battle: bosses in rage, kings in danger, the Hand at work. */
+  private barks(events: BattleEvent[]): void {
+    const b = this.battle;
+    if (!b) return;
+    const now = performance.now();
+    if (b.tick <= 3) this.barked.clear();
+    const shout = (key: string | null, x: number, y: number, text: string, team: 'ally' | 'enemy' | 'hand', force = false) => {
+      if (key && this.barked.has(key)) return;
+      if (!force && now - this.lastBark < 2500) return;
+      if (key) this.barked.add(key);
+      this.lastBark = now;
+      this.board.bark(x, y, text, team);
+    };
+    for (const e of events) {
+      if (e.type === 'rage' && b.bossId) {
+        shout('rage', e.x, e.y, RAGE_LINES[b.bossId] ?? 'Ярость!', b.bossId === 'hand' ? 'hand' : 'enemy', true);
+      } else if (e.type === 'boss' && b.bossId === 'hand' && e.label && HAND_LINES[e.label]) {
+        shout(null, e.x, e.y, HAND_LINES[e.label]!, 'hand');
+      } else if (e.type === 'promote' && e.side === 'ally') {
+        shout('promote', e.x, e.y, 'Я — ферзь!', 'ally');
+      } else if (e.type === 'save' && e.side === 'ally') {
+        shout('save', e.x, e.y, 'Ещё не конец!', 'ally', true);
+      }
+    }
+    for (const u of b.units) {
+      if (u.kind !== 'king' || u.hp <= 0 || u.boss) continue;
+      if (u.side === 'ally' && u.hp < u.maxHp * 0.3) shout('ally-king', u.x, u.y, 'Ко мне, стража!', 'ally');
+      if (u.side === 'enemy' && u.hp < u.maxHp * 0.3) shout('enemy-king', u.x, u.y, 'Нет… не сейчас!', 'enemy');
+    }
+    if (this.levelId === 'final-2' && b.tick >= 20) {
+      const bk = b.units.find((u) => u.side === 'ally' && u.boss && u.kind === 'king' && u.hp > 0);
+      if (bk) shout('bk-ally', bk.x, bk.y, 'За Белого короля!', 'enemy');
+    }
   }
 
   /** The Hand moves pieces and turns the board over; its rage locks the speed. */
@@ -891,6 +944,13 @@ export class ArenaScreen implements Screen {
     };
   }
 }
+
+const RAGE_LINES: Partial<Record<string, string>> = {
+  captain: 'Сомкнуть ряды!', rider: 'Ты не уйдёшь!', fortress: 'Камень не сдаётся!', queen: 'На колени!',
+  guardian: 'Бездна голодна!', blackKing: 'Все искажения — сейчас!', hand: 'ПЕРЕВЕРНУТЬ.',
+};
+
+const HAND_LINES: Partial<Record<string, string>> = { 'Щелчок': 'Щёлк.', 'Перестановка': 'Не туда.', 'Тени партий': 'Встаньте.' };
 
 function hitSound(e: BattleEvent): 'crit' | 'shot' | 'hit' {
   if (e.crit) return 'crit';

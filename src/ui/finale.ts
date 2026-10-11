@@ -5,11 +5,10 @@ import { fmt } from './format';
 import { handUrl } from './handArt';
 import { spriteUrl, type Tier } from './sprites';
 import { abilityTier } from '../game/abilities';
-import { playScene, type Page } from './story';
+import type { BoardView, UnitView } from './board';
+import { Stage } from './cutscene';
+import { endingScene, finaleScene } from './scenes';
 import { audio } from './audio';
-
-const BK = (text: string): Page => ({ who: 'black', name: 'Чёрный король', text });
-const HAND = (text: string): Page => ({ who: 'hand', name: 'Рука над доской', text });
 
 /** "02:14 ночи", "15:40 дня" — the player's own clock, read aloud by the Hand. */
 function clock(): string {
@@ -26,52 +25,24 @@ function battles(n: number): string {
   return `${fmt(n)} ${word}`;
 }
 
-/** The scene before each phase of the finale. The Hand speaks to the person at the screen. */
-function phasePages(s: GameState, phase: number): Page[] {
-  if (phase === 1) {
-    return [
-      BK('Ты дошёл до края доски. Я узнал тебя — ты помнишь все партии, как и я.'),
-      BK('Это последняя партия. Если я проиграю, доска снова перевернётся. Так было тысячу раз.'),
-      BK('Поэтому я выставлю всё: полную армию и все искажения сразу. Победи — и посмотри, что будет.'),
-    ];
-  }
-  if (phase === 2) {
-    return [
-      BK('Ты… победил. Сейчас она перевернёт доску. Смотри наверх.'),
-      HAND('ЕЩЁ. ОДНА. ПАРТИЯ.'),
-      BK('Это Рука. Она переворачивает доску каждый раз, когда кто-то побеждает.'),
-      BK('Теперь против тебя — твоя же армия, отражённая в чёрном. Я встану рядом с твоим королём.'),
-    ];
-  }
-  return [
-    HAND('Ты всё ещё здесь.'),
-    HAND(`${battles(s.stats.battles)}. ${gameNumber(s)}-я партия. На твоих часах ${clock()} — а ты всё играешь.`),
-    HAND('Ты правда не понял? Я — рука над доской. Та, что каждый раз нажимала «Новая партия».'),
-    HAND('Я — это ты.'),
-    BK('Тогда победи себя. Только так доска перестанет переворачиваться.'),
-  ];
-}
-
-/** Show a phase's scene once per save (the Hand's monologue every time: it knows the clock). */
-export function playFinaleScene(s: GameState, phase: number, save: () => void): Promise<void> {
+/**
+ * The scene before a finale phase, acted on the arena board. Phases 1 and 2
+ * play once per save; the Hand's monologue every time (it reads the clock).
+ */
+export function playFinaleScene(s: GameState, phase: number, save: () => void, board: BoardView, cast: UnitView[]): Promise<void> {
   const key = `story_final_${phase}`;
   if (s.tutorial.includes(key) && phase !== 3) return Promise.resolve();
   if (!s.tutorial.includes(key)) {
     s.tutorial.push(key);
     save();
   }
-  return playScene(phasePages(s, phase), 'В бой');
+  const steps = finaleScene(phase, cast, { battles: battles(s.stats.battles), game: gameNumber(s), clock: clock() });
+  return new Stage(board, cast).run(steps);
 }
 
-/** After the Hand falls: the last words, then the credits. */
-export async function playEnding(s: GameState): Promise<void> {
-  await playScene([
-    HAND('…Хорошо.'),
-    HAND('Пусть доска стоит.'),
-    BK('Цикл разорван. Впервые за тысячу партий никто не перевернёт доску.'),
-    BK('Возьми корону. Настоящую — она больше не меняет того, кто её носит.'),
-    { who: 'white', name: 'Летопись · Доска, которая стоит', text: 'Белый и Чёрный король стоят рядом. Над доской — только небо.', accent: true },
-  ], 'Титры');
+/** After the Hand falls: its last words and the crowning on the board, then the credits. */
+export async function playEnding(s: GameState, board: BoardView, cast: UnitView[]): Promise<void> {
+  await new Stage(board, cast).run(endingScene(cast));
   await playCredits(s);
 }
 
