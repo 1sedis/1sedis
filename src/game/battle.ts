@@ -282,11 +282,94 @@ function royalHeal(b: Battle): void {
   }
 }
 
+type Grid = (Unit | undefined)[];
+
+/** Occupancy grid of living units, optionally leaving one unit out. */
+function buildGrid(b: Battle, except?: Unit): Grid {
+  const grid: Grid = new Array(BOARD_SIZE * BOARD_SIZE);
+  for (const u of b.units) if (u.hp > 0 && u !== except) grid[u.y * BOARD_SIZE + u.x] = u;
+  return grid;
+}
+
+/** Same rules as reachFrom, but against a prepared grid (used by path search). */
+function reachesGoal(grid: Grid, side: Side, kind: PieceKind, x: number, y: number, goal: Set<Unit>): boolean {
+  const hit = (cx: number, cy: number) => {
+    if (!inside(cx, cy)) return false;
+    const t = grid[cy * BOARD_SIZE + cx];
+    return !!t && t.side !== side && goal.has(t);
+  };
+  for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if ((dx || dy) && hit(x + dx, y + dy)) return true;
+  if (kind === 'knight' && KNIGHT_OFFSETS.some(([dx, dy]) => hit(x + dx, y + dy))) return true;
+  const range = PIECES[kind].range;
+  for (const [dx, dy] of lineDirections(kind)) {
+    for (let step = 1; step <= range; step++) {
+      const cx = x + dx * step;
+      const cy = y + dy * step;
+      if (!inside(cx, cy)) break;
+      if (grid[cy * BOARD_SIZE + cx]) {
+        if (hit(cx, cy)) return true;
+        break;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Breadth-first search over the piece's own moves for the nearest free cell
+ * from which it can hit one of `goal`. Returns the first step of that path.
+ */
+function pathStep(b: Battle, u: Unit, goal: Unit[]): [number, number] | null {
+  if (goal.length === 0) return null;
+  const grid = buildGrid(b, u);
+  const goalSet = new Set(goal);
+  const start = u.y * BOARD_SIZE + u.x;
+  const prev = new Int16Array(BOARD_SIZE * BOARD_SIZE).fill(-1);
+  prev[start] = start;
+  const queue = [start];
+  for (let head = 0; head < queue.length; head++) {
+    const cur = queue[head];
+    const cx = cur % BOARD_SIZE;
+    const cy = Math.floor(cur / BOARD_SIZE);
+    for (const [dx, dy] of moveOffsets(u.kind)) {
+      const x = cx + dx;
+      const y = cy + dy;
+      if (!inside(x, y)) continue;
+      const n = y * BOARD_SIZE + x;
+      if (grid[n] || prev[n] !== -1) continue;
+      prev[n] = cur;
+      if (reachesGoal(grid, u.side, u.kind, x, y, goalSet)) {
+        let step = n;
+        while (prev[step] !== start) step = prev[step];
+        return [step % BOARD_SIZE, Math.floor(step / BOARD_SIZE)];
+      }
+      queue.push(n);
+    }
+  }
+  return null;
+}
+
 /** Score of standing on a cell: 0 if something is in reach, else distance to the goal. */
 function cellScore(b: Battle, u: Unit, x: number, y: number, goal: Unit[]): number {
   if (reachFrom(b, u.side, u.kind, x, y).length > 0) return 0;
   let best = Infinity;
   for (const g of goal) best = Math.min(best, manhattan(g, x, y));
+  return best;
+}
+
+function greedyStep(b: Battle, u: Unit, goal: Unit[]): [number, number] | null {
+  let best: [number, number] | null = null;
+  let bestScore = cellScore(b, u, u.x, u.y, goal);
+  for (const [dx, dy] of moveOffsets(u.kind)) {
+    const x = u.x + dx;
+    const y = u.y + dy;
+    if (!inside(x, y) || unitAt(b, x, y)) continue;
+    const score = cellScore(b, u, x, y, goal);
+    if (score < bestScore) {
+      bestScore = score;
+      best = [x, y];
+    }
+  }
   return best;
 }
 
@@ -320,19 +403,9 @@ function moveUnit(b: Battle, u: Unit): void {
     const prey = enemies.filter((e) => e.kind === 'king' || RANGED.has(e.kind));
     if (prey.length) goal = prey;
   }
-  const current = cellScore(b, u, u.x, u.y, goal);
-  let best: [number, number] | null = null;
-  let bestScore = current;
-  for (const [dx, dy] of moveOffsets(u.kind)) {
-    const x = u.x + dx;
-    const y = u.y + dy;
-    if (!inside(x, y) || unitAt(b, x, y)) continue;
-    const score = cellScore(b, u, x, y, goal);
-    if (score < bestScore) {
-      bestScore = score;
-      best = [x, y];
-    }
-  }
+  // Prefer a real path to an attacking square; fall back to a greedy step
+  // when every route is blocked for now.
+  const best = pathStep(b, u, goal) ?? (goal !== enemies ? pathStep(b, u, enemies) : null) ?? greedyStep(b, u, goal);
   if (best) {
     [u.x, u.y] = best;
     u.wait = u.moveCd;
