@@ -167,12 +167,10 @@ export function gameIntroScene(game: number): Step[] {
       return [
         ...opening(), ...head,
         { t: 'caption', text: 'Ты понимаешь: дело не в ферзе и не в короле.' },
-        { t: 'handIn' },
-        { t: 'caption', text: 'Доску переворачивает рука над ней.' },
-        say('giant-hand', 'ЕЩЁ. ОДНА. ПАРТИЯ.'),
-        { t: 'handOut' },
-        say('bk', 'Ты тоже её видел? Значит, она пришла и за тобой.'),
-        say('bk', 'Иди к краю доски. Если хватит сил — она будет ждать там.'),
+        { t: 'shadow' },
+        { t: 'caption', text: 'На миг над доской проходит тень — огромная, как ладонь.' },
+        { t: 'hop', id: 'bk' },
+        say('bk', 'Ты тоже это почувствовал? Не смотри наверх. Пока — не смотри.'),
         { t: 'caption', text: 'Чтобы закончить цикл, мало выиграть партию. Нужно не дать доске перевернуться.' },
         ...distortionCard(game),
       ];
@@ -190,6 +188,33 @@ export function gameIntroScene(game: number): Step[] {
 }
 
 // ---------- The finale ----------
+
+/** The first time the edge of the board opens: the Hand shows itself and wipes the board clean. */
+export function revealScene(): Step[] {
+  const hand = (text: string): Step => ({ t: 'say', id: 'giant-hand', text, name: '???', voice: 'hand' });
+  return [
+    ...opening(true),
+    { t: 'caption', text: 'Обычная партия. Обычный ход.' },
+    { t: 'move', id: 'wp5', x: 5, y: 5 },
+    { t: 'move', id: 'bp2', x: 2, y: 2 },
+    { t: 'freeze' },
+    { t: 'caption', text: 'И вдруг фигуры замирают.' },
+    { t: 'shadow' },
+    { t: 'shake' },
+    say('bk', 'Нет… Только не сейчас. Она пришла.'),
+    { t: 'glitch', ms: 500 },
+    { t: 'crack' },
+    { t: 'handIn', ms: 2600 },
+    { t: 'wait', ms: 500 },
+    hand('…'),
+    hand('Я ВИЖУ ТЕБЯ.'),
+    { t: 'sweep' },
+    { t: 'flash', color: '#c77dff' },
+    hand('КРАЙ ДОСКИ ЖДЁТ.'),
+    { t: 'handOut' },
+    { t: 'title', text: 'Открыт Край доски', sub: 'Над доской кто-то есть. Поднимитесь к краю — если осмелитесь.', accent: true },
+  ];
+}
 
 function free(cast: UnitView[], y: number, near: number): number {
   const taken = new Set(cast.filter((v) => v.y === y).map((v) => v.x));

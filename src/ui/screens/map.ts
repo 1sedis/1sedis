@@ -1,7 +1,7 @@
 import { ABYSS_UNLOCK, CHAPTERS, abyssId, finaleId, enemyPlacements, levelIncome, type ChapterDef } from '../../game/levels';
 import { RELIC_IDS } from '../../game/relics';
 import {
-  canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, prestige, isFinaleOpen, FINALE_FLOOR, FINALE_GAME,
+  canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, prestige, isFinaleOpen,
   collectTreasury, currentLevelId, incomePerMinute, isLevelOpen, treasuryCap, treasuryCapHours,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
@@ -12,10 +12,12 @@ import { openRelicPicker, relicStrip } from '../relics';
 import { spriteUrl } from '../sprites';
 import { drawChapterScene } from '../mapArt';
 import { openCrownTree } from '../crownTree';
-import { openChronicle, playGameIntro } from '../story';
+import { openChronicle, playGameIntro, playReveal } from '../story';
 import { playCredits } from '../finale';
 import { handUrl } from '../handArt';
 import { DISTORTIONS, distortionFor } from '../../game/distortions';
+
+const REVEAL_KEY = 'story_final_reveal';
 
 // Snake layout of the nine nodes on a 3x3 grid: row 1 left→right, row 2 right→left, row 3 left→right.
 const GRID_POS = [[1, 1], [2, 1], [3, 1], [3, 2], [2, 2], [1, 2], [1, 3], [2, 3], [3, 3]];
@@ -113,8 +115,8 @@ export class MapScreen implements Screen {
     this.prestigeCard.append(pHead, this.prestigeInfo, this.distortionInfo, this.prestigeBtn, this.treeBtn, this.chronicleBtn);
 
     const fHead = el('div', 'panel-head');
-    fHead.append(el('span', 'panel-title', 'Край доски'), infoBtn('Рука над доской',
-      `Финал истории: три боя подряд — «Последняя партия», «Зеркало» и «Рука над доской».\nОткрывается в ${FINALE_GAME}-й партии после Чёрного ферзя или на ${FINALE_FLOOR}-м этаже Бездны.\nВраги подстраиваются под силу вашей армии. Выигранные фазы сохраняются.`));
+    fHead.append(el('span', 'panel-title', 'Край доски'), infoBtn('Край доски',
+      'Конец истории: три боя подряд, один страшнее другого.\nВраги подстраиваются под силу вашей армии — помогут кузница, реликвии, древо и рулетка. Выигранные бои сохраняются.'));
     const fImg = el('img', 'finale-img');
     fImg.src = handUrl();
     fImg.alt = '';
@@ -163,6 +165,24 @@ export class MapScreen implements Screen {
     setText(this.chapterTitle, chapter.name);
     setText(this.chapterSub, `${chapter.subtitle} · до ${chapter.limit} фигур в бою`);
     this.renderPath(chapter);
+  }
+
+  private revealing = false;
+
+  /** The Hand's first appearance: a scene on its own board, once per save, then the card shows up. */
+  private async reveal(): Promise<void> {
+    if (this.revealing || document.querySelector('.stage-overlay, .modal-overlay')) return;
+    this.revealing = true;
+    try {
+      await playReveal();
+      this.ctx.state.tutorial.push(REVEAL_KEY);
+      this.ctx.save();
+      this.finaleCard.hidden = false;
+      this.finaleCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      this.finaleCard.classList.add('just-opened');
+    } finally {
+      this.revealing = false;
+    }
   }
 
   private async onPrestige(): Promise<void> {
@@ -269,18 +289,16 @@ export class MapScreen implements Screen {
       : `🔒 После босса ${ABYSS_UNLOCK}`);
     this.abyssBtn.hidden = !abyssOpen;
     this.abyssCard.classList.toggle('locked', !abyssOpen);
+    // The edge of the board is a secret until it opens with the Hand's own entrance.
     const fOpen = isFinaleOpen(s);
-    this.finaleCard.hidden = !fOpen && s.prestige === 0 && s.abyss.best < 20;
-    this.finaleCard.classList.toggle('locked', !fOpen);
+    const revealed = s.tutorial.includes(REVEAL_KEY) || s.finale.phase > 0 || s.finale.beaten;
+    if (fOpen && !revealed) void this.reveal();
+    this.finaleCard.hidden = !fOpen || !revealed;
     this.finaleCard.classList.toggle('beaten', s.finale.beaten);
     setText(this.finaleInfo, s.finale.beaten
       ? 'Рука опущена. Доска больше не переворачивается.'
-      : fOpen
-        ? `Над доской кто-то есть… Пройдено фаз: ${s.finale.phase} из 3`
-        : `🔒 Партия ${FINALE_GAME} или ${FINALE_FLOOR}-й этаж Бездны (сейчас: партия ${gameNumber(s)}, этаж ${s.abyss.best})`);
+      : `Над доской кто-то есть… Пройдено боёв: ${s.finale.phase} из 3`);
     [...this.finalePips.children].forEach((p, i) => p.classList.toggle('on', s.finale.beaten || i < s.finale.phase));
-    this.finalePips.hidden = !fOpen;
-    this.finaleBtn.hidden = !fOpen;
     setText(this.finaleBtn, s.finale.beaten ? 'Сразиться снова' : s.finale.phase ? `Фаза ${s.finale.phase + 1}` : 'Подняться к краю');
     this.creditsBtn.hidden = !s.finale.beaten;
     const ready = canPrestige(s);

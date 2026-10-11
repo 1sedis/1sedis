@@ -3,7 +3,7 @@
 export type Sfx =
   | 'hit' | 'shot' | 'crit' | 'death' | 'promote' | 'heal' | 'save' | 'ability' | 'shieldBreak'
   | 'win' | 'lose' | 'start' | 'star' | 'click' | 'select' | 'buy' | 'levelup' | 'relic' | 'coins' | 'achievement'
-  | 'roar' | 'warn' | 'quake' | 'bossDown';
+  | 'roar' | 'warn' | 'quake' | 'bossDown' | 'doom';
 
 export type TrackId = 'menu' | 'map' | 'battle' | 'boss';
 
@@ -351,6 +351,13 @@ class AudioEngine {
       case 'quake':
         this.noise(t, 0.45, 0.6, out, 'lowpass', 400);
         this.voice(70, t, 0.4, 0.25, out, { type: 'triangle', slideTo: 35 });
+        break;
+      case 'doom':
+        // Something enormous above the board: a long falling drone with a rumble.
+        this.voice(98, t, 2.2, 0.2, out, { type: 'sawtooth', slideTo: 41, attack: 0.4 });
+        this.voice(147, t + 0.1, 2, 0.12, out, { type: 'square', slideTo: 52, attack: 0.5 });
+        this.voice(49, t, 2.4, 0.22, out, { type: 'triangle', slideTo: 30, attack: 0.3 });
+        this.noise(t + 0.2, 2, 0.35, out, 'lowpass', 300);
         break;
       case 'bossDown':
         this.noise(t, 0.7, 0.6, out, 'lowpass', 1200);

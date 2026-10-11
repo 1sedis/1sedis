@@ -4,7 +4,7 @@ import type { GameState } from '../game/state';
 import { el, openModal } from './dom';
 import type { BoardView, UnitView } from './board';
 import { Stage, playStageOverlay } from './cutscene';
-import { gameIntroScene, levelScene } from './scenes';
+import { gameIntroScene, levelScene, revealScene } from './scenes';
 
 /** The Black King's scene before a level, acted on the arena board, once per save. */
 export function playStory(s: GameState, levelId: string, save: () => void, board: BoardView, cast: UnitView[]): Promise<void> {
@@ -19,6 +19,11 @@ export function playStory(s: GameState, levelId: string, save: () => void, board
 /** The scene that opens a new game: the Chronicle chapter acted out, then the new distortion. */
 export function playGameIntro(game: number): Promise<void> {
   return playStageOverlay(gameIntroScene(game), Math.min(4, Math.max(1, game - 1)));
+}
+
+/** The edge of the board opens: the Hand's first appearance. */
+export function playReveal(): Promise<void> {
+  return playStageOverlay(revealScene(), 6);
 }
 
 /** Re-read the chronicle: every chapter up to the current game, and the ending once it is reached. */

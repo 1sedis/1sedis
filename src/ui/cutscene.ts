@@ -40,7 +40,10 @@ export type Step = { par?: boolean } & (
   | { t: 'grow'; id: string; scale: number }
   | { t: 'morph'; id: string; kind: PieceKind; team: Team; tier?: Tier }
   | { t: 'crown'; id: string }
-  | { t: 'handIn' }
+  | { t: 'handIn'; ms?: number }
+  | { t: 'freeze' }
+  | { t: 'shadow' }
+  | { t: 'sweep' }
   | { t: 'handOut' }
   | { t: 'glitch'; ms: number }
   | { t: 'sfx'; name: Sfx }
@@ -409,19 +412,51 @@ export class Stage {
         this.layer.append(hand);
         const node = el('div');
         this.actors.set('giant-hand', { id: 'giant-hand', node, img: hand, kind: 'hand', team: 'enemy', x: 3.5, y: 0 });
-        audio.play('roar');
-        hand.animate([{ translate: '0 -120%', opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 1100, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' });
-        await this.wait(1100);
+        const ms = s.ms ?? 1100;
+        audio.play(ms > 1500 ? 'doom' : 'roar');
+        hand.animate([{ translate: '0 -120%', opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: ms, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' });
+        await this.wait(ms);
         this.shake(true);
         return;
       }
       case 'handOut': {
         const hand = this.actors.get('giant-hand');
         if (!hand) return;
-        hand.img.animate([{ translate: '0 0', opacity: 1 }, { translate: '0 -120%', opacity: 0 }], { duration: 800, easing: 'ease-in', fill: 'forwards' });
-        await this.wait(800);
+        hand.img.animate([{ translate: '0 0', opacity: 1 }, { translate: '0 -120%', opacity: 0 }], { duration: 1200, easing: 'ease-in', fill: 'forwards' });
+        await this.wait(1200);
         hand.img.remove();
         this.actors.delete('giant-hand');
+        return;
+      }
+      case 'freeze':
+        // Every piece stops breathing.
+        this.layer.classList.add('frozen');
+        audio.play('warn');
+        return this.wait(500);
+      case 'shadow': {
+        const shade = el('div', 'scene-shadow');
+        this.layer.prepend(shade);
+        audio.play('doom');
+        return this.wait(1800);
+      }
+      case 'sweep': {
+        // The Hand clears the board: every piece flies off, the nearest first.
+        const hand = this.actors.get('giant-hand');
+        hand?.img.animate([{ translate: '0 0', rotate: '0deg' }, { translate: '-30% 25%', rotate: '-18deg' }, { translate: '35% 25%', rotate: '14deg' }, { translate: '0 0', rotate: '0deg' }],
+          { duration: 900, easing: 'ease-in-out' });
+        this.shake(true);
+        audio.play('quake');
+        const list = [...new Set(this.actors.values())].filter((x) => x.id !== 'giant-hand').sort((p, q) => p.y - q.y || p.x - q.x);
+        list.forEach((x, i) => {
+          const dir = x.x < 4 ? -1 : 1;
+          x.node.animate([{ translate: '0 0', rotate: '0deg', opacity: 1 }, { translate: `${dir * (500 + i * 40)}% ${-200 - (i % 3) * 120}%`, rotate: `${dir * 540}deg`, opacity: 0 }],
+            { duration: 900, delay: 150 + i * 35, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' });
+        });
+        await this.wait(1100 + list.length * 35);
+        for (const x of list) {
+          x.node.remove();
+          this.actors.delete(x.id);
+        }
         return;
       }
       case 'glitch':

@@ -50,7 +50,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   A('abyss_10', 'Глубины', 'Пройдите 10 этажей Бездны', 10, 2000, (s) => s.abyss.best),
   A('abyss_30', 'Бездонный', 'Пройдите 30 этажей Бездны', 30, 15000, (s) => s.abyss.best),
   A('prestige_1', 'Новая партия', 'Начните новую партию с коронами', 1, 10000, (s) => s.prestige),
-  A('finale', 'Доска не перевернётся', 'Победите Руку над доской', 1, 50000, (s) => (s.finale?.beaten ? 1 : 0)),
+  A('finale', 'Доска не перевернётся', 'Дойдите до конца истории', 1, 50000, (s) => (s.finale?.beaten ? 1 : 0)),
 ];
 
 export function getAchievement(id: string): AchievementDef | undefined {
