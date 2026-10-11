@@ -10,6 +10,7 @@ import { fmt } from '../format';
 import { audio } from '../audio';
 import { openRelicPicker, relicStrip } from '../relics';
 import { spriteUrl } from '../sprites';
+import { drawChapterScene } from '../mapArt';
 
 // Snake layout of the nine nodes on a 3x3 grid: row 1 left→right, row 2 right→left, row 3 left→right.
 const GRID_POS = [[1, 1], [2, 1], [3, 1], [3, 2], [2, 2], [1, 2], [1, 3], [2, 3], [3, 3]];
@@ -24,6 +25,8 @@ export class MapScreen implements Screen {
   private chapterSub = el('div', 'chapter-sub');
   private chapterBoss = el('img', 'chapter-boss');
   private path = el('div', 'level-path');
+  private scene = el('canvas', 'map-scene');
+  private sceneSig = '';
   private treasuryAmount = el('b');
   private treasuryFill = el('div', 'bar-fill');
   private treasuryInfo = el('div', 'treasury-info');
@@ -47,6 +50,8 @@ export class MapScreen implements Screen {
     this.chapterBoss.alt = '';
     head.append(titles, el('div', 'chapter-strip'), this.chapterBoss);
     main.append(this.tabs, head, this.path);
+    // Redraw the landscape when the map changes size (window resize, phone rotation).
+    new ResizeObserver(() => this.drawScene()).observe(this.path);
 
     const side = el('aside', 'map-side');
     const treasury = el('div', 'card treasury');
@@ -156,7 +161,7 @@ export class MapScreen implements Screen {
   private renderPath(chapter: ChapterDef): void {
     const s = this.ctx.state;
     const currentId = currentLevelId(s);
-    this.path.innerHTML = '';
+    this.path.replaceChildren(this.scene);
     chapter.levels.forEach((level, i) => {
       const open = isLevelOpen(s, level.id);
       const got = s.stars[level.id] ?? 0;
@@ -182,10 +187,34 @@ export class MapScreen implements Screen {
         tile.append(el('span', 'level-num', open ? level.id : '🔒'));
       }
       node.append(tile, el('div', 'level-name', level.name), el('div', 'level-stars', open ? stars(got) : ''));
+      if (level.id === currentId && open) {
+        const king = el('img', 'map-king');
+        king.src = spriteUrl('king', 'ally');
+        king.alt = '';
+        tile.append(king);
+      }
       node.title = open ? `${level.name}: +${levelIncome(level.id)} золота/мин после победы` : 'Сначала пройдите предыдущий бой';
       node.addEventListener('click', () => this.ctx.go('arena', level.id));
       this.path.append(node);
     });
+    this.sceneSig = '';
+    requestAnimationFrame(() => this.drawScene());
+  }
+
+  /** Paint the chapter landscape with a road through the level tiles. */
+  private drawScene(): void {
+    const w = this.path.clientWidth;
+    const h = this.path.clientHeight;
+    if (!w || !h) return;
+    const sig = `${this.chapter}|${w}|${h}`;
+    if (sig === this.sceneSig) return;
+    this.sceneSig = sig;
+    const box = this.path.getBoundingClientRect();
+    const centres = [...this.path.querySelectorAll<HTMLElement>('.level-tile')].map((t) => {
+      const r = t.getBoundingClientRect();
+      return [r.left - box.left + r.width / 2, r.top - box.top + r.height / 2] as [number, number];
+    });
+    drawChapterScene(this.scene, this.chapter, w, h, centres);
   }
 
   frame(): void {
