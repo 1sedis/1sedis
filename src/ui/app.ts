@@ -106,7 +106,7 @@ export class App implements Ctx {
     this.chips = {
       gold: chip('chip-gold', 'Золото'),
       stars: chip('chip-wave', 'Звёзды'),
-      income: chip('chip-best', 'Доход/мин'),
+      income: chip('chip-best', 'Доход'),
     };
     const nav = el('nav', 'topnav');
     this.navMap = el('button', 'nav-btn', 'Карта');
@@ -210,6 +210,6 @@ export class App implements Ctx {
     this.navCamp.classList.toggle('active', this.screenId === 'camp');
     this.navBadge.hidden = this.screenId === 'camp' || !canAffordUpgrade(s);
     const rate = incomePerMinute(s);
-    setText(this.chips.income, rate < 100 ? String(Math.round(rate * 10) / 10) : fmt(rate));
+    setText(this.chips.income, `${rate < 100 ? Math.round(rate * 10) / 10 : fmt(rate)}/мин`);
   }
 }

@@ -20,8 +20,7 @@
   --px: 4px;
   --step: 180ms;
   --pixel: 'Tiny5', ui-monospace, monospace;
-  --text: 'Golos Text', system-ui, sans-serif;
-  font-family: var(--text);
+  font-family: var(--pixel);
   color-scheme: dark;
   color: var(--ink);
   background: var(--bg);
@@ -43,13 +42,8 @@ body {
 
 button { font: inherit; color: inherit; }
 
-/* Pixel display font for headings, numbers and controls; Golos for reading. */
-.brand, .chip, .btn, .seg-btn, .toggle, .panel-title, .row-name, .banner, .fx-dmg, .fx-promote,
-.modal h2, .toast, .arena-title, .chapter-title, .chapter-tab, .level-tile, .level-name, .tray-count,
-.treasury-amount, .camp-title, .result-stars, .result-reward, .king-head {
-  font-family: var(--pixel);
-  font-weight: 400;
-}
+/* One pixel face everywhere; faux bold would smear the pixels. */
+h1, h2, h3, b, strong, th { font-weight: 400; }
 
 img { image-rendering: pixelated; }
 
@@ -118,7 +112,7 @@ img { image-rendering: pixelated; }
   background: var(--card);
 }
 
-.chip-label { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.chip-label { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 .chip b { font-size: 26px; font-weight: 400; display: inline-block; }
 .chip-gold b { color: var(--gold); }
 .chip-wave b { color: var(--mint); }
@@ -361,7 +355,7 @@ img { image-rendering: pixelated; }
 }
 .toggle.on { --frame: var(--mint-deep); color: var(--mint); }
 
-.hint { margin: 0 0 4px; color: var(--muted); font-size: 14px; line-height: 1.4; }
+.hint { margin: 0 0 4px; color: var(--muted); font-size: 16px; line-height: 1.4; }
 
 .row {
   display: flex;
@@ -377,8 +371,8 @@ img { image-rendering: pixelated; }
 .row-body { flex: 1; min-width: 0; }
 .row-name { font-weight: 400; font-size: 21px; }
 .row-level { color: var(--mint); font-size: 16px; }
-.row-desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
-.row-meta { font-size: 13px; margin-top: 4px; color: var(--ink); }
+.row-desc { color: var(--muted); font-size: 15px; margin-top: 2px; }
+.row-meta { font-size: 15px; margin-top: 4px; color: var(--ink); }
 
 .row-badge {
   width: 36px;
@@ -534,8 +528,8 @@ img { image-rendering: pixelated; }
 .menu-main small {
   display: block;
   margin-top: 2px;
-  font-family: var(--text);
-  font-size: 13px;
+  font-family: var(--pixel);
+  font-size: 15px;
   opacity: 0.75;
 }
 
@@ -544,7 +538,7 @@ img { image-rendering: pixelated; }
   bottom: 14px;
   z-index: 1;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .menu-btn { font-size: 18px; }
@@ -624,7 +618,7 @@ img { image-rendering: pixelated; }
 }
 .chapter-tab.active { background: var(--card-2); color: var(--ink); border-bottom-color: var(--mint); }
 .chapter-tab:disabled { opacity: 0.45; cursor: default; }
-.chapter-tab-stars { font-size: 14px; color: var(--gold); }
+.chapter-tab-stars { font-size: 16px; color: var(--gold); }
 
 .chapter-title { margin: 0; font-size: 40px; line-height: 1; }
 .chapter-sub { color: var(--muted); margin: 4px 0 20px; }
@@ -696,7 +690,7 @@ img { image-rendering: pixelated; }
 .map-side { display: flex; flex-direction: column; gap: 24px; }
 .treasury-amount { font-size: 22px; margin-top: 6px; }
 .treasury-amount b { font-size: 40px; font-weight: 400; color: var(--gold); display: inline-block; }
-.treasury-info { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+.treasury-info { color: var(--muted); font-size: 16px; margin-bottom: 12px; }
 .treasury .btn { width: calc(100% - 8px); }
 
 .camp-link {
@@ -712,7 +706,7 @@ img { image-rendering: pixelated; }
 }
 .camp-link img { grid-row: span 2; width: 56px; height: 56px; }
 .camp-title { font-size: 26px; }
-.camp-sub { color: var(--muted); font-size: 14px; }
+.camp-sub { color: var(--muted); font-size: 16px; }
 .camp-link:hover { --frame: var(--violet); }
 
 /* ---------- Arena ---------- */
@@ -732,7 +726,7 @@ img { image-rendering: pixelated; }
   padding: 0 4px;
   background: var(--bg);
   color: var(--ink);
-  font-size: 15px;
+  font-size: 16px;
 }
 .bench-item.empty img { opacity: 0.35; }
 .tray-tools { display: flex; gap: 10px; margin-top: 12px; }
@@ -757,7 +751,7 @@ img { image-rendering: pixelated; }
 .king-head { display: flex; justify-content: space-between; font-size: 17px; }
 .king-row.ally .bar-fill { background: var(--mint); }
 .king-row.enemy .bar-fill { background: var(--coral); }
-.battle-time { color: var(--muted); font-size: 14px; margin-top: 12px; }
+.battle-time { color: var(--muted); font-size: 16px; margin-top: 12px; }
 
 /* ---------- Result ---------- */
 .result-modal { width: min(92vw, 440px); text-align: center; }
@@ -781,7 +775,7 @@ img { image-rendering: pixelated; }
   align-items: start;
 }
 .camp-army, .camp-buildings { display: flex; flex-direction: column; gap: 14px; }
-.row-role { color: var(--muted); font-size: 15px; }
+.row-role { color: var(--muted); font-size: 16px; }
 .row-actions { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
 .army-row .row-level { display: block; margin-top: 4px; }
 
@@ -809,7 +803,7 @@ img { image-rendering: pixelated; }
   .level-tile { width: 60px; height: 60px; font-size: 18px; }
   .level-tile img { width: 50px; height: 50px; }
   .level-node.boss .level-tile { width: 72px; height: 72px; }
-  .level-name { font-size: 13px; }
+  .level-name { font-size: 15px; }
   .army-row { flex-wrap: wrap; }
   .row-actions { flex-direction: row; width: 100%; }
   .row-actions .btn { flex: 1; min-width: 0; }
@@ -926,7 +920,7 @@ img { image-rendering: pixelated; }
 .relic-card .relic-icon { width: 64px; height: 64px; }
 .relic-card .relic-icon img { width: 52px; height: 52px; }
 .relic-name { font-family: var(--pixel); font-size: 20px; }
-.relic-desc { color: var(--muted); font-size: 14px; line-height: 1.4; }
+.relic-desc { color: var(--muted); font-size: 16px; line-height: 1.4; }
 .result-unlock.relic { color: var(--gold); }
 
 @media (max-width: 560px) {
@@ -965,7 +959,7 @@ img { image-rendering: pixelated; }
 .board-ranks, .board-files {
   display: grid;
   font-family: var(--pixel);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--board-label);
   text-align: center;
   align-items: center;
@@ -1036,7 +1030,7 @@ img { image-rendering: pixelated; }
 @media (max-width: 560px) {
   .board-frame { padding: 10px 12px 8px 6px; gap: 4px 6px; grid-template-columns: 14px auto; grid-template-rows: auto 14px; }
   .board { width: min(calc(100vw - 92px), 64vh); }
-  .board-ranks, .board-files { font-size: 12px; }
+  .board-ranks, .board-files { font-size: 14px; }
   .chapter-boss { width: 52px; height: 52px; }
 }
 .chapter-banner .chapter-sub { margin-bottom: 0; }

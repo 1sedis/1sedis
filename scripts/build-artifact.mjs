@@ -16,7 +16,7 @@ const safeCss = css.replace(/<\/style/gi, '<\\/style');
 const html = `<title>Пиксельный гамбит</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600&family=Tiny5&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tiny5&display=swap">
 <style>${safeCss}</style>
 <div id="app"></div>
 <script>${safeJs}</script>
