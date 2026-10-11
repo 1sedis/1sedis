@@ -17,6 +17,7 @@ test('campaign bot', () => {
   const chapterTime: Record<number, number> = {};
   const attempts: Record<string, number> = {};
   let timeouts = 0;
+  const timeoutAt: Record<string, number> = {};
   const kinds = Object.keys(PIECES) as PieceKind[];
   const options = (limit: number) => {
     const out: { cost: number; buy: () => boolean }[] = [];
@@ -42,11 +43,16 @@ test('campaign bot', () => {
       for (let offer = relicOffer(s); offer; offer = relicOffer(s)) chooseRelic(s, offer[0]);
       const limit = commandLimit(s, level.id);
       for (let i = 0; i < 200; i++) { const o = options(limit)[0]; if (!o || s.gold < o.cost || !o.buy()) break; }
-      if (process.env.PLAIN) autoFormation(s, limit); else bestFormation(s, level.id, limit);
+      if (process.env.PLAIN) autoFormation(s, limit, undefined, level.id); else bestFormation(s, level.id, limit);
       const b = createBattle(battleSetup(s, level.id));
       simulate(b);
       attempts[level.id]++;
-      if (b.tick >= MAX_TICKS) timeouts++;
+      if (b.tick >= MAX_TICKS && process.env.DUMP && !timeoutAt[level.id]) {
+        const g = [...Array(8)].map(() => [...'........']);
+        for (const u of b.units) if (u.hp > 0) g[u.y][u.x] = u.side === 'ally' ? u.kind[0].toUpperCase() : u.kind[0];
+        console.log(level.id, 'timeout\n' + g.map((r) => r.join('')).join('\n'));
+      }
+      if (b.tick >= MAX_TICKS) { timeouts++; timeoutAt[level.id] = (timeoutAt[level.id] ?? 0) + 1; }
       const out = recordResult(s, level.id, b);
       if (!out.win && !CONSOLATION) s.gold -= out.reward;
       t += (b.tick * 0.1) / 2 + 10;
@@ -68,5 +74,6 @@ test('campaign bot', () => {
   const lines = Object.entries(chapterTime).map(([c, v]) => `ch${c}: ${(v / 60).toFixed(0)} min (${((v / t) * 100).toFixed(0)}%)`);
   console.log(`consolation=${CONSOLATION} total ${(total / 60).toFixed(1)} h, timeouts ${timeouts}\n${lines.join('\n')}`);
   console.log(Object.entries(attempts).filter(([, n]) => n > 5).map(([id, n]) => `${id}:${n}`).join(' '));
+  if (timeouts) console.log('timeouts at', JSON.stringify(timeoutAt));
   console.log('levels', JSON.stringify(s.levels), 'army', JSON.stringify(s.army));
 }, 600_000);

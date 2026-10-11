@@ -3,6 +3,8 @@ import { PIECES, type PieceKind } from '../game/pieces';
 import { SYNERGIES } from '../game/synergies';
 import { el, openModal } from './dom';
 import { spriteUrl } from './sprites';
+import { TERRAIN_INFO } from '../game/terrain';
+import { terrainUrl } from './terrainArt';
 
 const ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
 
@@ -38,6 +40,21 @@ export function openCodex(): void {
     card.append(sum, body);
     list.append(card);
   }
+  const land = el('details', 'codex-item');
+  const landHead = el('summary', 'codex-head');
+  landHead.append(el('span', 'codex-title', '▦ Ландшафт'));
+  const landBody = el('div', 'codex-body');
+  for (const t of Object.keys(TERRAIN_INFO) as (keyof typeof TERRAIN_INFO)[]) {
+    const row = el('p', 'codex-terrain');
+    const img = el('img');
+    img.src = terrainUrl(t);
+    img.alt = '';
+    row.append(img, `${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`);
+    landBody.append(row);
+  }
+  landBody.append(el('p', '', 'Пешка обходит камень или воду наискосок. Король, оставшийся без армии, больше не убегает.'));
+  land.append(landHead, landBody);
+  list.append(land);
   const syn = el('details', 'codex-item');
   const synHead = el('summary', 'codex-head');
   synHead.append(el('span', 'codex-title', '✦ Синергии состава'));

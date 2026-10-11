@@ -1,5 +1,6 @@
 import { KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
 import { synergyBonus } from './synergies';
+import { FOREST_DEFENSE, HILL_BONUS, parseTerrain, walkable, type Terrain } from './terrain';
 import { abilityOf, abilityTier, type Branch } from './abilities';
 import type { RelicId } from './relics';
 
@@ -38,6 +39,8 @@ export interface BattleSetup {
   relics?: RelicId[];
   /** The player's chosen ability per piece type (enemies always use the first). */
   allyBranches?: Partial<Record<PieceKind, Branch>>;
+  /** Terrain map rows (see terrain.ts); plain when omitted. */
+  terrain?: string[];
 }
 
 export interface Unit {
@@ -119,6 +122,8 @@ export interface Battle {
   report: Record<number, UnitReport>;
   /** The player's chosen abilities. */
   branches: Partial<Record<PieceKind, Branch>>;
+  /** Terrain per cell, index y * 8 + x. */
+  terrain: Terrain[];
 }
 
 export interface UnitReport {
@@ -189,7 +194,7 @@ export function createBattle(setup: BattleSetup): Battle {
     };
   }
   const b: Battle = { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
-    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches } };
+    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches }, terrain: parseTerrain(setup.terrain) };
   for (const u of units) {
     resetAbilityTimer(b, u, 0.5);
     if (u.kind !== 'pawn' || u.tier === 0) continue;
@@ -227,6 +232,16 @@ function inside(x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < BOARD_SIZE && y < BOARD_SIZE;
 }
 
+/** A piece may stand on this cell (inside the board and not rock or water). */
+function standable(t: Terrain[], x: number, y: number): boolean {
+  return inside(x, y) && walkable(t[y * BOARD_SIZE + x]);
+}
+
+/** Rock stops shots along a line. */
+function isWall(t: Terrain[], x: number, y: number): boolean {
+  return t[y * BOARD_SIZE + x] === 'rock';
+}
+
 function unitAt(b: Battle, x: number, y: number): Unit | undefined {
   return b.units.find((u) => u.hp > 0 && u.x === x && u.y === y);
 }
@@ -258,7 +273,7 @@ function reachFrom(b: Battle, side: Side, kind: PieceKind, x: number, y: number)
     for (let step = 1; step <= range; step++) {
       const cx = x + dx * step;
       const cy = y + dy * step;
-      if (!inside(cx, cy)) break;
+      if (!inside(cx, cy) || isWall(b.terrain, cx, cy)) break;
       const t = unitAt(b, cx, cy);
       if (t) {
         add(t); // own pieces are ignored by add(), but still block the line
@@ -297,6 +312,7 @@ function resetAbilityTimer(b: Battle, u: Unit, share = 1): void {
 /** Attack power of a unit right now, with aura, buffs and battle cry. */
 function baseDamage(b: Battle, u: Unit): number {
   let damage = u.atk * auraBonus(b, u) * u.buff;
+  if (RANGED.has(u.kind) && b.terrain[u.y * BOARD_SIZE + u.x] === 'hill') damage *= HILL_BONUS;
   if (b.tick < u.rallyUntil) damage *= u.rallyMult;
   if (has(b, u.side, 'warCry') && b.tick <= 60) damage *= 1.35;
   return damage;
@@ -424,6 +440,7 @@ function defense(b: Battle, target: Unit): number {
   }
   m *= aura;
   if (b.tick < target.cursedUntil) m *= target.curseMult;
+  if (b.terrain[target.y * BOARD_SIZE + target.x] === 'forest') m *= FOREST_DEFENSE;
   return m;
 }
 
@@ -463,7 +480,10 @@ function pierce(b: Battle, u: Unit, target: Unit, damage: number): void {
   const dy = Math.sign(target.y - u.y);
   if (Math.abs(target.x - u.x) !== Math.abs(target.y - u.y) || !dx) return;
   for (let step = 1; step <= 3; step++) {
-    const t = unitAt(b, target.x + dx * step, target.y + dy * step);
+    const px = target.x + dx * step;
+    const py = target.y + dy * step;
+    if (!inside(px, py) || isWall(b.terrain, px, py)) return;
+    const t = unitAt(b, px, py);
     if (t) {
       if (t.side !== u.side) dealDamage(b, u, t, damage, false);
       return;
@@ -541,7 +561,7 @@ function buildGrid(b: Battle, except?: Unit): Grid {
 }
 
 /** Same rules as reachFrom, but against a prepared grid (used by path search). */
-function reachesGoal(grid: Grid, side: Side, kind: PieceKind, x: number, y: number, goal: Set<Unit>): boolean {
+function reachesGoal(grid: Grid, terrain: Terrain[], side: Side, kind: PieceKind, x: number, y: number, goal: Set<Unit>): boolean {
   const hit = (cx: number, cy: number) => {
     if (!inside(cx, cy)) return false;
     const t = grid[cy * BOARD_SIZE + cx];
@@ -554,7 +574,7 @@ function reachesGoal(grid: Grid, side: Side, kind: PieceKind, x: number, y: numb
     for (let step = 1; step <= range; step++) {
       const cx = x + dx * step;
       const cy = y + dy * step;
-      if (!inside(cx, cy)) break;
+      if (!inside(cx, cy) || isWall(terrain, cx, cy)) break;
       if (grid[cy * BOARD_SIZE + cx]) {
         if (hit(cx, cy)) return true;
         break;
@@ -583,11 +603,11 @@ function pathStep(b: Battle, u: Unit, goal: Unit[]): [number, number] | null {
     for (const [dx, dy] of moveOffsets(u.kind)) {
       const x = cx + dx;
       const y = cy + dy;
-      if (!inside(x, y)) continue;
+      if (!standable(b.terrain, x, y)) continue;
       const n = y * BOARD_SIZE + x;
       if (grid[n] || prev[n] !== -1) continue;
       prev[n] = cur;
-      if (reachesGoal(grid, u.side, u.kind, x, y, goalSet)) {
+      if (reachesGoal(grid, b.terrain, u.side, u.kind, x, y, goalSet)) {
         let step = n;
         while (prev[step] !== start) step = prev[step];
         return [step % BOARD_SIZE, Math.floor(step / BOARD_SIZE)];
@@ -612,7 +632,7 @@ function greedyStep(b: Battle, u: Unit, goal: Unit[]): [number, number] | null {
   for (const [dx, dy] of moveOffsets(u.kind)) {
     const x = u.x + dx;
     const y = u.y + dy;
-    if (!inside(x, y) || unitAt(b, x, y)) continue;
+    if (!standable(b.terrain, x, y) || unitAt(b, x, y)) continue;
     const score = cellScore(b, u, x, y, goal);
     if (score < bestScore) {
       bestScore = score;
@@ -623,7 +643,7 @@ function greedyStep(b: Battle, u: Unit, goal: Unit[]): [number, number] | null {
 }
 
 /** Can enemy `e` hit the cell (x, y) from where it stands now? */
-function threatens(grid: Grid, e: Unit, x: number, y: number): boolean {
+function threatens(grid: Grid, terrain: Terrain[], e: Unit, x: number, y: number): boolean {
   const dx = x - e.x;
   const dy = y - e.y;
   if (Math.max(Math.abs(dx), Math.abs(dy)) === 1) return true;
@@ -637,15 +657,19 @@ function threatens(grid: Grid, e: Unit, x: number, y: number): boolean {
   if (!fits || dist > range) return false;
   const sx = Math.sign(dx);
   const sy = Math.sign(dy);
-  for (let i = 1; i < dist; i++) if (grid[(e.y + sy * i) * BOARD_SIZE + e.x + sx * i]) return false;
+  for (let i = 1; i < dist; i++) {
+    const cx = e.x + sx * i;
+    const cy = e.y + sy * i;
+    if (grid[cy * BOARD_SIZE + cx] || isWall(terrain, cx, cy)) return false;
+  }
   return true;
 }
 
 /** How dangerous a cell is for a king: threats weigh most, nearby enemies a little, friends reduce it. */
-function kingDanger(grid: Grid, king: Unit, foes: Unit[], x: number, y: number): number {
+function kingDanger(grid: Grid, terrain: Terrain[], king: Unit, foes: Unit[], x: number, y: number): number {
   let danger = 0;
   for (const e of foes) {
-    if (threatens(grid, e, x, y)) danger += 10;
+    if (threatens(grid, terrain, e, x, y)) danger += 10;
     danger += 3 / Math.max(1, chebyshev(e, x, y));
   }
   for (let ox = -1; ox <= 1; ox++) {
@@ -659,17 +683,19 @@ function kingDanger(grid: Grid, king: Unit, foes: Unit[], x: number, y: number):
 
 /** When threatened, the king steps to a clearly safer neighbouring square. */
 function kingEscape(b: Battle, king: Unit): [number, number] | null {
+  // A king left without an army stands its ground instead of running until the clock ends.
+  if (alive(b, king.side).length === 1) return null;
   const foes = alive(b, king.side === 'ally' ? 'enemy' : 'ally');
   const grid = buildGrid(b, king);
-  const underThreat = foes.some((e) => threatens(grid, e, king.x, king.y) || chebyshev(e, king.x, king.y) <= 2);
+  const underThreat = foes.some((e) => threatens(grid, b.terrain, e, king.x, king.y) || chebyshev(e, king.x, king.y) <= 2);
   if (!underThreat) return null;
   let best: [number, number] | null = null;
-  let bestDanger = kingDanger(grid, king, foes, king.x, king.y) - 2; // only move for a real gain
+  let bestDanger = kingDanger(grid, b.terrain, king, foes, king.x, king.y) - 2; // only move for a real gain
   for (const [dx, dy] of moveOffsets('king')) {
     const x = king.x + dx;
     const y = king.y + dy;
-    if (!inside(x, y) || grid[y * BOARD_SIZE + x]) continue;
-    const d = kingDanger(grid, king, foes, x, y);
+    if (!standable(b.terrain, x, y) || grid[y * BOARD_SIZE + x]) continue;
+    const d = kingDanger(grid, b.terrain, king, foes, x, y);
     if (d < bestDanger) {
       bestDanger = d;
       best = [x, y];
@@ -690,7 +716,14 @@ function moveUnit(b: Battle, u: Unit): void {
   }
   if (u.kind === 'pawn') {
     const ny = u.y + forward(u.side);
-    if (inside(u.x, ny) && !unitAt(b, u.x, ny)) {
+    let nx = u.x;
+    if (inside(u.x, ny) && !walkable(b.terrain[ny * BOARD_SIZE + u.x])) {
+      // Rock or water ahead: step around it diagonally, towards the centre first.
+      const sides = u.x < BOARD_SIZE / 2 ? [1, -1] : [-1, 1];
+      nx = sides.map((d) => u.x + d).find((x) => standable(b.terrain, x, ny) && !unitAt(b, x, ny)) ?? u.x;
+    }
+    if (standable(b.terrain, nx, ny) && !unitAt(b, nx, ny)) {
+      u.x = nx;
       u.y = ny;
       u.wait = u.moveCd;
       const early = has(b, u.side, 'earlyCrown') ? 1 : 0;
@@ -791,7 +824,7 @@ export function threatMap(setup: BattleSetup): number[] {
     if (e.side !== 'enemy') continue;
     for (let y = 0; y < BOARD_SIZE; y++) {
       for (let x = 0; x < BOARD_SIZE; x++) {
-        if ((x !== e.x || y !== e.y) && threatens(grid, e, x, y)) counts[y * BOARD_SIZE + x]++;
+        if ((x !== e.x || y !== e.y) && threatens(grid, b.terrain, e, x, y)) counts[y * BOARD_SIZE + x]++;
       }
     }
   }

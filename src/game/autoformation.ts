@@ -34,8 +34,9 @@ function spots(t: FormationTemplate): Record<PieceKind, [number, number][]> {
 }
 
 /** Replace the formation with one built from a template and the available army. */
-export function autoFormation(s: GameState, limit: number, template: FormationTemplate = DEFAULT_TEMPLATE): void {
-  s.formation = [{ kind: 'king', x: template.kingX, y: 7 }];
+export function autoFormation(s: GameState, limit: number, template: FormationTemplate = DEFAULT_TEMPLATE, levelId?: string): void {
+  const kingSpot = [template.kingX, 3, 4, 2, 5, 1, 6, 0, 7].find((x) => isPlayerCell(x, 7, levelId)) ?? template.kingX;
+  s.formation = [{ kind: 'king', x: kingSpot, y: 7 }];
   const pick: PieceKind[] = [];
   const pool = { ...s.army };
   const take = (kind: PieceKind) => {
@@ -55,8 +56,8 @@ export function autoFormation(s: GameState, limit: number, template: FormationTe
   const prefs = spots(template);
   for (const kind of pick) {
     if (available(s, kind) <= 0) continue;
-    const spot = prefs[kind].find(([x, y]) => !slotAt(s, x, y))
-      ?? allCells().find(([x, y]) => !slotAt(s, x, y));
+    const free = ([x, y]: [number, number]) => !slotAt(s, x, y) && isPlayerCell(x, y, levelId);
+    const spot = prefs[kind].find(free) ?? allCells().find(free);
     if (spot) s.formation.push({ kind, x: spot[0], y: spot[1] });
   }
 }
@@ -86,7 +87,7 @@ export function bestFormation(s: GameState, levelId: string, limit: number): For
     for (const pawnRow of [5, 6] as const) {
       for (const knights of ['flank', 'center'] as const) {
         const t = { kingX, pawnRow, knights };
-        autoFormation(s, limit, t);
+        autoFormation(s, limit, t, levelId);
         const value = formationScore(s, levelId);
         if (!best || value > best.score) best = { t, score: value, formation: s.formation.map((f) => ({ ...f })) };
       }

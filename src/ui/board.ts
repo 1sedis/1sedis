@@ -4,6 +4,8 @@ import { PLAYER_ROWS } from '../game/state';
 import { el, setText } from './dom';
 import { fmt } from './format';
 import { spriteUrl, type Team, type Tier } from './sprites';
+import { TERRAIN_INFO, walkable, type Terrain } from '../game/terrain';
+import { terrainUrl } from './terrainArt';
 
 export interface UnitView {
   key: string;
@@ -71,6 +73,24 @@ export class BoardView {
   /** Colour the board for a chapter (1-4). */
   setTheme(chapter: number): void {
     this.frame.dataset.theme = String(chapter);
+  }
+
+  /** Draw terrain tiles; rock and water cells stop being deploy cells. */
+  setTerrain(terrain: Terrain[]): void {
+    this.cells.forEach((c, i) => {
+      const t = terrain[i] ?? 'plain';
+      const y = Math.floor(i / BOARD_SIZE);
+      c.classList.toggle('deploy', PLAYER_ROWS.includes(y) && walkable(t));
+      if (c.dataset.terrain === t) return;
+      c.dataset.terrain = t;
+      c.querySelector('.terrain-tile')?.remove();
+      c.title = t === 'plain' ? '' : `${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`;
+      if (t === 'plain') return;
+      const img = el('img', `terrain-tile terrain-${t}`);
+      img.src = terrainUrl(t);
+      img.alt = '';
+      c.append(img);
+    });
   }
 
   /** Tint player cells by how many enemy pieces can hit them at the start (null hides it). */

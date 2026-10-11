@@ -4,6 +4,7 @@ import {
   isAbyss, levelIncome, levelIndex, replayReward,
 } from './levels';
 import type { Branch } from './abilities';
+import { levelTerrain, levelTerrainRows, walkable } from './terrain';
 import { PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { ALTAR, emptyAltar, shardsForFloor, type AltarId } from './altar';
@@ -281,8 +282,10 @@ export function buyBuilding(s: GameState, id: BuildingId): boolean {
 
 // ---------- Formation ----------
 
-export function isPlayerCell(x: number, y: number): boolean {
-  return x >= 0 && x < BOARD_SIZE && PLAYER_ROWS.includes(y);
+/** A cell of the player's three rows; with a level, also free of rock and water. */
+export function isPlayerCell(x: number, y: number, levelId?: string): boolean {
+  if (x < 0 || x >= BOARD_SIZE || !PLAYER_ROWS.includes(y)) return false;
+  return !levelId || walkable(levelTerrain(levelId)[y * BOARD_SIZE + x]);
 }
 
 export function slotAt(s: GameState, x: number, y: number): FormationSlot | undefined {
@@ -303,8 +306,9 @@ export function available(s: GameState, kind: PieceKind): number {
 }
 
 /** Place a piece from the reserve. Returns an error message or null. */
-export function placeFromReserve(s: GameState, kind: PieceKind, x: number, y: number, limit: number): string | null {
+export function placeFromReserve(s: GameState, kind: PieceKind, x: number, y: number, limit: number, levelId?: string): string | null {
   if (!isPlayerCell(x, y)) return 'Ставить можно только в три нижних ряда';
+  if (!isPlayerCell(x, y, levelId)) return 'Сюда нельзя: камень или вода';
   if (available(s, kind) <= 0) return 'Таких фигур больше нет в резерве';
   const occupant = slotAt(s, x, y);
   if (occupant?.kind === 'king') return 'Здесь стоит король';
@@ -315,9 +319,9 @@ export function placeFromReserve(s: GameState, kind: PieceKind, x: number, y: nu
 }
 
 /** Move a placed piece to another player cell, swapping with any occupant. */
-export function moveSlot(s: GameState, fromX: number, fromY: number, x: number, y: number): boolean {
+export function moveSlot(s: GameState, fromX: number, fromY: number, x: number, y: number, levelId?: string): boolean {
   const slot = slotAt(s, fromX, fromY);
-  if (!slot || !isPlayerCell(x, y)) return false;
+  if (!slot || !isPlayerCell(x, y, levelId)) return false;
   const occupant = slotAt(s, x, y);
   if (occupant) {
     occupant.x = fromX;
@@ -341,11 +345,11 @@ export function clearFormation(s: GameState): void {
 }
 
 /** Drop pieces the army no longer has or the limit does not allow, and make sure the king is placed. */
-export function sanitizeFormation(s: GameState, limit: number): void {
+export function sanitizeFormation(s: GameState, limit: number, levelId?: string): void {
   const counts = perKind(0);
   let fielded = 0;
   s.formation = s.formation.filter((f) => {
-    if (!isPlayerCell(f.x, f.y) || counts[f.kind] >= s.army[f.kind]) return false;
+    if (!isPlayerCell(f.x, f.y, levelId) || counts[f.kind] >= s.army[f.kind]) return false;
     if (f.kind !== 'king') {
       if (fielded >= limit) return false;
       fielded++;
@@ -355,7 +359,7 @@ export function sanitizeFormation(s: GameState, limit: number): void {
   });
   if (!s.formation.some((f) => f.kind === 'king')) {
     const spots = [[3, 7], [4, 7], [2, 7], [5, 7], [3, 6], [4, 6]];
-    const free = spots.find(([x, y]) => !slotAt(s, x, y)) ?? [0, 7];
+    const free = spots.find(([x, y]) => !slotAt(s, x, y) && isPlayerCell(x, y, levelId)) ?? [0, 7];
     s.formation.push({ kind: 'king', x: free[0], y: free[1] });
   }
 }
@@ -372,6 +376,7 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
     allyKingHpMult: 1 + 0.2 * s.altar.mantle,
     relics: [...s.relics],
     allyBranches: { ...s.abilityBranch },
+    terrain: levelTerrainRows(levelId),
   };
 }
 

@@ -2,6 +2,8 @@ import { createBattle, stepBattle, threatMap, type Battle, type BattleEvent, typ
 import { adviceLabel, adviseUpgrade } from '../../game/advice';
 import { bestFormation } from '../../game/autoformation';
 import { SYNERGIES, synergyProgress } from '../../game/synergies';
+import { TERRAIN_INFO, levelTerrain, terrainKinds } from '../../game/terrain';
+import { terrainUrl } from '../terrainArt';
 import { buildReport, pieceName } from '../../game/report';
 import {
   CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, firstReward, getLevel, isAbyss, levelIncome, nextLevelId,
@@ -54,6 +56,7 @@ export class ArenaScreen implements Screen {
   private trayTitle = el('span');
   private prepTools = el('div', 'tray-tools');
   private synergyRow = el('div', 'synergy-row');
+  private terrainRow = el('div', 'terrain-row');
   private synergySig = '';
   private autoBtn!: HTMLButtonElement;
   private threatBtn = el('button', 'toggle');
@@ -159,7 +162,7 @@ export class ArenaScreen implements Screen {
       + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
       + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));
     this.hintText.classList.add('task-hint');
-    infoCard.append(taskHead, this.enemyText, this.conditions, this.rewardText, this.hintText, this.relicCard);
+    infoCard.append(taskHead, this.enemyText, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
 
     const kingsCard = el('div', 'card');
@@ -211,7 +214,7 @@ export class ArenaScreen implements Screen {
     this.selection = null;
     this.board.showBanner(null);
     this.board.clearFx();
-    sanitizeFormation(this.ctx.state, this.limit());
+    sanitizeFormation(this.ctx.state, this.limit(), this.levelId);
     this.renderInfo();
   }
 
@@ -230,6 +233,19 @@ export class ArenaScreen implements Screen {
       ? `Этаж ${abyssFloor(this.levelId)} · рекорд ${s.abyss.best}`
       : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
     this.board.setTheme(chapter.id);
+    this.board.setTerrain(levelTerrain(this.levelId));
+    const kinds = terrainKinds(this.levelId);
+    this.terrainRow.replaceChildren(...kinds.map((t) => {
+      const chip = el('span', 'terrain-chip');
+      const img = el('img');
+      img.src = terrainUrl(t);
+      img.alt = '';
+      chip.append(img, TERRAIN_INFO[t].name);
+      chip.title = TERRAIN_INFO[t].text;
+      return chip;
+    }));
+    if (kinds.length) this.terrainRow.append(infoBtn('Ландшафт', kinds.map((t) => `${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`).join('\n')));
+    this.terrainRow.hidden = kinds.length === 0;
     const enemies = this.enemies();
     setText(this.enemyText, `Враги: ${enemies.length} · ур. ${enemies[0]?.level ?? level.level}${level.boss ? ` · ${level.boss}` : ''}`);
     const best = s.stars[level.id] ?? 0;
@@ -269,14 +285,14 @@ export class ArenaScreen implements Screen {
     const sel = this.selection;
     if (sel?.from) {
       if (sel.from.x === x && sel.from.y === y) this.selection = null;
-      else if (isPlayerCell(x, y)) {
-        moveSlot(s, sel.from.x, sel.from.y, x, y);
+      else if (isPlayerCell(x, y, this.levelId)) {
+        moveSlot(s, sel.from.x, sel.from.y, x, y, this.levelId);
         this.selection = null;
-      } else toast('Свои фигуры ставятся в три нижних ряда');
+      } else toast(isPlayerCell(x, y) ? 'Сюда нельзя: камень или вода' : 'Свои фигуры ставятся в три нижних ряда');
       return;
     }
     if (sel) {
-      const err = placeFromReserve(s, sel.kind, x, y, this.limit());
+      const err = placeFromReserve(s, sel.kind, x, y, this.limit(), this.levelId);
       if (err) toast(err);
       else if (available(s, sel.kind) <= 0) this.selection = null;
       return;
@@ -291,7 +307,10 @@ export class ArenaScreen implements Screen {
       const tier = abilityTier(enemy.level);
       const ability = tier ? ` Приём «${ABILITIES[enemy.kind].name}»${tier === 2 ? ' (усилен)' : ''}.` : '';
       toast(`${enemy.boss ? getLevel(this.levelId).boss : def.name}, ур. ${enemy.level}: ${def.description}${ability}`);
+      return;
     }
+    const t = levelTerrain(this.levelId)[y * 8 + x];
+    if (t !== 'plain') toast(`${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`);
   }
 
   private onTray(kind: PieceKind): void {
@@ -321,7 +340,7 @@ export class ArenaScreen implements Screen {
 
   private startBattle(): void {
     const s = this.ctx.state;
-    sanitizeFormation(s, this.limit());
+    sanitizeFormation(s, this.limit(), this.levelId);
     if (fieldedCount(s) === 0) {
       toast('Поставьте на доску хотя бы одну фигуру');
       return;
@@ -607,6 +626,8 @@ export class ArenaScreen implements Screen {
         'Расстановка готова, жмите «В бой». Бой можно ускорить кнопками ×2 и ×4.')
       || (this.levelId !== '1-1' && ctx.tip('t_move', this.autoBtn,
         'Нажмите на свою фигуру, а потом на клетку, чтобы её переставить. «Авто» расставит армию сама.'))
+      || (!this.terrainRow.hidden && ctx.tip('t_terrain', this.terrainRow,
+        'На доске ландшафт! Лес защищает, с холма стрелки бьют сильнее, камень и вода непроходимы. Нажмите на клетку, чтобы узнать больше.'))
       || (this.board.root.querySelector('.cell.threat') && ctx.tip('t_threats', this.threatBtn,
         'Красные клетки простреливают вражеские стрелки. Не ставьте туда короля и закрывайте линии пешками.'))
       || ctx.tip('t_reserve', freeReserve,
