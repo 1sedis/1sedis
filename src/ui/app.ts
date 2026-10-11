@@ -7,7 +7,7 @@ import {
 } from '../game/state';
 import { audio } from './audio';
 import type { Ctx, Screen, ScreenId } from './context';
-import { confirmDialog, el, openModal, pulse, setText, toast } from './dom';
+import { confirmDialog, el, openModal, pulse, setHidden, setText, toast } from './dom';
 import { fmt } from './format';
 import { buildMenu, openSettings } from './menu';
 import { getAchievement } from '../game/achievements';
@@ -272,9 +272,9 @@ export class App implements Ctx {
     setText(this.chips.stars, `${totalStars(s)}/${ALL_LEVELS.length * 3}`);
     this.navMap.classList.toggle('active', this.screenId === 'map');
     this.navCamp.classList.toggle('active', this.screenId === 'camp');
-    this.navBadge.hidden = this.screenId === 'camp' || !canAffordUpgrade(s);
+    setHidden(this.navBadge, this.screenId === 'camp' || !canAffordUpgrade(s));
     this.navAch.classList.toggle('active', this.screenId === 'achievements');
-    this.achBadge.hidden = claimableAchievements(s) === 0;
+    setHidden(this.achBadge, claimableAchievements(s) === 0);
     const on = this.settings.sound || this.settings.music;
     setText(this.soundBtn, on ? '♪ Звук' : '♪ Тихо');
     this.soundBtn.classList.toggle('muted', !on);

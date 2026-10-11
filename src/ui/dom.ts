@@ -108,3 +108,12 @@ export function infoBtn(title: string, text: string | (() => string)): HTMLButto
   });
   return b;
 }
+
+/** Change `hidden` only when it differs: re-setting attributes every frame costs style recalcs. */
+export function setHidden(node: HTMLElement, hidden: boolean): void {
+  if (node.hidden !== hidden) node.hidden = hidden;
+}
+
+export function setDisabled(node: HTMLButtonElement, disabled: boolean): void {
+  if (node.disabled !== disabled) node.disabled = disabled;
+}

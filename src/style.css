@@ -1708,3 +1708,15 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
   .spin-viewport { height: 150px; }
   .buff-card { width: 96px; height: 128px; }
 }
+
+/* ---------- Performance: cheaper effects ---------- */
+.fx-dmg, .fx-promote, .fx-ability { text-shadow: 0 2px 0 #000, 0 -1px 0 #000; }
+.fx-layer { contain: layout style; }
+.mote { box-shadow: none; will-change: transform, opacity; }
+.unit { will-change: transform; }
+/* Static glows only: animating filters repaints every frame. */
+.unit.boss .unit-sprite { animation: bob 1s steps(2, end) infinite; filter: drop-shadow(0 0 8px rgba(255, 45, 85, 0.85)); }
+.unit.ally.tier-2 .unit-sprite, .unit.enemy.tier-2 .unit-sprite, .unit.elite .unit-sprite { filter: none; }
+.hp-fill { width: 100%; transform-origin: left center; transition: transform .12s; }
+.unit-sprite { will-change: transform; }
+.king-row .bar-fill, .boss-bar-fill { transition: width .15s; }

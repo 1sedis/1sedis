@@ -125,8 +125,13 @@ export class BoardView {
     this.root.classList.toggle('placing', setup && placing);
   }
 
+  private step = '';
+
   setStep(ms: number): void {
-    this.root.style.setProperty('--step', `${Math.round(ms)}ms`);
+    const step = `${Math.round(ms)}ms`;
+    if (step === this.step) return;
+    this.step = step;
+    this.root.style.setProperty('--step', step);
   }
 
   render(views: UnitView[]): void {
@@ -164,7 +169,8 @@ export class BoardView {
       }
       u.node.classList.toggle('tier-1', u.tier === 1);
       u.node.classList.toggle('tier-2', u.tier === 2);
-      u.node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
+      const pos = `translate(${v.x * 100}%, ${v.y * 100}%)`;
+      if (u.node.style.transform !== pos) u.node.style.transform = pos;
       u.node.classList.toggle('boss', !!v.boss);
       if (u.node.dataset.trait !== (v.trait ?? '')) {
         u.node.dataset.trait = v.trait ?? '';
@@ -181,8 +187,9 @@ export class BoardView {
       u.node.classList.toggle('selected', !!v.selected);
       u.node.classList.toggle('dead', !!v.dead);
       u.node.classList.toggle('full-hp', v.hp >= v.maxHp);
-      const pct = `${Math.max(0, v.hp / v.maxHp) * 100}%`;
-      if (u.fill.style.width !== pct) u.fill.style.width = pct;
+      // scaleX instead of width: no layout work when health changes.
+      const ratio = `scaleX(${Math.max(0, Math.min(1, v.hp / v.maxHp)).toFixed(3)})`;
+      if (u.fill.style.transform !== ratio) u.fill.style.transform = ratio;
       const sh = `${Math.min(1, v.shield ?? 0) * 100}%`;
       if (u.shield.style.width !== sh) u.shield.style.width = sh;
     }
@@ -201,16 +208,17 @@ export class BoardView {
   react(events: BattleEvent[], keyOf: (uid: number) => string, effects = true): void {
     let shake = 0;
     for (const e of events) {
-      if (effects && e.type === 'death') {
+      if (effects && e.type === 'death' && (e.big || this.room())) {
         const u = this.units.get(keyOf(e.uid));
         if (u) this.shatter(e.x, e.y, u.img.src);
       }
-      if (effects && e.type === 'hit' && e.amount >= 1) {
+      if (effects && e.type === 'hit' && e.amount >= 1 && this.fxLevel > 0 && this.room()) {
         const spark = el('div', `fx-spark${e.crit ? ' crit' : ''}`);
         this.place(spark, e.x, e.y);
       }
       if (e.type === 'hit') {
-        restart(this.units.get(keyOf(e.uid))?.node, 'hit');
+        // Web Animations restart cleanly without forcing a layout like class toggling does.
+        this.units.get(keyOf(e.uid))?.img.animate(HIT_FLASH, { duration: 160, easing: 'steps(1, end)' });
         const dx = e.x - e.fromX;
         const dy = e.y - e.fromY;
         // Melee attackers (adjacent or a knight's jump) lunge at their target.
@@ -218,9 +226,8 @@ export class BoardView {
           const body = this.units.get(keyOf(e.fromUid))?.body;
           if (body) {
             const len = Math.hypot(dx, dy) || 1;
-            body.style.setProperty('--lx', `${(dx / len) * 28}%`);
-            body.style.setProperty('--ly', `${(dy / len) * 28}%`);
-            restart(body, 'lunge');
+            const to = `${(dx / len) * 28}% ${(dy / len) * 28}%`;
+            body.animate([{ translate: '0 0' }, { translate: to, offset: 0.45 }, { translate: '0 0' }], { duration: 160, easing: 'ease-out' });
           }
         }
         if (e.crit && e.big) shake = Math.max(shake, 1);
@@ -229,10 +236,30 @@ export class BoardView {
       else if (e.type === 'summon' || e.type === 'terrain') shake = Math.max(shake, 1);
       else if (e.type === 'save' || e.type === 'promote') shake = Math.max(shake, 1);
     }
-    if (shake) {
-      this.root.classList.toggle('shake-big', shake > 1);
-      restart(this.root, 'shake');
+    if (shake && !REDUCED_MOTION) {
+      const a = shake > 1 ? 6 : 3;
+      this.root.animate([
+        { translate: '0 0' }, { translate: `${a}px ${-a * 0.6}px` }, { translate: `${-a}px ${a * 0.5}px` },
+        { translate: `${a * 0.6}px ${a * 0.4}px` }, { translate: '0 0' },
+      ], { duration: shake > 1 ? 320 : 220, easing: 'steps(4, end)' });
     }
+  }
+
+  /** 2 = every effect, 1 = lighter, 0 = only what matters (used at high speeds). */
+  private fxLevel: 0 | 1 | 2 = 2;
+
+  setFxLevel(level: 0 | 1 | 2): void {
+    this.fxLevel = level;
+  }
+
+  /** Optional effects are skipped once this many are on screen. */
+  private room(): boolean {
+    return this.fxLayer.childElementCount < [24, 45, 80][this.fxLevel];
+  }
+
+  /** Scale a particle count by the effect level. */
+  private many(count: number): number {
+    return this.fxLevel === 2 ? count : this.fxLevel === 1 ? Math.ceil(count / 2) : Math.ceil(count / 4);
   }
 
   /** Big centred text for boss skills, rage and defeat. */
@@ -273,9 +300,14 @@ export class BoardView {
   fx(events: BattleEvent[]): void {
     for (const e of events) {
       if (e.type === 'hit') {
-        const text = e.amount < 1 ? 'блок' : fmt(Math.round(e.amount)) + (e.crit ? '!' : '');
-        this.place(el('div', `fx-dmg ${e.side}${e.crit ? ' crit' : ''}`, text), e.x, e.y);
-        if (Math.max(Math.abs(e.x - e.fromX), Math.abs(e.y - e.fromY)) > 1) this.bolt(e);
+        // At high speed only crits and blows to kings and bosses get a number.
+        if (this.fxLevel > 0 || e.crit || e.big) {
+          if (e.crit || e.big || this.room()) {
+            const text = e.amount < 1 ? 'блок' : fmt(Math.round(e.amount)) + (e.crit ? '!' : '');
+            this.place(el('div', `fx-dmg ${e.side}${e.crit ? ' crit' : ''}`, text), e.x, e.y);
+          }
+        }
+        if (Math.max(Math.abs(e.x - e.fromX), Math.abs(e.y - e.fromY)) > 1 && this.room()) this.bolt(e);
       } else if (e.type === 'ability') {
         this.place(el('div', 'fx-ability', `${e.label}!`), e.x, e.y);
       } else if (e.type === 'shieldBreak') {
@@ -305,7 +337,9 @@ export class BoardView {
     }
   }
 
-  private burst(e: BattleEvent, count: number): void {
+  private burst(e: BattleEvent, wanted: number): void {
+    if (!this.room()) return;
+    const count = this.many(wanted);
     for (let i = 0; i < count; i++) {
       const p = el('div', `fx-pixel ${e.type === 'promote' || e.type === 'save' ? 'gold' : e.side}`);
       const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
@@ -324,8 +358,8 @@ export class BoardView {
   }
 
   private bolt(e: BattleEvent): void {
-    // The head plus two fading ghosts behind it make a short trail.
-    for (let i = 0; i < 3; i++) {
+    // The head plus fading ghosts behind it make a short trail (no ghosts at high speed).
+    for (let i = 0; i < [1, 2, 3][this.fxLevel]; i++) {
       const b = el('div', `fx-bolt ${e.side === 'ally' ? 'enemy' : 'ally'} from-${e.fromKind ?? 'pawn'}${i ? ' ghost' : ''}`);
       // The bolt box is one cell in size, so translate % moves it cell by cell.
       b.style.left = `${e.fromX * 12.5}%`;
@@ -361,6 +395,9 @@ export class BoardView {
 }
 
 /** Restart a one-shot CSS animation class. */
+const HIT_FLASH: Keyframe[] = [{ filter: 'brightness(0) invert(1)' }, { filter: 'none' }];
+const REDUCED_MOTION = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
 function restart(node: HTMLElement | undefined, cls: string): void {
   if (!node) return;
   node.classList.remove(cls);

@@ -26,7 +26,7 @@ import { openRelicPicker, relicStrip } from '../relics';
 import { playStory } from '../story';
 import { openCodex } from '../codex';
 import type { Ctx, Screen } from '../context';
-import { el, infoBtn, openModal, setText, toast } from '../dom';
+import { el, infoBtn, openModal, setDisabled, setHidden, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
 import { spriteUrl, type Tier } from '../sprites';
@@ -118,7 +118,7 @@ export class ArenaScreen implements Screen {
     const boardWrap = el('div', 'board-wrap');
     // Drifting motes around the board, styled per chapter.
     const ambient = el('div', 'ambient');
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 14; i++) {
       const m = el('span', 'mote');
       m.style.left = `${(i * 53) % 100}%`;
       m.style.animationDelay = `${-(i * 1.7) % 12}s`;
@@ -631,6 +631,7 @@ export class ArenaScreen implements Screen {
     const prep = this.phase === 'prep';
     this.board.setMode(prep, this.selection !== null);
     this.board.setStep(180 / speed);
+    this.board.setFxLevel(speed >= 4 ? 0 : speed >= 2 ? 1 : 2);
     this.board.render(this.collectUnits());
     if (events.length) {
       this.bossEvents(events);
@@ -644,11 +645,11 @@ export class ArenaScreen implements Screen {
     setText(this.autoBtn2, `Авто-спуск: ${this.autoDescend ? 'вкл' : 'выкл'}`);
     this.autoBtn2.classList.toggle('on', this.autoDescend);
     this.fightBtn.classList.toggle('btn-danger', !prep);
-    this.fightBtn.disabled = this.phase === 'result';
+    setDisabled(this.fightBtn, this.phase === 'result');
     this.speedBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === speed));
-    this.infoPanel.hidden = !prep;
-    this.battlePanel.hidden = prep;
-    this.prepTools.hidden = !prep;
+    setHidden(this.infoPanel, !prep);
+    setHidden(this.battlePanel, prep);
+    setHidden(this.prepTools, !prep);
 
     const limit = this.limit();
     setText(this.limitText, `${fieldedCount(s)}/${limit}`);
@@ -659,8 +660,8 @@ export class ArenaScreen implements Screen {
       const src = spriteUrl(kind, 'ally', abilityTier(s.levels[kind]) as Tier);
       if (item.img.src !== src) item.img.src = src;
       setText(item.count, `×${avail}`);
-      item.btn.hidden = s.army[kind] === 0;
-      item.btn.disabled = !prep;
+      setHidden(item.btn, s.army[kind] === 0);
+      setDisabled(item.btn, !prep);
       item.btn.classList.toggle('selected', this.selection?.kind === kind && !this.selection.from);
       item.btn.classList.toggle('empty', avail <= 0);
     }
@@ -677,10 +678,11 @@ export class ArenaScreen implements Screen {
       for (const side of ['ally', 'enemy'] as const) {
         const king = this.battle.units.find((u) => u.side === side && u.kind === 'king');
         const ratio = king ? Math.max(0, king.hp) / king.maxHp : 0;
-        this.kingBars[side].fill.style.width = `${ratio * 100}%`;
+        const w = `${ratio * 100}%`;
+        if (this.kingBars[side].fill.style.width !== w) this.kingBars[side].fill.style.width = w;
         setText(this.kingBars[side].text, `${Math.round(ratio * 100)}%`);
       }
-      setText(this.battleTime, `Время боя: ${(this.battle.tick / 10).toFixed(1)} с · потери: ${this.battle.allyLosses}`);
+      setText(this.battleTime, `Время боя: ${Math.floor(this.battle.tick / 10)} с · потери: ${this.battle.allyLosses}`);
     }
     this.renderBossBar();
   }
@@ -688,10 +690,11 @@ export class ArenaScreen implements Screen {
   private renderBossBar(): void {
     const b = this.battle;
     const boss = b?.units.find((u) => u.uid === b.bossUid);
-    this.bossBar.hidden = !b?.bossId || this.phase === 'prep';
+    setHidden(this.bossBar, !b?.bossId || this.phase === 'prep');
     if (this.bossBar.hidden || !b) return;
     const ratio = boss ? Math.max(0, boss.hp) / boss.maxHp : 0;
-    this.bossFill.style.width = `${ratio * 100}%`;
+    const bw = `${ratio * 100}%`;
+    if (this.bossFill.style.width !== bw) this.bossFill.style.width = bw;
     setText(this.bossName, getLevel(this.levelId).boss ?? 'Босс');
     setText(this.bossPhase, ratio <= 0 ? 'Повержен' : b.bossPhase === 2 ? `☠ ${BOSSES[b.bossId!].rage}` : `${Math.ceil(ratio * 100)}%`);
     this.bossBar.classList.toggle('enraged', b.bossPhase === 2);
