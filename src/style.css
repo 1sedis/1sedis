@@ -1177,3 +1177,11 @@ img { image-rendering: pixelated; }
   0%, 30%, 60% { filter: brightness(0) invert(1); transform: scale(1.25); }
   15%, 45%, 100% { filter: none; transform: scale(1); }
 }
+
+/* ---------- Abyss & new game ---------- */
+.board-frame[data-theme='5'] { --cell-light: #2b2f4a; --cell-dark: #1d2036; --board-edge: #0b0d1c; --board-label: #7fe0ff; }
+.abyss-card { position: relative; background: linear-gradient(180deg, var(--card), #120f27); }
+.abyss-card .btn, .prestige-card .btn { width: calc(100% - 8px); }
+.abyss-img { position: absolute; right: 16px; top: 12px; width: 44px; height: 44px; filter: drop-shadow(0 0 8px rgba(255, 79, 123, 0.7)); animation: bob 1.2s steps(2) infinite; }
+.abyss-card.locked .abyss-img { filter: brightness(0.4); animation: none; }
+.prestige-card { --frame: var(--gold-deep); }

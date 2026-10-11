@@ -135,17 +135,87 @@ export function levelIndex(id: string): number {
   return ALL_LEVELS.findIndex((l) => l.id === id);
 }
 
+// ---------- Abyss: endless generated floors ----------
+
+export const ABYSS_UNLOCK = '2-9';
+const ABYSS_PREFIX = 'abyss-';
+
+export const ABYSS_CHAPTER: ChapterDef = { id: 5, name: 'Бездна', subtitle: 'Бесконечный спуск', limit: 8, levels: [] };
+
+export function isAbyss(id: string): boolean {
+  return id.startsWith(ABYSS_PREFIX);
+}
+
+export function abyssId(floor: number): string {
+  return `${ABYSS_PREFIX}${floor}`;
+}
+
+export function abyssFloor(id: string): number {
+  return Number(id.slice(ABYSS_PREFIX.length));
+}
+
+/** Enemy formation for an abyss floor; deterministic, so a retry meets the same army. */
+export function abyssLevel(floor: number): LevelDef {
+  let a = (floor * 2654435761) >>> 0;
+  const rand = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const grid = [...Array(3)].map(() => [...'........']);
+  const kingX = Math.floor(rand() * 8);
+  grid[0][kingX] = 'k';
+  const boss = floor % 10 === 0;
+  const pool = ['n', ...(floor >= 3 ? ['b'] : []), ...(floor >= 6 ? ['r'] : []), ...(floor >= 12 ? ['q'] : [])];
+  const pieces = Math.min(7, 1 + Math.floor(floor / 3));
+  const pawns = Math.min(8, 3 + Math.floor(floor / 4));
+  const place = (ch: string, rows: number[]) => {
+    for (let tries = 0; tries < 40; tries++) {
+      const y = rows[Math.floor(rand() * rows.length)];
+      const x = Math.floor(rand() * 8);
+      if (grid[y][x] === '.') {
+        grid[y][x] = ch;
+        return;
+      }
+    }
+  };
+  if (boss) place(pool[Math.floor(rand() * pool.length)].toUpperCase(), [1]);
+  for (let i = 0; i < pieces; i++) place(pool[Math.floor(rand() * pool.length)], [0, 1]);
+  for (let i = 0; i < pawns; i++) place('p', [2]);
+  const level = Math.round(4 + floor * 0.45);
+  return {
+    id: abyssId(floor),
+    name: boss ? `Страж глубин` : `Этаж ${floor}`,
+    rows: grid.map((r) => r.join('')),
+    level,
+    maxLosses: 3 + Math.floor(floor / 10),
+    hint: boss
+      ? 'Каждые 10 этажей путь преграждает страж с тройным здоровьем.'
+      : 'Чем глубже, тем сильнее враги. Улучшайте армию и включите авто-спуск.',
+    boss: boss ? 'Страж глубин' : undefined,
+  };
+}
+
+export function abyssReward(floor: number): number {
+  return Math.round(70 * 1.13 ** floor);
+}
+
 export function getLevel(id: string): LevelDef {
+  if (isAbyss(id)) return abyssLevel(abyssFloor(id));
   const level = ALL_LEVELS.find((l) => l.id === id);
   if (!level) throw new Error(`Unknown level ${id}`);
   return level;
 }
 
 export function chapterOf(id: string): ChapterDef {
+  if (isAbyss(id)) return ABYSS_CHAPTER;
   return CHAPTERS.find((c) => c.levels.some((l) => l.id === id))!;
 }
 
 export function nextLevelId(id: string): string | null {
+  if (isAbyss(id)) return abyssId(abyssFloor(id) + 1);
   return ALL_LEVELS[levelIndex(id) + 1]?.id ?? null;
 }
 

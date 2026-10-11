@@ -1,6 +1,7 @@
 import { BOARD_SIZE, type Battle, type BattleSetup, type Placement } from './battle';
 import {
-  ALL_LEVELS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, levelIncome, levelIndex, replayReward,
+  ABYSS_UNLOCK, ALL_LEVELS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
+  isAbyss, levelIncome, levelIndex, replayReward,
 } from './levels';
 import { PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
@@ -60,6 +61,12 @@ export interface GameState {
   achievementsClaimed: string[];
   /** Tutorial tips already shown. */
   tutorial: string[];
+  /** Permanent prestige currency. */
+  crowns: number;
+  /** Number of completed "new game" resets; raises enemy levels and rewards. */
+  prestige: number;
+  /** Next abyss floor to fight and the deepest floor ever cleared. */
+  abyss: { floor: number; best: number };
   stats: {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
@@ -93,6 +100,9 @@ export function newGame(now = Date.now()): GameState {
     achievements: [],
     achievementsClaimed: [],
     tutorial: [],
+    crowns: 0,
+    prestige: 0,
+    abyss: { floor: 1, best: 0 },
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
       flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
@@ -103,10 +113,16 @@ export function newGame(now = Date.now()): GameState {
 // ---------- Progress ----------
 
 export function isCleared(s: GameState, id: string): boolean {
+  if (isAbyss(id)) return abyssFloor(id) < s.abyss.floor;
   return (s.stars[id] ?? 0) > 0;
 }
 
+export function isAbyssOpen(s: GameState): boolean {
+  return isCleared(s, ABYSS_UNLOCK);
+}
+
 export function isLevelOpen(s: GameState, id: string): boolean {
+  if (isAbyss(id)) return isAbyssOpen(s) && abyssFloor(id) === s.abyss.floor;
   const i = levelIndex(id);
   return i === 0 || (i > 0 && isCleared(s, ALL_LEVELS[i - 1].id));
 }
@@ -152,9 +168,24 @@ export function forgeMultiplier(s: GameState): number {
   return 1 + 0.06 * s.buildings.forge;
 }
 
+/** Crowns: +2% attack and health each. */
+export function crownStatMultiplier(s: GameState): number {
+  return 1 + 0.02 * s.crowns;
+}
+
+/** Gold from battles and the treasury: +4% per crown, +50% per prestige. */
+export function goldMultiplier(s: GameState): number {
+  return (1 + 0.04 * s.crowns) * (1 + 0.5 * s.prestige);
+}
+
+/** Enemy levels added by the current prestige. */
+export function prestigeEnemyBonus(s: GameState): number {
+  return 2 * s.prestige;
+}
+
 export function incomePerMinute(s: GameState): number {
   const base = ALL_LEVELS.filter((l) => isCleared(s, l.id)).reduce((sum, l) => sum + levelIncome(l.id), 0);
-  return base * (1 + 0.25 * s.buildings.treasury) * (hasRelic(s, 'fertile') ? 1.35 : 1);
+  return base * (1 + 0.25 * s.buildings.treasury) * (hasRelic(s, 'fertile') ? 1.35 : 1) * goldMultiplier(s);
 }
 
 export function treasuryCapHours(s: GameState): number {
@@ -308,8 +339,10 @@ export function sanitizeFormation(s: GameState, limit: number): void {
 
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
-  const m = forgeMultiplier(s);
-  return { allies, enemies: enemyPlacements(getLevel(levelId)), allyHpMult: m, allyAtkMult: m, relics: [...s.relics] };
+  const m = forgeMultiplier(s) * crownStatMultiplier(s);
+  const bonus = prestigeEnemyBonus(s);
+  const enemies = enemyPlacements(getLevel(levelId)).map((p) => ({ ...p, level: p.level + bonus }));
+  return { allies, enemies, allyHpMult: m, allyAtkMult: m, relics: [...s.relics] };
 }
 
 // ---------- Results ----------
@@ -335,6 +368,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     losses: win && b.allyLosses <= level.maxLosses,
   };
   const stars = win ? 1 + Number(conditions.king) + Number(conditions.losses) : 0;
+  if (isAbyss(levelId)) return recordAbyss(s, levelId, b, stars, conditions);
   const prev = s.stars[levelId] ?? 0;
   const firstClear = win && prev === 0;
   const newStars = Math.max(0, stars - prev);
@@ -343,7 +377,8 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     reward = firstClear ? firstReward(levelId) : replayReward(levelId);
     // Bonus for every extra star earned for the first time.
     reward += Math.max(0, newStars - (firstClear ? 1 : 0)) * Math.round(firstReward(levelId) * 0.25);
-    if (hasRelic(s, 'plunder')) reward = Math.round(reward * 1.3);
+    if (hasRelic(s, 'plunder')) reward *= 1.3;
+    reward = Math.round(reward * goldMultiplier(s));
   }
   s.stars[levelId] = Math.max(prev, stars);
   let relicsEarned = firstClear && level.boss ? 1 : 0;
@@ -352,6 +387,11 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   s.starMilestones = Math.max(s.starMilestones, milestones);
   s.relicPicks += relicsEarned;
   s.gold += reward;
+  countBattle(s, b, win, reward);
+  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned };
+}
+
+function countBattle(s: GameState, b: Battle, win: boolean, reward: number): void {
   s.stats.battles++;
   if (win) s.stats.wins++;
   if (win && b.allyLosses === 0) s.stats.flawless++;
@@ -360,7 +400,54 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   s.stats.crits += b.allyStats.crits;
   s.stats.abilities += b.allyStats.abilities;
   s.stats.goldEarned += reward;
-  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned };
+}
+
+/** Abyss floors: no stars are stored; a win pays and opens the next floor, every 10th floor grants a relic. */
+function recordAbyss(s: GameState, levelId: string, b: Battle, stars: number, conditions: BattleOutcome['conditions']): BattleOutcome {
+  const floor = abyssFloor(levelId);
+  const win = b.result === 'win';
+  let reward = 0;
+  let relicsEarned = 0;
+  if (win) {
+    reward = abyssReward(floor) * (hasRelic(s, 'plunder') ? 1.3 : 1);
+    reward = Math.round(reward * goldMultiplier(s));
+    s.abyss.floor = floor + 1;
+    s.abyss.best = Math.max(s.abyss.best, floor);
+    if (floor % 10 === 0) relicsEarned = 1;
+    s.relicPicks += relicsEarned;
+    s.gold += reward;
+  }
+  countBattle(s, b, win, reward);
+  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned };
+}
+
+// ---------- Prestige ----------
+
+export const PRESTIGE_UNLOCK = '4-9';
+
+export function canPrestige(s: GameState): boolean {
+  return isCleared(s, PRESTIGE_UNLOCK);
+}
+
+/** Crowns a new game would grant now: stars, abyss depth and a bonus for finishing. */
+export function crownsForPrestige(s: GameState): number {
+  return Math.floor(totalStars(s) / 6) + Math.floor(s.abyss.best / 5) + 3;
+}
+
+/** Start a new, harder game keeping crowns, achievements, stats, tips and the abyss record. Returns crowns gained. */
+export function prestige(s: GameState, now = Date.now()): number {
+  if (!canPrestige(s)) return 0;
+  const gained = crownsForPrestige(s);
+  const fresh = newGame(now);
+  fresh.crowns = s.crowns + gained;
+  fresh.prestige = s.prestige + 1;
+  fresh.achievements = s.achievements;
+  fresh.achievementsClaimed = s.achievementsClaimed;
+  fresh.tutorial = s.tutorial;
+  fresh.stats = s.stats;
+  fresh.abyss = { floor: 1, best: s.abyss.best };
+  Object.assign(s, fresh);
+  return gained;
 }
 
 // ---------- Relics ----------
@@ -437,6 +524,7 @@ export function loadGame(now = Date.now()): { state: GameState; offlineGold: num
           levels: { ...state.levels, ...data.levels },
           buildings: { ...state.buildings, ...data.buildings },
           stats: { ...state.stats, ...data.stats },
+          abyss: { ...state.abyss, ...data.abyss },
         } as GameState;
       }
     }

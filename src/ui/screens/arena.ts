@@ -1,7 +1,8 @@
 import { createBattle, stepBattle, type Battle, type BattleEvent, type Unit } from '../../game/battle';
 import { autoFormation } from '../../game/autoformation';
 import {
-  CHAPTERS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, levelIncome, nextLevelId, replayReward,
+  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, firstReward, getLevel, isAbyss, levelIncome, nextLevelId,
+  replayReward,
 } from '../../game/levels';
 import { ABILITIES, abilityTier } from '../../game/abilities';
 import { PIECES, type PieceKind } from '../../game/pieces';
@@ -57,6 +58,9 @@ export class ArenaScreen implements Screen {
   private relicSlot = el('div');
   private kingBars: Record<'ally' | 'enemy', { fill: HTMLElement; text: HTMLElement }>;
   private battleTime = el('div', 'battle-time');
+  private autoBtn2 = el('button', 'toggle');
+  private autoDescend = false;
+  private autoTimer: number | null = null;
 
   constructor(private ctx: Ctx) {
     this.board = new BoardView((x, y) => this.onCell(x, y));
@@ -78,7 +82,11 @@ export class ArenaScreen implements Screen {
       this.speedBtns.push({ b, sp });
     }
     this.fightBtn.addEventListener('click', () => (this.phase === 'prep' ? this.startBattle() : this.retreat()));
-    controls.append(seg, this.fightBtn);
+    this.autoBtn2.title = 'После победы сразу спускаться на следующий этаж';
+    this.autoBtn2.addEventListener('click', () => {
+      this.autoDescend = !this.autoDescend;
+    });
+    controls.append(seg, this.autoBtn2, this.fightBtn);
     top.append(back, titles, controls);
 
     // Board column with the reserve tray.
@@ -190,17 +198,34 @@ export class ArenaScreen implements Screen {
     this.renderInfo();
   }
 
+  /** Enemy placements as they will fight, including the new-game level bonus. */
+  private enemies() {
+    return battleSetup(this.ctx.state, this.levelId).enemies;
+  }
+
   private renderInfo(): void {
     const s = this.ctx.state;
     const level = getLevel(this.levelId);
     const chapter = chapterOf(this.levelId);
-    setText(this.title, `${level.id} · ${level.name}`);
-    setText(this.subtitle, `Глава ${chapter.id}. ${chapter.name}`);
+    const abyss = isAbyss(this.levelId);
+    setText(this.title, abyss ? `Бездна · ${level.name}` : `${level.id} · ${level.name}`);
+    setText(this.subtitle, abyss
+      ? `Этаж ${abyssFloor(this.levelId)} · рекорд ${s.abyss.best}`
+      : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
     this.board.setTheme(chapter.id);
-    const enemies = enemyPlacements(level);
-    setText(this.enemyText, `Враги: ${enemies.length} фигур, уровень ${level.level}${level.boss ? ` · босс: ${level.boss}` : ''}`);
+    const enemies = this.enemies();
+    setText(this.enemyText, `Враги: ${enemies.length} фигур, уровень ${enemies[0]?.level ?? level.level}${level.boss ? ` · босс: ${level.boss}` : ''}`);
     const best = s.stars[level.id] ?? 0;
     this.conditions.innerHTML = '';
+    this.conditions.hidden = abyss;
+    this.autoBtn2.hidden = !abyss;
+    if (abyss) {
+      setText(this.rewardText, `Победа: +${fmt(Math.round(abyssReward(abyssFloor(this.levelId))))} золота и спуск на этаж ниже`);
+      setText(this.hintText, level.hint);
+      this.relicCard.hidden = s.relics.length === 0;
+      this.relicSlot.replaceChildren(relicStrip(s.relics));
+      return;
+    }
     for (const [i, text] of [
       'Победить',
       'Король сохранил не меньше 50% здоровья',
@@ -242,7 +267,7 @@ export class ArenaScreen implements Screen {
       this.selection = { kind: slot.kind, from: { x, y } };
       return;
     }
-    const enemy = enemyPlacements(getLevel(this.levelId)).find((p) => p.x === x && p.y === y);
+    const enemy = this.enemies().find((p) => p.x === x && p.y === y);
     if (enemy) {
       const def = PIECES[enemy.kind];
       const tier = abilityTier(enemy.level);
@@ -298,7 +323,11 @@ export class ArenaScreen implements Screen {
   }
 
   private leave(): void {
-    if (this.phase === 'battle') this.enterPrep();
+    if (this.autoTimer !== null) {
+      clearTimeout(this.autoTimer);
+      this.autoTimer = null;
+    }
+    if (this.phase === 'battle' || isAbyss(this.levelId)) this.enterPrep();
     this.ctx.go('map');
   }
 
@@ -309,6 +338,17 @@ export class ArenaScreen implements Screen {
     this.phase = 'result';
     this.board.showBanner(outcome.win ? 'Победа' : 'Поражение', outcome.win);
     audio.play(outcome.win ? 'win' : 'lose');
+    // Auto-descent: skip the dialog and go straight to the next floor.
+    if (outcome.win && isAbyss(this.levelId) && this.autoDescend && outcome.relicsEarned === 0) {
+      toast(`Этаж ${abyssFloor(this.levelId)} пройден: +${fmt(outcome.reward)} золота`, 'good');
+      this.autoTimer = window.setTimeout(() => {
+        this.autoTimer = null;
+        if (!this.root.isConnected || this.root.closest('[hidden]') || this.phase !== 'result') return;
+        this.show(nextLevelId(this.levelId)!);
+        this.startBattle();
+      }, 1300);
+      return;
+    }
     setTimeout(() => {
       this.showResult(outcome);
       if (outcome.relicsEarned > 0) setTimeout(() => openRelicPicker(this.ctx), 500);
@@ -370,7 +410,7 @@ export class ArenaScreen implements Screen {
         this.enterPrep();
         this.ctx.go('camp');
       });
-      button('Переиграть', '', () => this.enterPrep());
+      if (!isAbyss(this.levelId)) button('Переиграть', '', () => this.enterPrep());
       const next = nextLevelId(this.levelId);
       if (next) button('Дальше ▶', 'btn-primary', () => this.show(next));
     } else {
@@ -417,6 +457,8 @@ export class ArenaScreen implements Screen {
     if (events.length && this.ctx.settings.effects && events.length <= 60) this.board.fx(events);
 
     setText(this.fightBtn, prep ? '▶ В бой' : '■ Отступить');
+    setText(this.autoBtn2, `Авто-спуск: ${this.autoDescend ? 'вкл' : 'выкл'}`);
+    this.autoBtn2.classList.toggle('on', this.autoDescend);
     this.fightBtn.classList.toggle('btn-danger', !prep);
     this.fightBtn.disabled = this.phase === 'result';
     this.speedBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === speed));
@@ -481,7 +523,7 @@ export class ArenaScreen implements Screen {
         selected: !!from && from.x === f.x && from.y === f.y,
       };
     });
-    enemyPlacements(getLevel(this.levelId)).forEach((p, i) => {
+    this.enemies().forEach((p, i) => {
       views.push({
         key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss,
         tier: abilityTier(p.level) as Tier,

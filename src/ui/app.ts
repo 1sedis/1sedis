@@ -159,7 +159,8 @@ export class App implements Ctx {
   private renderMenu(): void {
     const s = this.state;
     const id = currentLevelId(s);
-    const summary = `Глава ${chapterOf(id).id} · ★ ${totalStars(s)}/${ALL_LEVELS.length * 3} · ${fmt(s.gold)} золота`;
+    const summary = `Глава ${chapterOf(id).id} · ★ ${totalStars(s)}/${ALL_LEVELS.length * 3} · ${fmt(s.gold)} золота`
+      + (s.crowns ? ` · ♛ ${s.crowns}` : '');
     const menu = buildMenu({
       hasSave: hasSave(),
       summary,

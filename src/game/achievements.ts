@@ -47,6 +47,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     (s) => Object.values(s.army).filter((n) => n > 0).length),
   A('treasurer', 'Казначей', 'Заберите из казны 10 000 золота', 10000, 2000, (s) => s.stats.treasuryCollected),
   A('architect', 'Архитектор', 'Достройте Штаб до максимума', 3, 4000, (s) => s.buildings.hq),
+  A('abyss_10', 'Глубины', 'Пройдите 10 этажей Бездны', 10, 2000, (s) => s.abyss.best),
+  A('abyss_30', 'Бездонный', 'Пройдите 30 этажей Бездны', 30, 15000, (s) => s.abyss.best),
+  A('prestige_1', 'Новая партия', 'Начните новую партию с коронами', 1, 10000, (s) => s.prestige),
 ];
 
 export function getAchievement(id: string): AchievementDef | undefined {
