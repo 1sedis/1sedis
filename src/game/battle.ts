@@ -68,6 +68,10 @@ export interface BattleSetup {
   enemyAtkMult?: number;
   /** Finale "Зеркало": the Hand keeps moving the player's strongest piece into the enemy lines. */
   handMeddle?: boolean;
+  /** The player's own chess moves this battle (see playMove). */
+  playerMoves?: number;
+  /** Stop for the player's decisions (promotion, check, boss blows); off in simulations, which take the defaults. */
+  decisions?: boolean;
 }
 
 /** A telegraphed boss blow: cells light up, then get hit. */
@@ -139,7 +143,9 @@ export interface BattleEvent {
     /** The Hand over the board moved a piece (from fromX/fromY to x/y). */
     | 'hand'
     /** The Hand turned the board over: every piece mirrored left to right. */
-    | 'flip';
+    | 'flip'
+    /** The player's own move (fromX/fromY → x/y); label says which. */
+    | 'order';
   /** Cells for 'warn', 'blast' and 'terrain' events (index y * 8 + x). */
   cells?: number[];
   /** Ability name for 'ability' events. */
@@ -196,6 +202,15 @@ export interface Battle {
   bossCycle: number;
   /** Finale: the Hand moves pieces from outside the board; ticks until it does. */
   handTimer: number;
+  /** The player's moves left this battle. */
+  movesLeft: number;
+  /** Ask the player at decision points. */
+  decisions: boolean;
+  /** A decision waiting for the player; the battle is frozen until it is resolved. */
+  decision: Decision | null;
+  /** The first check of the battle was already offered; boss blows offered so far. */
+  checkAsked: boolean;
+  bossAsks: number;
   allyCrit: number;
   allyOpening: number;
 }
@@ -299,6 +314,7 @@ export function createBattle(setup: BattleSetup): Battle {
     bossPhase: 1, bossTimer: 0, summons: 0, warnings: [],
     legends: new Set(setup.legends ?? []), perks: new Set(setup.perks ?? []), castled: false, shadows: 0,
     bossCycle: 0, handTimer: setup.handMeddle ? HAND_FIRST : 0,
+    movesLeft: setup.playerMoves ?? 0, decisions: !!setup.decisions, decision: null, checkAsked: false, bossAsks: 0,
     allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1 };
   // "Туман войны": the enemy is blind for the first 3 seconds.
   if (b.perks.has('fog')) for (const u of units) if (u.side === 'enemy') u.wait += 30;
@@ -613,16 +629,6 @@ function strike(b: Battle, u: Unit, target: Unit): void {
   dealDamage(b, u, target, damage, crit);
   if (u.kind === 'king' && legend.has('wrath')) {
     for (const f of alive(b, target.side)) if (f !== target && chebyshev(u, f.x, f.y) <= 1) dealDamage(b, u, f, damage * 0.6, false);
-  }
-  if (u.side === 'ally' && u.kind === 'knight' && b.perks.has('fork')) {
-    // "Вилка": the knight's jump also lands on a second enemy within its reach.
-    const second = reachFrom(b, u.side, 'knight', u.x, u.y).find((t) => t !== target && t.hp > 0);
-    if (second) dealDamage(b, u, second, damage * 0.6, false);
-  }
-  if (u.side === 'ally' && target.kind === 'king' && target.hp > 0 && b.perks.has('check') && b.tick >= target.checkReady) {
-    target.wait += 10;
-    target.checkReady = b.tick + 40;
-    traitEvent(b, target, 'Шах!');
   }
   if (u.kind === 'bishop' && legend.has('beam')) beamThrough(b, u, target, damage);
   if (u.kind === 'rook' && legend.has('ram')) ramThrough(b, u, target, damage * 0.7);
@@ -1050,14 +1056,9 @@ function moveUnit(b: Battle, u: Unit): void {
       const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (u.side === 'ally' && b.perks.has('earlyCrown') ? 2 : 0);
       const promotes = u.side === 'ally' ? u.y <= early : u.y >= BOARD_SIZE - 1;
       if (promotes) {
-        if (has(b, u.side, 'queensGambit')) u.atkMult *= 1.5;
-        applyStats(u, 'queen');
-        b.report[u.uid].promoted = true;
-        b.report[u.uid].kind = 'queen';
-        resetAbilityTimer(b, u, 0.5);
-        u.promoted = true;
-        if (u.side === 'ally') b.allyStats.promotions++;
-        b.events.push({ type: 'promote', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid });
+        // The player chooses what the pawn becomes; everyone else (and simulations) takes a queen.
+        if (u.side === 'ally' && b.decisions) ask(b, { kind: 'promote', uid: u.uid, options: ['queen', 'rook', 'bishop', 'knight'], fallback: 'queen' });
+        else promote(b, u, 'queen');
       }
     } else {
       u.wait = 3; // hold the line
@@ -1082,6 +1083,17 @@ function moveUnit(b: Battle, u: Unit): void {
   }
 }
 
+function promote(b: Battle, u: Unit, kind: PieceKind): void {
+  if (has(b, u.side, 'queensGambit')) u.atkMult *= 1.5;
+  applyStats(u, kind);
+  b.report[u.uid].promoted = true;
+  b.report[u.uid].kind = kind;
+  resetAbilityTimer(b, u, 0.5);
+  u.promoted = true;
+  if (u.side === 'ally') b.allyStats.promotions++;
+  b.events.push({ type: 'promote', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid });
+}
+
 function act(b: Battle, u: Unit): void {
   // The Hand never moves: it strikes whoever comes close and works through its skills.
   if (u.uid === b.bossUid && b.bossId === 'hand') {
@@ -1089,17 +1101,6 @@ function act(b: Battle, u: Unit): void {
     if (near.length) strike(b, u, pickTarget(u, near));
     else u.wait = 3;
     return;
-  }
-  if (u.kind === 'king' && u.side === 'ally' && b.perks.has('castling') && !b.castled && kingThreatened(b, u)) {
-    const rook = alive(b, 'ally').filter((f) => f.kind === 'rook' || f.kind === 'chancellor')
-      .sort((a, c) => chebyshev(u, a.x, a.y) - chebyshev(u, c.x, c.y))[0];
-    if (rook) {
-      b.castled = true;
-      [u.x, u.y, rook.x, rook.y] = [rook.x, rook.y, u.x, u.y];
-      traitEvent(b, u, 'Рокировка!');
-      u.wait = u.moveCd;
-      return;
-    }
   }
   const warlord = u.kind === 'king' && u.side === 'ally' && b.perks.has('warlord');
   if (u.kind === 'king' && !warlord) {
@@ -1125,7 +1126,7 @@ function sideDefeated(b: Battle, side: Side): boolean {
 
 /** Advance the battle by one tick (100 ms of game time). */
 export function stepBattle(b: Battle): void {
-  if (b.result) return;
+  if (b.result || b.decision) return;
   b.tick++;
   b.events = [];
   for (const u of b.units) {
@@ -1142,6 +1143,7 @@ export function stepBattle(b: Battle): void {
   if (b.relics.has('royalHealer') && b.tick % HEAL_EVERY === 0) royalHeal(b);
   if (b.tick % 10 === 0 && b.terrain.includes('dark')) darkTick(b);
   if (!sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) bossTick(b);
+  if (b.decisions && !b.checkAsked && !b.decision) offerCheck(b);
   if (b.handTimer > 0 && --b.handTimer === 0 && !sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) {
     meddle(b);
     b.handTimer = HAND_EVERY;
@@ -1318,6 +1320,11 @@ function summon(b: Battle, boss: Unit): boolean {
 
 function warn(b: Battle, boss: Unit, cells: number[], damage: number, rock = false): void {
   b.warnings.push({ at: b.tick + WARN_TICKS, cells, damage, fromUid: boss.uid, rock });
+  const hit = new Set(cells);
+  if (b.decisions && !b.decision && b.bossAsks < MAX_BOSS_ASKS && alive(b, 'ally').some((u) => hit.has(u.y * BOARD_SIZE + u.x))) {
+    b.bossAsks++;
+    ask(b, { kind: 'boss', uid: boss.uid, options: ['scatter', 'brace', 'none'], fallback: 'none', cells });
+  }
   b.events.push({ type: 'warn', uid: boss.uid, side: boss.side, x: boss.x, y: boss.y, amount: WARN_TICKS, fromX: boss.x, fromY: boss.y, fromUid: boss.uid, cells });
 }
 
@@ -1449,7 +1456,10 @@ function resolveWarnings(b: Battle): void {
 
 /** Run a battle to completion (used by tests and balance checks). */
 export function simulate(b: Battle): Battle['result'] {
-  while (!b.result) stepBattle(b);
+  while (!b.result) {
+    if (b.decision) resolveDecision(b);
+    stepBattle(b);
+  }
   return b.result;
 }
 
@@ -1483,4 +1493,236 @@ export function enemyDamageShare(b: Battle): number {
     lost += u.maxHp - Math.max(0, Math.min(u.maxHp, u.hp));
   }
   return max > 0 ? lost / max : 0;
+}
+
+// ---------- The player's moves and decisions ----------
+
+/** Player moves per battle. */
+export const MOVES_PER_BATTLE = 2;
+/** A capture takes an ordinary piece off the board; a king or boss loses this share of its health and is stunned (ticks). */
+export const CAPTURE_ROYAL = 0.2;
+export const CAPTURE_STUN = 20;
+const MAX_BOSS_ASKS = 4;
+
+export type DecisionKind = 'promote' | 'check' | 'boss';
+
+/** A question the battle stops for. Options are piece kinds (promotion) or answer ids. */
+export interface Decision {
+  kind: DecisionKind;
+  uid: number;
+  options: string[];
+  /** What happens when the player does not answer. */
+  fallback: string;
+  /** Cells of a boss blow. */
+  cells?: number[];
+}
+
+export interface PlayerMove {
+  uid: number;
+  x: number;
+  y: number;
+  type: 'move' | 'capture' | 'castle';
+}
+
+function ask(b: Battle, d: Decision): void {
+  b.decision = d;
+}
+
+/** The first time an enemy can strike the player's king, offer a way out. */
+function offerCheck(b: Battle): void {
+  const king = alive(b, 'ally').find((u) => u.kind === 'king' && !u.boss);
+  if (!king || !kingThreatened(b, king)) return;
+  b.checkAsked = true;
+  const options = ['escape', 'block'];
+  if (castleRook(b, king)) options.push('castle');
+  options.push('none');
+  ask(b, { kind: 'check', uid: king.uid, options, fallback: 'none' });
+}
+
+function castleRook(b: Battle, king: Unit): Unit | undefined {
+  if (b.castled) return undefined;
+  return alive(b, king.side).filter((f) => f.kind === 'rook' || f.kind === 'chancellor')
+    .sort((a, c) => chebyshev(king, a.x, a.y) - chebyshev(king, c.x, c.y) || a.uid - c.uid)[0];
+}
+
+function orderEvent(b: Battle, u: Unit, fromX: number, fromY: number, label: string): void {
+  b.events.push({ type: 'order', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX, fromY, fromUid: u.uid, fromKind: u.kind, label });
+}
+
+/** Answer the pending decision (an unknown answer counts as the fallback). */
+export function resolveDecision(b: Battle, answer?: string): void {
+  const d = b.decision;
+  if (!d) return;
+  b.decision = null;
+  const choice = answer && d.options.includes(answer) ? answer : d.fallback;
+  const u = b.units.find((x) => x.uid === d.uid && x.hp > 0);
+  if (d.kind === 'promote') {
+    if (u) promote(b, u, choice as PieceKind);
+    return;
+  }
+  if (d.kind === 'check' && u) {
+    const fromX = u.x;
+    const fromY = u.y;
+    if (choice === 'escape') {
+      const spot = kingEscape(b, u);
+      if (spot) {
+        [u.x, u.y] = spot;
+        orderEvent(b, u, fromX, fromY, 'Отступление');
+      }
+    } else if (choice === 'block') {
+      // The nearest piece steps between the king and the closest attacker.
+      const foes = alive(b, 'enemy').filter((e) => threatens(buildGrid(b), b.terrain, e, u.x, u.y));
+      const foe = foes.sort((a, c) => chebyshev(u, a.x, a.y) - chebyshev(u, c.x, c.y))[0];
+      if (foe) {
+        const sx = Math.sign(foe.x - u.x);
+        const sy = Math.sign(foe.y - u.y);
+        const cell: [number, number] = [u.x + sx, u.y + sy];
+        const guard = alive(b, 'ally').filter((f) => f !== u && !f.boss)
+          .sort((a, c) => chebyshev(a, cell[0], cell[1]) - chebyshev(c, cell[0], cell[1]) || a.uid - c.uid)[0];
+        if (guard && standable(b.terrain, cell[0], cell[1]) && !unitAt(b, cell[0], cell[1])) {
+          const gx = guard.x;
+          const gy = guard.y;
+          [guard.x, guard.y] = cell;
+          guard.wait = Math.max(guard.wait, 4);
+          orderEvent(b, guard, gx, gy, 'Заслон');
+        }
+      }
+    } else if (choice === 'castle') {
+      const rook = castleRook(b, u);
+      if (rook) castle(b, u, rook);
+    }
+    return;
+  }
+  if (d.kind === 'boss' && d.cells) {
+    const hit = new Set(d.cells);
+    const inside = alive(b, 'ally').filter((f) => hit.has(f.y * BOARD_SIZE + f.x));
+    for (const f of inside) {
+      if (choice === 'scatter') {
+        const spot = moveOffsets('king').map(([dx, dy]) => [f.x + dx, f.y + dy] as const)
+          .find(([x, y]) => standable(b.terrain, x, y) && !unitAt(b, x, y) && !hit.has(y * BOARD_SIZE + x));
+        if (spot) {
+          const fx = f.x;
+          const fy = f.y;
+          [f.x, f.y] = spot;
+          orderEvent(b, f, fx, fy, '');
+        }
+      } else if (choice === 'brace') {
+        f.shield = f.maxShield = Math.max(f.shield, f.maxHp * 0.4);
+      }
+    }
+  }
+}
+
+function castle(b: Battle, king: Unit, rook: Unit): void {
+  b.castled = true;
+  const kx = king.x;
+  const ky = king.y;
+  [king.x, king.y, rook.x, rook.y] = [rook.x, rook.y, king.x, king.y];
+  king.wait = Math.max(king.wait, 4);
+  orderEvent(b, king, kx, ky, 'Рокировка!');
+}
+
+/** Where a piece of the player may go right now: real chess moves, blocked by pieces, rock and water. */
+export function legalMoves(b: Battle, uid: number): PlayerMove[] {
+  const u = b.units.find((x) => x.uid === uid && x.hp > 0 && x.side === 'ally');
+  if (!u || u.kind === 'king' && u.boss) return [];
+  const out: PlayerMove[] = [];
+  const at = (x: number, y: number) => {
+    if (!inside(x, y) || !standable(b.terrain, x, y)) return 'wall' as const;
+    const o = unitAt(b, x, y);
+    if (!o) return 'empty' as const;
+    return o.side === u.side ? 'friend' as const : 'foe' as const;
+  };
+  if (u.kind === 'pawn') {
+    const f = forward(u.side);
+    if (at(u.x, u.y + f) === 'empty') {
+      out.push({ uid, x: u.x, y: u.y + f, type: 'move' });
+      if (!u.moved && at(u.x, u.y + 2 * f) === 'empty') out.push({ uid, x: u.x, y: u.y + 2 * f, type: 'move' });
+    }
+    for (const dx of [-1, 1]) if (at(u.x + dx, u.y + f) === 'foe') out.push({ uid, x: u.x + dx, y: u.y + f, type: 'capture' });
+    return out;
+  }
+  const slides = u.kind === 'king' ? [] : lineDirections(u.kind);
+  for (const [dx, dy] of slides) {
+    for (let x = u.x + dx, y = u.y + dy; ; x += dx, y += dy) {
+      const c = at(x, y);
+      if (c === 'empty') out.push({ uid, x, y, type: 'move' });
+      else {
+        if (c === 'foe') out.push({ uid, x, y, type: 'capture' });
+        break;
+      }
+    }
+  }
+  const sliding = new Set(slides.map(([dx, dy]) => `${dx},${dy}`));
+  for (const [dx, dy] of moveOffsets(u.kind)) {
+    if (sliding.has(`${dx},${dy}`)) continue;
+    const c = at(u.x + dx, u.y + dy);
+    if (c === 'empty') out.push({ uid, x: u.x + dx, y: u.y + dy, type: 'move' });
+    else if (c === 'foe') out.push({ uid, x: u.x + dx, y: u.y + dy, type: 'capture' });
+  }
+  if (u.kind === 'king') {
+    const rook = castleRook(b, u);
+    if (rook) out.push({ uid, x: rook.x, y: rook.y, type: 'castle' });
+  }
+  return out;
+}
+
+/**
+ * Make one of the player's moves. A move to an empty square relocates the
+ * piece; a capture strikes the enemy hard and stuns it, taking its square if
+ * it falls (a slider that leaves it alive stops right before it).
+ */
+export function playMove(b: Battle, uid: number, x: number, y: number): boolean {
+  if (b.result || b.decision || b.movesLeft <= 0) return false;
+  const m = legalMoves(b, uid).find((mv) => mv.x === x && mv.y === y);
+  if (!m) return false;
+  const u = b.units.find((v) => v.uid === uid)!;
+  const fromX = u.x;
+  const fromY = u.y;
+  b.movesLeft--;
+  u.moved = true;
+  if (m.type === 'castle') {
+    castle(b, u, unitAt(b, x, y)!);
+    return true;
+  }
+  if (m.type === 'move') {
+    u.x = x;
+    u.y = y;
+    u.wait = Math.max(u.wait, 4);
+    orderEvent(b, u, fromX, fromY, 'Ход');
+    const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
+    if (u.kind === 'pawn' && u.y <= early) {
+      if (b.decisions) ask(b, { kind: 'promote', uid: u.uid, options: ['queen', 'rook', 'bishop', 'knight'], fallback: 'queen' });
+      else promote(b, u, 'queen');
+    }
+    return true;
+  }
+  const target = unitAt(b, x, y)!;
+  // As in chess, a capture takes an ordinary piece off the board; kings and bosses only reel.
+  const royal = target.kind === 'king' || target.boss;
+  const damage = royal ? target.maxHp * CAPTURE_ROYAL : target.hp + target.shield + 1;
+  orderEvent(b, u, fromX, fromY, 'Взятие!');
+  dealDamage(b, u, target, damage, false);
+  // "Вилка": a jumping capture also lands on a second enemy within the jump.
+  if (JUMPERS.has(u.kind) && b.perks.has('fork')) {
+    const second = moveOffsets('knight').map(([dx, dy]) => unitAt(b, x + dx, y + dy))
+      .find((t) => t && t !== target && t.side !== u.side);
+    if (second) dealDamage(b, u, second, damage * 0.6, false);
+  }
+  if (target.hp > 0) {
+    // "Шах": a captured king is stunned three times as long.
+    const stun = target.kind === 'king' && b.perks.has('check') ? CAPTURE_STUN * 3 : CAPTURE_STUN;
+    target.wait = Math.max(target.wait, stun);
+    if (stun > CAPTURE_STUN) traitEvent(b, target, 'Шах!');
+    if (!JUMPERS.has(u.kind) && u.kind !== 'pawn') {
+      const dx = Math.sign(x - fromX);
+      const dy = Math.sign(y - fromY);
+      [u.x, u.y] = [x - dx, y - dy];
+    }
+  } else {
+    u.x = x;
+    u.y = y;
+  }
+  u.wait = Math.max(u.wait, u.attackCd);
+  return true;
 }

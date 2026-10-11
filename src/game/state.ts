@@ -1,4 +1,4 @@
-import { BOARD_SIZE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
+import { BOARD_SIZE, MOVES_PER_BATTLE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
   ABYSS_UNLOCK, ALL_LEVELS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
   isAbyss, levelIncome, levelIndex, replayReward, isFinale, finalePhase,
@@ -320,6 +320,11 @@ export function canAffordUpgrade(s: GameState): boolean {
 
 export function queenCap(s: GameState): number {
   return hasNode(s, 'twoQueens') ? 2 : 1;
+}
+
+/** The player's own moves per battle ("Темп" in the Crown Tree adds one). */
+export function playerMoves(s: GameState): number {
+  return MOVES_PER_BATTLE + (hasNode(s, 'castling') ? 1 : 0);
 }
 
 /** At most 8 pawns, as on a chessboard: one upgrade must not lift an endless swarm. */

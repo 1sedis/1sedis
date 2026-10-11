@@ -1,5 +1,5 @@
 import { test } from 'vitest';
-import { createBattle, simulate, MAX_TICKS } from '../src/game/battle';
+import { MOVES_PER_BATTLE, createBattle, legalMoves, playMove, resolveDecision, simulate, stepBattle, MAX_TICKS, type Battle } from '../src/game/battle';
 import { bestFormation } from '../src/game/autoformation';
 import { ALL_LEVELS, abyssId, chapterOf, FINALE_LEVELS } from '../src/game/levels';
 import { PIECES, levelMultiplier, type PieceKind } from '../src/game/pieces';
@@ -21,6 +21,30 @@ import {
  * Time model: battles at x2 speed plus 10 s of fiddling each, and waiting for
  * the treasury when nothing is affordable. Run: npm run bot:story
  */
+
+/**
+ * MOVES=1: the player spends their moves with a simple rule of thumb: at 3 s
+ * and 12 s into the battle, the capture that hits the most valuable enemy
+ * (the king first). Promotions take a queen.
+ */
+const USE_MOVES = !!process.env.MOVES;
+const VALUE: Record<string, number> = { king: 100, queen: 9, archbishop: 8, chancellor: 8, rook: 5, bishop: 3, knight: 3, ghost: 4, pawn: 1 };
+
+function playWithMoves(b: Battle): void {
+  const moments = new Set([30, 120]);
+  while (!b.result) {
+    if (b.decision) resolveDecision(b);
+    if (moments.has(b.tick) && b.movesLeft > 0) {
+      const captures = b.units.filter((u) => u.side === 'ally' && u.hp > 0)
+        .flatMap((u) => legalMoves(b, u.uid)).filter((m) => m.type === 'capture');
+      const at = (x: number, y: number) => b.units.find((u) => u.hp > 0 && u.x === x && u.y === y);
+      const best = captures.sort((p, q) => (VALUE[at(q.x, q.y)?.kind ?? 'pawn'] ?? 0) - (VALUE[at(p.x, p.y)?.kind ?? 'pawn'] ?? 0))[0];
+      if (best) playMove(b, best.uid, best.x, best.y);
+      else moments.add(b.tick + 10);
+    }
+    stepBattle(b);
+  }
+}
 
 const RELIC_RANK: RelicId[] = [
   'sharpBlades', 'chainmail', 'royalHealer', 'secondLife', 'warCry', 'heavyShot', 'piercing', 'avengers', 'reserve',
@@ -95,8 +119,9 @@ test('story bot', () => {
 
   const fight = (id: string): boolean => {
     bestFormation(s, id, commandLimit(s, id));
-    const b = createBattle(battleSetup(s, id));
-    simulate(b);
+    const b = createBattle({ ...battleSetup(s, id), playerMoves: USE_MOVES ? MOVES_PER_BATTLE : 0 });
+    if (USE_MOVES) playWithMoves(b);
+    else simulate(b);
     if (b.tick >= MAX_TICKS) timeouts++;
     const out = recordResult(s, id, b);
     t += (b.tick * 0.1) / 2 + 10;

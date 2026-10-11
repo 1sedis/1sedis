@@ -1,4 +1,7 @@
-import { createBattle, stepBattle, threatMap, type Battle, type BattleEvent, type Unit } from '../../game/battle';
+import {
+  createBattle, legalMoves, playMove, resolveDecision, stepBattle, threatMap,
+  type Battle, type BattleEvent, type Decision, type PlayerMove, type Unit,
+} from '../../game/battle';
 import { adviceLabel, adviseUpgrade } from '../../game/advice';
 import { bestFormation } from '../../game/autoformation';
 import { SYNERGIES, synergyProgress } from '../../game/synergies';
@@ -17,7 +20,7 @@ import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
-  available, battleSetup, clearFormation, levelDistortions, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
+  available, battleSetup, clearFormation, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
   moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, upgradePiece, type BattleOutcome,
   type FormationSlot,
 } from '../../game/state';
@@ -59,6 +62,15 @@ export class ArenaScreen implements Screen {
   private subtitle = el('div', 'arena-sub');
   private fightBtn = el('button', 'btn btn-primary');
   private speedBtns: { b: HTMLButtonElement; sp: Settings['speed'] }[] = [];
+  /** The player's moves left this battle, as chess-clock tokens. */
+  private movesEl = el('div', 'moves-tokens');
+  /** The piece picked for a move (the battle is frozen meanwhile) and where it may go. */
+  private movePick: number | null = null;
+  private moveTargets: PlayerMove[] = [];
+  /** The decision on screen: its deadline and how to close it. */
+  private decisionUi: { decision: Decision; deadline: number; close: () => void } | null = null;
+  /** Events from the player's own actions, shown on the next frame. */
+  private pendingEvents: BattleEvent[] = [];
   private tray = el('div', 'tray');
   private trayItems = new Map<PieceKind, { btn: HTMLButtonElement; count: HTMLElement; img: HTMLImageElement }>();
   private trayTitle = el('span');
@@ -116,7 +128,8 @@ export class ArenaScreen implements Screen {
     this.autoBtn2.addEventListener('click', () => {
       this.autoDescend = !this.autoDescend;
     });
-    controls.append(seg, this.autoBtn2, this.fightBtn);
+    this.movesEl.title = 'Ваши ходы в этом бою: нажмите на свою фигуру во время боя';
+    controls.append(this.movesEl, seg, this.autoBtn2, this.fightBtn);
     top.append(back, titles, controls);
 
     // Board column with the reserve tray.
@@ -249,6 +262,10 @@ export class ArenaScreen implements Screen {
     audio.setTrack('map');
     this.phase = 'prep';
     this.battle = null;
+    this.cancelPick();
+    this.decisionUi?.close();
+    this.decisionUi = null;
+    this.pendingEvents = [];
     this.selection = null;
     this.board.showBanner(null);
     this.board.clearFx();
@@ -367,6 +384,10 @@ export class ArenaScreen implements Screen {
   // ---------- Interaction ----------
 
   private onCell(x: number, y: number): void {
+    if (this.phase === 'battle') {
+      this.onBattleCell(x, y);
+      return;
+    }
     if (this.phase !== 'prep') return;
     const s = this.ctx.state;
     const slot = slotAt(s, x, y);
@@ -400,6 +421,72 @@ export class ArenaScreen implements Screen {
     }
     const t = terrainFor(this.ctx.state, this.levelId)[y * 8 + x];
     if (t !== 'plain') toast(`${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`);
+  }
+
+  // ---------- The player's moves in battle ----------
+
+  /** Tap a piece of yours to freeze time and see its moves; tap a lit square to move there. */
+  private onBattleCell(x: number, y: number): void {
+    const b = this.battle;
+    if (!b || b.result || b.decision || this.introUntil) return;
+    const target = this.moveTargets.find((m) => m.x === x && m.y === y);
+    if (this.movePick !== null && target) {
+      const capture = target.type === 'capture';
+      if (playMove(b, this.movePick, x, y)) {
+        this.pendingEvents.push(...b.events);
+        b.events = [];
+        audio.play(capture ? 'crit' : 'select');
+        this.ctx.save();
+      }
+      this.cancelPick();
+      return;
+    }
+    const own = b.units.find((u) => u.hp > 0 && u.side === 'ally' && u.x === x && u.y === y);
+    if (own && b.movesLeft > 0 && own.uid !== this.movePick) {
+      const moves = legalMoves(b, own.uid);
+      if (moves.length) {
+        this.movePick = own.uid;
+        this.moveTargets = moves;
+        this.board.setMoveTargets(moves);
+        audio.play('click');
+        return;
+      }
+    }
+    if (own && b.movesLeft <= 0) toast('Ходы в этом бою кончились');
+    this.cancelPick();
+  }
+
+  private cancelPick(): void {
+    if (this.movePick === null && !this.moveTargets.length) return;
+    this.movePick = null;
+    this.moveTargets = [];
+    this.board.setMoveTargets(null);
+  }
+
+  /** Put the battle's pending decision on screen with a three-second timer. */
+  private showDecision(d: Decision): void {
+    const b = this.battle!;
+    const text = DECISION_TEXT[d.kind];
+    const options = d.options.map((id) => ({
+      id,
+      label: d.kind === 'promote' ? PIECES[id as PieceKind].name : text.options[id] ?? id,
+      icon: d.kind === 'promote' ? spriteUrl(id as PieceKind, 'ally', 2) : undefined,
+    }));
+    const close = this.board.showDecision(text.title, options, DECISION_MS, (id) => this.answer(id));
+    this.decisionUi = { decision: d, deadline: performance.now() + DECISION_MS, close };
+    if (d.kind !== 'boss' || b.bossAsks <= 1) audio.play('warn');
+  }
+
+  private answer(id?: string): void {
+    const b = this.battle;
+    const ui = this.decisionUi;
+    if (!b || !ui) return;
+    ui.close();
+    this.decisionUi = null;
+    resolveDecision(b, id);
+    this.pendingEvents.push(...b.events);
+    b.events = [];
+    if (id) audio.play('select');
   }
 
   private onTray(kind: PieceKind): void {
@@ -439,8 +526,11 @@ export class ArenaScreen implements Screen {
       return;
     }
     this.selection = null;
-    this.battle = createBattle(battleSetup(s, this.levelId));
+    this.battle = createBattle({ ...battleSetup(s, this.levelId), playerMoves: playerMoves(s), decisions: true });
+    this.cancelPick();
     this.phase = 'battle';
+    void this.ctx.tip('t_moves', this.movesEl,
+      `У вас ${playerMoves(s)} хода за бой. Нажмите на свою фигуру — время замрёт, и она сделает настоящий шахматный ход. Ход на врага — взятие: фигура снята с доски, а король или босс теряет пятую часть здоровья.`);
     audio.setTrack(getLevel(this.levelId).boss ? 'boss' : 'battle');
     this.acc = 0;
     const bossId = this.battle.bossId;
@@ -681,18 +771,28 @@ export class ArenaScreen implements Screen {
       this.board.intro(null);
       audio.play('start');
     }
-    if (this.phase === 'battle' && this.battle && !this.introUntil) {
+    const b = this.battle;
+    if (this.phase === 'battle' && b && this.decisionUi && performance.now() >= this.decisionUi.deadline) this.answer();
+    // Time stands still while the player picks a move or decides.
+    const frozen = this.movePick !== null || !!b?.decision;
+    if (this.phase === 'battle' && b && !this.introUntil && !frozen) {
       this.acc += dt * speed;
       const live = this.acc / TICK_MS < LIVE_FX_LIMIT;
       let steps = 0;
-      while (this.acc >= TICK_MS && steps < 2000 && this.phase === 'battle') {
+      while (this.acc >= TICK_MS && steps < 2000 && this.phase === 'battle' && !b.decision) {
         this.acc -= TICK_MS;
-        stepBattle(this.battle);
-        if (live) events.push(...this.battle.events);
-        if (this.battle.result) this.finish();
+        stepBattle(b);
+        if (live) events.push(...b.events);
+        if (b.result) this.finish();
         steps++;
       }
       if (!live) events = [];
+      if (b.decision) this.acc = 0;
+    }
+    if (this.phase === 'battle' && this.battle?.decision && !this.decisionUi) this.showDecision(this.battle.decision);
+    if (this.pendingEvents.length) {
+      events = [...this.pendingEvents, ...events];
+      this.pendingEvents = [];
     }
     this.render(events, speed);
   }
@@ -714,6 +814,15 @@ export class ArenaScreen implements Screen {
     }
     if (events.length && this.ctx.settings.effects && events.length <= 60) this.board.fx(events);
 
+    const total = playerMoves(s);
+    const left = this.battle && !prep ? this.battle.movesLeft : total;
+    const tokens = `${left}/${total}`;
+    if (this.movesEl.dataset.left !== tokens) {
+      this.movesEl.dataset.left = tokens;
+      this.movesEl.replaceChildren(el('span', 'moves-label', 'Ходы'),
+        ...Array.from({ length: total }, (_, i) => el('span', `move-token${i < left ? ' on' : ''}`)));
+    }
+    this.movesEl.classList.toggle('active', !prep && left > 0);
     setText(this.fightBtn, prep ? '▶ В бой' : '■ Отступить');
     setText(this.autoBtn2, `Авто-спуск: ${this.autoDescend ? 'вкл' : 'выкл'}`);
     this.autoBtn2.classList.toggle('on', this.autoDescend);
@@ -818,6 +927,7 @@ export class ArenaScreen implements Screen {
     const b = this.battle;
     if (!b) return;
     for (const e of events) {
+      if (e.type === 'order' && e.label && e.label !== 'Ход') this.board.callout(e.label, 'skill');
       if (e.type === 'hand') {
         this.board.handGrab(e.fromX, e.fromY, e.x, e.y);
         if (!b.bossId) this.board.callout('Рука переставляет фигуру!', 'skill');
@@ -941,12 +1051,21 @@ export class ArenaScreen implements Screen {
     return {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
       shield: u.shield / u.maxHp, tier: abilityTier(u.level) as Tier,
-      boss: u.boss, trait: u.trait, dead: u.hp <= 0,
+      boss: u.boss, trait: u.trait, dead: u.hp <= 0, selected: u.uid === this.movePick,
       skin: this.battle?.bossId === 'hand' && u.uid === this.battle.bossUid ? 'hand'
         : u.side === 'ally' && u.boss && u.kind === 'king' ? 'blackKing' : undefined,
     };
   }
 }
+
+/** How long a decision waits for the player. */
+const DECISION_MS = 3000;
+
+const DECISION_TEXT: Record<Decision['kind'], { title: string; options: Record<string, string> }> = {
+  promote: { title: 'Пешка дошла до края! В кого превратить?', options: {} },
+  check: { title: 'Шах! Король под ударом', options: { escape: 'Отступить', block: 'Закрыться', castle: 'Рокировка', none: 'Стоять' } },
+  boss: { title: 'Удар босса!', options: { scatter: 'Разбежаться', brace: 'Щиты', none: 'Стоять' } },
+};
 
 const RAGE_LINES: Partial<Record<string, string>> = {
   captain: 'Сомкнуть ряды!', rider: 'Ты не уйдёшь!', fortress: 'Камень не сдаётся!', queen: 'На колени!',

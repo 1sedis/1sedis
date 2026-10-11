@@ -347,6 +347,53 @@ export class BoardView {
     this.cells.forEach((c, i) => c.classList.toggle('warn', set.has(i)));
   }
 
+  /** Highlight where the selected piece may go (null clears). */
+  setMoveTargets(targets: { x: number; y: number; type: 'move' | 'capture' | 'castle' }[] | null): void {
+    const by = new Map((targets ?? []).map((t) => [t.y * BOARD_SIZE + t.x, t.type]));
+    this.cells.forEach((c, i) => {
+      const t = by.get(i);
+      c.classList.toggle('move-target', t === 'move' || t === 'castle');
+      c.classList.toggle('capture-target', t === 'capture');
+    });
+    this.root.classList.toggle('picking', !!targets);
+  }
+
+  private decisionEl: HTMLElement | null = null;
+
+  /**
+   * A decision over the board: a question, buttons and a draining time bar.
+   * Returns a function that removes it.
+   */
+  showDecision(title: string, options: { id: string; label: string; icon?: string }[], ms: number, onPick: (id: string) => void): () => void {
+    this.decisionEl?.remove();
+    const box = el('div', 'decision');
+    box.append(el('div', 'decision-title', title));
+    const row = el('div', 'decision-options');
+    for (const o of options) {
+      const b = el('button', 'btn decision-btn');
+      if (o.icon) {
+        const img = el('img');
+        img.src = o.icon;
+        img.alt = '';
+        b.append(img);
+      }
+      b.append(el('span', '', o.label));
+      b.addEventListener('click', () => onPick(o.id));
+      row.append(b);
+    }
+    const bar = el('div', 'decision-time');
+    const fill = el('div');
+    fill.style.animationDuration = `${ms}ms`;
+    bar.append(fill);
+    box.append(row, bar);
+    this.stage.append(box);
+    this.decisionEl = box;
+    return () => {
+      box.remove();
+      if (this.decisionEl === box) this.decisionEl = null;
+    };
+  }
+
   showBanner(text: string | null, win = false): void {
     this.banner.classList.toggle('show', text !== null);
     if (text !== null) {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createBattle, stepBattle, type BattleEvent, type BattleSetup } from '../src/game/battle';
-import { NODES, NODE_BY_ID, nodeState } from '../src/game/crownTree';
+import { MOVES_PER_BATTLE, createBattle, playMove, stepBattle, type BattleEvent, type BattleSetup } from '../src/game/battle';
+import { NODES, NODE_BY_ID, nodeState, type NodeId } from '../src/game/crownTree';
 import { synergyProgress } from '../src/game/synergies';
 import {
-  battleSetup, buyNode, commandLimit, isUnlocked, newGame, prestige, queenCap, recruit, resetTree, spinCost,
+  battleSetup, buyNode, commandLimit, isUnlocked, newGame, playerMoves, prestige, queenCap, recruit, resetTree, spinCost,
 } from '../src/game/state';
 
 const fresh = (games = 4, crowns = 50) => {
@@ -98,13 +98,23 @@ describe('doctrines in battle', () => {
     expect(first(['doubleStep'])).toBe(4);
   });
 
-  it('castling swaps the threatened king with a rook once', () => {
-    const { events } = run({
-      allies: [{ kind: 'king', x: 4, y: 7, level: 1 }, { kind: 'rook', x: 0, y: 7, level: 1 }],
-      enemies: [{ kind: 'king', x: 7, y: 0, level: 1 }, { kind: 'rook', x: 4, y: 0, level: 3 }],
-      perks: ['castling'],
-    });
-    expect(events.filter((e) => e.label === 'Рокировка!')).toHaveLength(1);
+  it('"Темп" gives a third move, "Шах" stuns a captured king longer', () => {
+    const s = fresh(2, 5);
+    expect(playerMoves(s)).toBe(MOVES_PER_BATTLE);
+    expect(buyNode(s, 'castling')).toBe(true);
+    expect(playerMoves(s)).toBe(MOVES_PER_BATTLE + 1);
+    const setup = {
+      allies: [{ kind: 'king' as const, x: 0, y: 7, level: 1 }, { kind: 'rook' as const, x: 4, y: 6, level: 1 }],
+      enemies: [{ kind: 'king' as const, x: 4, y: 0, level: 9 }],
+      playerMoves: 1,
+    };
+    const stun = (perks: NodeId[]) => {
+      const b = createBattle({ ...setup, perks });
+      const rook = b.units.find((u) => u.kind === 'rook')!;
+      playMove(b, rook.uid, 4, 0);
+      return b.units.find((u) => u.side === 'enemy')!.wait;
+    };
+    expect(stun(['check'])).toBeGreaterThanOrEqual(stun([]) * 3);
   });
 
   it('fog keeps the enemy from striking first', () => {
