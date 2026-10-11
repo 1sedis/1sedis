@@ -7,7 +7,7 @@ import { NODES, nodeCost, nodeState } from '../src/game/crownTree';
 import type { RelicId } from '../src/game/relics';
 import {
   BUILDINGS, accrue, battleSetup, buildingCost, buyBuilding, buyNode, chooseRelic, collectTreasury, commandLimit,
-  forgeMultiplier, gameNumber, incomePerMinute, isAbyssOpen, isUnlocked, newGame, prestige, queenCap, recordResult,
+  forgeMultiplier, gameNumber, incomePerMinute, isAbyssOpen, isUnlocked, newGame, prestige, armyCap, recordResult,
   recruit, recruitCost, relicOffer, spinCost, spinRoulette, upgradeCost, upgradePiece, type BuildingId, type GameState,
 } from '../src/game/state';
 
@@ -68,7 +68,7 @@ function options(s: GameState, limit: number): { cost: number; score: number; bu
     if (!isUnlocked(s, k)) continue;
     if (k === 'king' || s.army[k] > 0) trial(upgradeCost(s, k), (c) => { c.levels[k]++; }, () => upgradePiece(s, k));
     const total = (Object.keys(s.army) as PieceKind[]).filter((x) => x !== 'king').reduce((n, x) => n + s.army[x], 0);
-    if (k !== 'king' && total < limit + 1 && !capped(s, k) && !(k === 'queen' && s.army.queen >= queenCap(s))) {
+    if (k !== 'king' && total < limit + 1 && !capped(s, k) && s.army[k] < armyCap(s, k)) {
       trial(recruitCost(s, k), (c) => { c.army[k]++; }, () => recruit(s, k));
     }
   }

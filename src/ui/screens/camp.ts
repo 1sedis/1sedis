@@ -3,7 +3,7 @@ import { ABILITY_LEVELS, abilityOf, abilityTier, type Branch } from '../../game/
 import { BUFF_BY_ID, EPIC_PITY, LEGEND_PITY, RARITY, SPIN_COST, ownedSummary } from '../../game/roulette';
 import { PIECES, PRESTIGE_PIECES, levelMultiplier, type PieceKind } from '../../game/pieces';
 import {
-  BUILDINGS, BUILDING_ORDER, buildingCost, buyBuilding, queenCap, spinCost, spinRoulette, isAbyssOpen, forgeMultiplier, isUnlocked, recruit, recruitCost,
+  BUILDINGS, BUILDING_ORDER, buildingCost, buyBuilding, armyCap, spinCost, spinRoulette, isAbyssOpen, forgeMultiplier, isUnlocked, recruit, recruitCost,
   upgradeCost, upgradePiece, type BuildingId,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
@@ -232,10 +232,11 @@ export class CampScreen implements Screen {
       row.icon.classList.toggle('tier-2', tier === 2);
       row.icon.parentElement!.dataset.tier = String(unlocked ? tier : -1);
 
-      const maxedQueen = row.kind === 'queen' && s.army.queen >= queenCap(s);
+      const cap = armyCap(s, row.kind);
+      const maxed = s.army[row.kind] >= cap;
       const rCost = recruitCost(s, row.kind);
-      setText(row.recruitBtn, !unlocked ? '🔒' : maxedQueen ? 'Есть' : `Нанять · ${fmt(rCost)}`);
-      row.recruitBtn.disabled = !unlocked || maxedQueen || s.gold < rCost;
+      setText(row.recruitBtn, !unlocked ? '🔒' : maxed ? (cap === 1 ? 'Есть' : `Все ${cap}`) : `Нанять · ${fmt(rCost)}`);
+      row.recruitBtn.disabled = !unlocked || maxed || s.gold < rCost;
 
       const uCost = upgradeCost(s, row.kind);
       setText(row.upgradeBtn, unlocked ? `Ур. ${lvl + 1} · ${fmt(uCost)}` : '🔒');

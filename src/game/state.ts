@@ -322,9 +322,20 @@ export function queenCap(s: GameState): number {
   return hasNode(s, 'twoQueens') ? 2 : 1;
 }
 
+/** At most 8 pawns, as on a chessboard: one upgrade must not lift an endless swarm. */
+export const PAWN_CAP = 8;
+
+/** How many pieces of a kind the army may hold. */
+export function armyCap(s: GameState, kind: PieceKind): number {
+  if (kind === 'king') return 1;
+  if (kind === 'queen') return queenCap(s);
+  if (kind === 'pawn') return PAWN_CAP;
+  return Infinity;
+}
+
 export function recruit(s: GameState, kind: PieceKind): boolean {
   if (kind === 'king' || !isUnlocked(s, kind)) return false;
-  if (kind === 'queen' && s.army.queen >= queenCap(s)) return false;
+  if (s.army[kind] >= armyCap(s, kind)) return false;
   const cost = recruitCost(s, kind);
   if (s.gold < cost) return false;
   s.gold -= cost;
@@ -793,6 +804,12 @@ export function saveGame(s: GameState): void {
 
 /** Load the save (or a new game) and accrue offline treasury income. */
 /** Merge saved data over a fresh game so new fields get defaults. Null when the data is not a save. */
+function pawnRefund(count: number): number {
+  let gold = 0;
+  for (let n = PAWN_CAP; n < count; n++) gold += Math.round(PIECES.pawn.cost * 1.2 ** n);
+  return gold;
+}
+
 export function parseSave(raw: string, now = Date.now()): GameState | null {
   try {
     const data = JSON.parse(raw) as Partial<GameState>;
@@ -801,7 +818,9 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
     return {
       ...state,
       ...data,
-      army: { ...state.army, ...data.army, king: 1 },
+      army: { ...state.army, ...data.army, king: 1, pawn: Math.min(PAWN_CAP, data.army?.pawn ?? state.army.pawn) },
+      // Pawns above the cap (older saves) are paid back.
+      gold: (data.gold ?? state.gold) + pawnRefund(data.army?.pawn ?? 0),
       levels: { ...state.levels, ...data.levels },
       abilityBranch: { ...state.abilityBranch, ...data.abilityBranch },
       buildings: { ...state.buildings, ...data.buildings },

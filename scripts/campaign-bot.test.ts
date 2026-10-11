@@ -5,7 +5,7 @@ import { ALL_LEVELS, chapterOf } from '../src/game/levels';
 import { PIECES, type PieceKind } from '../src/game/pieces';
 import {
   BUILDINGS, accrue, battleSetup, buildingCost, buyBuilding, chooseRelic, collectTreasury, commandLimit,
-  incomePerMinute, isUnlocked, newGame, recordResult, recruit, recruitCost, relicOffer, upgradeCost, upgradePiece,
+  incomePerMinute, isUnlocked, newGame, armyCap, recordResult, recruit, recruitCost, relicOffer, upgradeCost, upgradePiece,
   type BuildingId,
 } from '../src/game/state';
 
@@ -27,7 +27,7 @@ test('campaign bot', () => {
     for (const k of kinds) {
       if (!isUnlocked(s, k)) continue;
       if (k === 'king' || s.army[k] > 0) out.push({ cost: upgradeCost(s, k), buy: () => upgradePiece(s, k) });
-      if (k !== 'king' && total < limit + 1 && !(k === 'queen' && s.army.queen >= 1)) {
+      if (k !== 'king' && total < limit + 1 && s.army[k] < armyCap(s, k)) {
         const weight = k === 'pawn' ? 1 : 0.6; // prefer strong pieces slightly
         out.push({ cost: recruitCost(s, k) * weight, buy: () => recruit(s, k) });
       }

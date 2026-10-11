@@ -4,7 +4,7 @@ import { firstReward, replayReward } from '../src/game/levels';
 import {
   accrue, battleSetup, collectTreasury, fieldedCount, incomePerMinute, isLevelOpen, isUnlocked, moveSlot, newGame,
   placeFromReserve, recordResult, recruit, recruitCost, removeSlot, sanitizeFormation, slotAt, treasuryCap,
-  upgradePiece,
+  upgradePiece, PAWN_CAP, parseSave,
 } from '../src/game/state';
 
 describe('army', () => {
@@ -114,5 +114,17 @@ describe('treasury', () => {
     const got = collectTreasury(s);
     expect(s.gold).toBe(gold + got);
     expect(s.treasury).toBeLessThan(1);
+  });
+});
+
+describe('pawn cap', () => {
+  it('holds at most eight pawns and pays back extras from old saves', () => {
+    const s = newGame(0);
+    s.gold = 1e9;
+    while (recruit(s, 'pawn'));
+    expect(s.army.pawn).toBe(PAWN_CAP);
+    const old = parseSave(JSON.stringify({ ...newGame(0), army: { ...newGame(0).army, pawn: 11 }, gold: 0 }))!;
+    expect(old.army.pawn).toBe(PAWN_CAP);
+    expect(old.gold).toBeGreaterThan(0);
   });
 });
