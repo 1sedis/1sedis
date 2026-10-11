@@ -503,10 +503,13 @@ export class Stage {
         const ms = s.ms ?? 1200;
         const f = this.board.frame;
         f.style.transition = `transform ${ms}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+        // A gentle zoom: a big scaled board is a heavy layer on phones.
+        // On a phone the board already fills the width: barely zoom, or it leaves the screen.
+        const scale = Math.min(s.scale, window.innerWidth < 600 ? 1.08 : 1.3);
         // Zoom around the chosen square: shift it towards the middle of the board.
-        const dx = s.x === undefined ? 0 : (3.5 - s.x) * 12.5 * (s.scale - 1) / s.scale;
-        const dy = s.y === undefined ? 0 : (3.5 - s.y) * 12.5 * (s.scale - 1) / s.scale;
-        f.style.transform = s.scale === 1 ? '' : `scale(${s.scale}) translate(${dx}%, ${dy}%)`;
+        const dx = s.x === undefined ? 0 : (3.5 - s.x) * 12.5 * (scale - 1) / scale;
+        const dy = s.y === undefined ? 0 : (3.5 - s.y) * 12.5 * (scale - 1) / scale;
+        f.style.transform = scale === 1 ? '' : `scale(${scale}) translate(${dx}%, ${dy}%)`;
         return this.wait(ms);
       }
       case 'music':
@@ -522,16 +525,8 @@ export class Stage {
       }
       case 'embers': {
         let field = this.extras.find((e) => e.classList.contains('scene-embers'));
-        if (s.on && !field) {
-          field = this.extra('scene-embers');
-          for (let i = 0; i < 40; i++) {
-            const e = el('span');
-            e.style.left = `${(i * 37) % 100}%`;
-            e.style.animationDelay = `${-(i % 10) * 0.6}s`;
-            e.style.animationDuration = `${4 + (i % 5)}s`;
-            field.append(e);
-          }
-        }
+        // One layer of tiled embers drifting down: cheap enough for phones.
+        if (s.on && !field) field = this.extra('scene-embers');
         field?.classList.toggle('on', s.on);
         return;
       }
@@ -583,6 +578,8 @@ export class Stage {
 export async function playStageOverlay(steps: Step[], theme = 4): Promise<void> {
   const overlay = el('div', 'stage-overlay');
   const board = new BoardView(() => {});
+  // Nothing underneath keeps drawing while a scene plays (Safari drops layers when there are too many).
+  document.body.classList.add('staging');
   board.setTheme(theme);
   board.setMode(false, false);
   overlay.append(board.frame);
@@ -590,6 +587,7 @@ export async function playStageOverlay(steps: Step[], theme = 4): Promise<void> 
   try {
     await new Stage(board).run(steps);
   } finally {
+    document.body.classList.remove('staging');
     overlay.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300 }).onfinish = () => overlay.remove();
   }
 }
