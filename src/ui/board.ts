@@ -28,7 +28,7 @@ export class BoardView {
   private unitLayer: HTMLElement;
   private fxLayer: HTMLElement;
   private banner: HTMLElement;
-  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind }>();
+  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team }>();
 
   constructor(onCell: (x: number, y: number) => void) {
     this.root = el('div', 'board');
@@ -53,6 +53,12 @@ export class BoardView {
     const files = el('div', 'board-files');
     for (const f of 'abcdefgh') files.append(el('span', '', f));
     this.frame.append(ranks, this.root, el('span'), files);
+  }
+
+  /** The element of the first piece matching team and kind (for tutorial tips). */
+  unitNode(team: Team, kind: PieceKind): HTMLElement | undefined {
+    for (const u of this.units.values()) if (u.team === team && u.kind === kind) return u.node;
+    return undefined;
   }
 
   /** Drop leftover effects (they never finish while the screen is hidden). */
@@ -97,7 +103,7 @@ export class BoardView {
         node.append(body, hp);
         node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
         this.unitLayer.append(node);
-        u = { node, body, img, fill, shield, kind: v.kind };
+        u = { node, body, img, fill, shield, kind: v.kind, team: v.team };
         img.src = spriteUrl(v.kind, v.team);
         this.units.set(v.key, u);
       }

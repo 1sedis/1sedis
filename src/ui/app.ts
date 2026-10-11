@@ -1,18 +1,21 @@
 import { ALL_LEVELS, chapterOf } from '../game/levels';
 import {
-  accrue, canAffordUpgrade, clearSave, currentLevelId, hasSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
+  accrue, canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, hasSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
   type GameState,
 } from '../game/state';
 import { audio } from './audio';
 import type { Ctx, Screen, ScreenId } from './context';
-import { confirmDialog, el, openModal, pulse, setText } from './dom';
+import { confirmDialog, el, openModal, pulse, setText, toast } from './dom';
 import { fmt } from './format';
 import { buildMenu, openSettings } from './menu';
+import { getAchievement } from '../game/achievements';
+import { AchievementsScreen } from './screens/achievements';
 import { ArenaScreen } from './screens/arena';
 import { CampScreen } from './screens/camp';
 import { MapScreen } from './screens/map';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { spriteUrl } from './sprites';
+import { Tutorial } from './tutorial';
 
 export class App implements Ctx {
   state: GameState;
@@ -27,6 +30,10 @@ export class App implements Ctx {
   private navMap!: HTMLButtonElement;
   private navCamp!: HTMLButtonElement;
   private navBadge = el('span', 'nav-badge');
+  private navAch!: HTMLButtonElement;
+  private achBadge = el('span', 'nav-badge');
+  private tutorial!: Tutorial;
+  private lastAchCheck = 0;
   private lastFrame = performance.now();
   private lastGold = -1;
 
@@ -58,12 +65,17 @@ export class App implements Ctx {
     requestAnimationFrame((t) => this.frame(t));
   }
 
+  tip(id: string, target: HTMLElement | null | undefined, text: string): boolean {
+    return this.tutorial.tip(id, target, text);
+  }
+
   save(): void {
     saveGame(this.state);
   }
 
   go(screen: ScreenId, levelId?: string): void {
     const fromMenu = this.screenId === 'menu';
+    this.tutorial.reset();
     this.screenId = screen;
     if (screen === 'menu') {
       this.renderMenu();
@@ -83,6 +95,7 @@ export class App implements Ctx {
 
   private build(): void {
     this.root.innerHTML = '';
+    this.tutorial = new Tutorial(() => this.state, () => this.settings.hints, () => this.save());
 
     const top = el('header', 'topbar');
     const menuBtn = el('button', 'btn btn-ghost menu-btn', '☰ Меню');
@@ -115,13 +128,17 @@ export class App implements Ctx {
     this.navCamp.append(this.navBadge);
     this.navCamp.title = 'Лагерь: найм фигур, их уровни и постройки';
     this.navCamp.addEventListener('click', () => this.go('camp'));
-    nav.append(this.navMap, this.navCamp);
+    this.navAch = el('button', 'nav-btn', 'Достижения');
+    this.navAch.append(this.achBadge);
+    this.navAch.addEventListener('click', () => this.go('achievements'));
+    nav.append(this.navMap, this.navCamp, this.navAch);
     top.append(menuBtn, brand, nav, chipBox);
 
     this.screens = {
       map: new MapScreen(this),
       arena: new ArenaScreen(this),
       camp: new CampScreen(this),
+      achievements: new AchievementsScreen(this),
     };
     for (const s of Object.values(this.screens)) this.content.append(s.root);
     this.shell.append(top, this.content);
@@ -166,6 +183,9 @@ export class App implements Ctx {
       clearSave();
       this.state = newGame();
       this.renderMenu();
+    }, () => {
+      this.state.tutorial = [];
+      this.save();
     });
   }
 
@@ -196,6 +216,12 @@ export class App implements Ctx {
       accrue(this.state);
       this.screens[this.screenId].frame(dt);
       this.renderTop();
+      if (now - this.lastAchCheck > 1000) {
+        this.lastAchCheck = now;
+        this.checkAchievements();
+      }
+      this.globalTips();
+      this.tutorial.frame();
     }
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -209,7 +235,28 @@ export class App implements Ctx {
     this.navMap.classList.toggle('active', this.screenId === 'map');
     this.navCamp.classList.toggle('active', this.screenId === 'camp');
     this.navBadge.hidden = this.screenId === 'camp' || !canAffordUpgrade(s);
+    this.navAch.classList.toggle('active', this.screenId === 'achievements');
+    this.achBadge.hidden = claimableAchievements(s) === 0;
     const rate = incomePerMinute(s);
     setText(this.chips.income, `${rate < 100 ? Math.round(rate * 10) / 10 : fmt(rate)}/мин`);
+  }
+
+  private checkAchievements(): void {
+    const fresh = checkAchievements(this.state);
+    if (!fresh.length) return;
+    this.save();
+    audio.play('relic');
+    for (const id of fresh) toast(`Достижение: «${getAchievement(id)?.name}»`, 'good');
+  }
+
+  /** Tips that are not tied to one screen. */
+  private globalTips(): void {
+    const s = this.state;
+    if (claimableAchievements(s) > 0 && this.screenId !== 'achievements') {
+      this.tip('t_achievements', this.navAch, 'Открыто достижение! Загляните сюда, чтобы забрать награду.');
+    }
+    if (s.stats.wins >= 2 && canAffordUpgrade(s) && this.screenId !== 'camp') {
+      this.tip('t_upgrades', this.navCamp, 'Золота хватает на улучшения. Здесь нанимают фигуры и повышают их уровень.');
+    }
   }
 }

@@ -150,6 +150,12 @@ export class CampScreen implements Screen {
       setText(row.upgradeBtn, unlocked ? `Ур. ${lvl + 1} · ${fmt(uCost)}` : '🔒');
       row.upgradeBtn.disabled = !unlocked || s.gold < uCost;
     }
+    const pawnRow = this.armyRows.find((r) => r.kind === 'pawn');
+    const knightRow = this.armyRows.find((r) => r.kind === 'knight');
+    void (this.ctx.tip('t_camp_up', pawnRow?.upgradeBtn,
+      'Уровень усиливает все фигуры этого типа. На 5-м уровне фигура выучит особый приём.')
+      || (isUnlocked(s, 'knight') && s.army.knight === 0 && this.ctx.tip('t_knight', knightRow?.recruitBtn,
+        'Конь открыт! Наймите его: он прыгает через строй и охотится на стрелков и короля.')));
     for (const row of this.buildingRows) {
       const def = BUILDINGS[row.id];
       const lvl = s.buildings[row.id];

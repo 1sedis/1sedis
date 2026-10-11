@@ -30,6 +30,7 @@ export class MapScreen implements Screen {
   private relicList = el('div');
   private relicCount = el('span');
   private relicBtn = el('button', 'btn btn-up');
+  private treasuryCard!: HTMLElement;
 
   constructor(private ctx: Ctx) {
     const main = el('div', 'map-main card');
@@ -42,6 +43,7 @@ export class MapScreen implements Screen {
 
     const side = el('aside', 'map-side');
     const treasury = el('div', 'card treasury');
+    this.treasuryCard = treasury;
     const tHead = el('div', 'panel-head');
     tHead.append(el('span', 'panel-title', 'Казна'));
     const amountRow = el('div', 'treasury-amount');
@@ -164,6 +166,9 @@ export class MapScreen implements Screen {
       : 'Побеждайте в боях — захваченные земли начнут приносить золото');
     this.collectBtn.disabled = amount < 1;
     this.relicBtn.hidden = s.relicPicks <= 0;
+    void (this.ctx.tip('t_relic', this.relicBtn, 'Вы заслужили реликвию! Выберите один из трёх постоянных бонусов.')
+      || (rate > 0 && this.ctx.tip('t_treasury', this.treasuryCard,
+        'Захваченные земли приносят золото в казну, даже когда игра закрыта. Забирайте его здесь.')));
     setText(this.relicBtn, `Выбрать реликвию (${s.relicPicks})`);
   }
 }

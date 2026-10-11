@@ -1,7 +1,7 @@
 import type { GameState } from '../game/state';
 import type { Settings } from './settings';
 
-export type ScreenId = 'menu' | 'map' | 'arena' | 'camp';
+export type ScreenId = 'menu' | 'map' | 'arena' | 'camp' | 'achievements';
 
 /** What screens need from the app shell. */
 export interface Ctx {
@@ -10,6 +10,8 @@ export interface Ctx {
   settings: Settings;
   go(screen: ScreenId, levelId?: string): void;
   save(): void;
+  /** Show a one-time tutorial tip pointing at `target`. Returns true while it is visible. */
+  tip(id: string, target: HTMLElement | null | undefined, text: string): boolean;
 }
 
 export interface Screen {

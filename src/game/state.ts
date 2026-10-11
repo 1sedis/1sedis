@@ -3,6 +3,7 @@ import {
   ALL_LEVELS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, levelIncome, levelIndex, replayReward,
 } from './levels';
 import { PIECES, type PieceKind } from './pieces';
+import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { RELICS, STARS_PER_RELIC, rollOffer, type RelicId } from './relics';
 
 /** Rows the player may deploy on (bottom three rows). */
@@ -54,7 +55,15 @@ export interface GameState {
   relicOffer: RelicId[] | null;
   /** Star milestones already turned into relic picks. */
   starMilestones: number;
-  stats: { battles: number; wins: number; goldEarned: number };
+  /** Achievement ids unlocked, and those whose reward was taken. */
+  achievements: string[];
+  achievementsClaimed: string[];
+  /** Tutorial tips already shown. */
+  tutorial: string[];
+  stats: {
+    battles: number; wins: number; goldEarned: number;
+    flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
+  };
 }
 
 function perKind(value: number): Record<PieceKind, number> {
@@ -81,7 +90,13 @@ export function newGame(now = Date.now()): GameState {
     relicPicks: 0,
     relicOffer: null,
     starMilestones: 0,
-    stats: { battles: 0, wins: 0, goldEarned: 0 },
+    achievements: [],
+    achievementsClaimed: [],
+    tutorial: [],
+    stats: {
+      battles: 0, wins: 0, goldEarned: 0,
+      flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
+    },
   };
 }
 
@@ -164,6 +179,7 @@ export function collectTreasury(s: GameState): number {
   s.gold += amount;
   s.treasury -= amount;
   s.stats.goldEarned += amount;
+  s.stats.treasuryCollected += amount;
   return amount;
 }
 
@@ -338,6 +354,11 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   s.gold += reward;
   s.stats.battles++;
   if (win) s.stats.wins++;
+  if (win && b.allyLosses === 0) s.stats.flawless++;
+  s.stats.promotions += b.allyStats.promotions;
+  s.stats.kills += b.allyStats.kills;
+  s.stats.crits += b.allyStats.crits;
+  s.stats.abilities += b.allyStats.abilities;
   s.stats.goldEarned += reward;
   return { win, stars, newStars, firstClear, reward, conditions, relicsEarned };
 }
@@ -365,6 +386,28 @@ export function chooseRelic(s: GameState, id: RelicId): boolean {
   s.relicPicks--;
   s.relicOffer = null;
   return true;
+}
+
+// ---------- Achievements ----------
+
+/** Unlock every achievement whose goal is reached. Returns the new ones. */
+export function checkAchievements(s: GameState): string[] {
+  const fresh = ACHIEVEMENTS.filter((a) => !s.achievements.includes(a.id) && a.progress(s) >= a.goal).map((a) => a.id);
+  s.achievements.push(...fresh);
+  return fresh;
+}
+
+export function claimAchievement(s: GameState, id: string): number {
+  const def = getAchievement(id);
+  if (!def || !s.achievements.includes(id) || s.achievementsClaimed.includes(id)) return 0;
+  s.achievementsClaimed.push(id);
+  s.gold += def.reward;
+  s.stats.goldEarned += def.reward;
+  return def.reward;
+}
+
+export function claimableAchievements(s: GameState): number {
+  return s.achievements.filter((id) => !s.achievementsClaimed.includes(id)).length;
 }
 
 // ---------- Persistence ----------

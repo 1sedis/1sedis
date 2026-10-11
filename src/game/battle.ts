@@ -105,6 +105,8 @@ export interface Battle {
   relics: ReadonlySet<RelicId>;
   /** "Second life" already used. */
   kingSaved: boolean;
+  /** Player-side counters for achievements. */
+  allyStats: { promotions: number; kills: number; crits: number; abilities: number };
 }
 
 function applyStats(u: Unit, kind: PieceKind): void {
@@ -149,7 +151,8 @@ export function createBattle(setup: BattleSetup): Battle {
   const units: Unit[] = [];
   for (const p of setup.allies) units.push(makeUnit(uid++, 'ally', p, hp, atk, march, true));
   for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1, 1, true));
-  return { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false };
+  return { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
+    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 } };
 }
 
 function has(b: Battle, side: Side, relic: RelicId): boolean {
@@ -246,6 +249,7 @@ function chebyshev(a: { x: number; y: number }, x: number, y: number): number {
 }
 
 function abilityEvent(b: Battle, u: Unit): void {
+  if (u.side === 'ally') b.allyStats.abilities++;
   b.events.push({
     type: 'ability', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0,
     fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, label: ABILITIES[u.kind].name,
@@ -324,7 +328,10 @@ function strike(b: Battle, u: Unit, target: Unit): void {
   const big = target.kind === 'king' || target.boss;
   if (u.kind === 'rook' && big && has(b, u.side, 'heavyShot')) damage *= 1.5;
   const crit = isCrit(b, u);
-  if (crit) damage *= CRIT_MULT;
+  if (crit) {
+    damage *= CRIT_MULT;
+    if (u.side === 'ally') b.allyStats.crits++;
+  }
   dealDamage(b, u, target, damage, crit);
   if (charge && u.tier === 2 && target.hp > 0) target.wait += 15;
   if (u.kind === 'knight' && !u.struck && has(b, u.side, 'stunJump') && target.hp > 0) target.wait += 20;
@@ -379,6 +386,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
   if (target.hp <= 0) {
     b.events.push({ ...base, type: 'death', amount: 0 });
     if (target.side === 'ally' && target.kind !== 'king') b.allyLosses++;
+    if (target.side === 'enemy') b.allyStats.kills++;
     if (has(b, target.side, 'avengers')) {
       for (const f of alive(b, target.side)) {
         if (Math.max(Math.abs(f.x - target.x), Math.abs(f.y - target.y)) <= 1) f.buff *= 1.15;
@@ -507,6 +515,7 @@ function moveUnit(b: Battle, u: Unit): void {
         applyStats(u, 'queen');
         resetAbilityTimer(u, 0.5);
         u.promoted = true;
+        if (u.side === 'ally') b.allyStats.promotions++;
         b.events.push({ type: 'promote', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid });
       }
     } else {

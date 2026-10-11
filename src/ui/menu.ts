@@ -56,7 +56,7 @@ export function buildMenu(o: MenuOptions): HTMLElement {
 }
 
 /** Settings dialog. Changes apply immediately through onChange. */
-export function openSettings(current: Settings, onChange: (s: Settings) => void, onReset: () => void): void {
+export function openSettings(current: Settings, onChange: (s: Settings) => void, onReset: () => void, onResetTips?: () => void): void {
   const s = { ...current };
   const overlay = el('div', 'modal-overlay');
   const box = el('div', 'modal card settings');
@@ -80,7 +80,7 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
   });
   row('Скорость боя', seg);
 
-  const toggle = (key: 'effects' | 'sound' | 'music') => {
+  const toggle = (key: 'effects' | 'sound' | 'music' | 'hints') => {
     const b = el('button', 'toggle');
     b.addEventListener('click', () => {
       s[key] = !s[key];
@@ -91,13 +91,24 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
   const soundBtn = toggle('sound');
   const musicBtn = toggle('music');
   const fxBtn = toggle('effects');
+  const hintsBtn = toggle('hints');
   row('Звуки', soundBtn);
   row('Музыка', musicBtn);
   row('Цифры урона и частицы', fxBtn);
+  row('Подсказки обучения', hintsBtn);
+  if (onResetTips) {
+    const again = el('button', 'btn btn-small', 'Заново');
+    again.addEventListener('click', () => {
+      onResetTips();
+      again.textContent = 'Готово';
+      again.disabled = true;
+    });
+    row('Показать подсказки снова', again);
+  }
 
   const sync = () => {
     segBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === s.speed));
-    for (const [b, on] of [[soundBtn, s.sound], [musicBtn, s.music], [fxBtn, s.effects]] as const) {
+    for (const [b, on] of [[soundBtn, s.sound], [musicBtn, s.music], [fxBtn, s.effects], [hintsBtn, s.hints]] as const) {
       b.textContent = on ? 'Вкл' : 'Выкл';
       b.classList.toggle('on', on);
     }

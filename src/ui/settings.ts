@@ -5,11 +5,13 @@ export interface Settings {
   effects: boolean;
   sound: boolean;
   music: boolean;
+  /** Tutorial tips. */
+  hints: boolean;
 }
 
 const KEY = 'chess-autobattler-settings';
 
-const DEFAULTS: Settings = { speed: 1, effects: true, sound: true, music: true };
+const DEFAULTS: Settings = { speed: 1, effects: true, sound: true, music: true, hints: true };
 
 export function loadSettings(): Settings {
   try {

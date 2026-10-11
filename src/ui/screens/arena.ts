@@ -45,6 +45,7 @@ export class ArenaScreen implements Screen {
   private trayItems = new Map<PieceKind, { btn: HTMLButtonElement; count: HTMLElement }>();
   private trayTitle = el('span');
   private prepTools = el('div', 'tray-tools');
+  private autoBtn!: HTMLButtonElement;
   private infoPanel = el('div', 'side-stack');
   private battlePanel = el('div', 'side-stack');
   private limitText = el('b');
@@ -103,6 +104,7 @@ export class ArenaScreen implements Screen {
       this.trayItems.set(kind, { btn, count });
     }
     const autoBtn = el('button', 'btn btn-small', 'Авто');
+    this.autoBtn = autoBtn;
     autoBtn.title = 'Расставить армию автоматически';
     autoBtn.addEventListener('click', () => {
       autoFormation(this.ctx.state, this.limit());
@@ -429,6 +431,8 @@ export class ArenaScreen implements Screen {
       item.btn.classList.toggle('empty', avail <= 0);
     }
 
+    if (prep) this.tips();
+
     if (this.battle) {
       for (const side of ['ally', 'enemy'] as const) {
         const king = this.battle.units.find((u) => u.side === side && u.kind === 'king');
@@ -438,6 +442,21 @@ export class ArenaScreen implements Screen {
       }
       setText(this.battleTime, `Время боя: ${(this.battle.tick / 10).toFixed(1)} с · потери: ${this.battle.allyLosses}`);
     }
+  }
+
+  private tips(): void {
+    const { ctx, board } = this;
+    const freeReserve = [...this.trayItems.values()].find((i) => !i.btn.hidden && !i.btn.classList.contains('empty'))?.btn;
+    void (ctx.tip('t_king', board.unitNode('ally', 'king'),
+      'Это ваш король. Если он падёт, бой проигран. Фигуры рядом с ним бьют на 20% сильнее.')
+      || ctx.tip('t_enemy_king', board.unitNode('enemy', 'king'),
+        'Чёрный король. Сразите его, и бой выигран. Нажмите на любую вражескую фигуру, чтобы узнать о ней.')
+      || ctx.tip('t_fight', this.fightBtn,
+        'Расстановка готова, жмите «В бой». Бой можно ускорить кнопками ×2 и ×4.')
+      || (this.levelId !== '1-1' && ctx.tip('t_move', this.autoBtn,
+        'Нажмите на свою фигуру, а потом на клетку, чтобы её переставить. «Авто» расставит армию сама.'))
+      || ctx.tip('t_reserve', freeReserve,
+        'В резерве есть свободная фигура. Выберите её и нажмите на клетку в трёх нижних рядах.'));
   }
 
   private collectUnits(): UnitView[] {

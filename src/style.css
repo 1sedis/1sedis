@@ -1074,3 +1074,68 @@ img { image-rendering: pixelated; }
 }
 .row-ability { margin-top: 4px; font-size: 15px; color: var(--muted); }
 .row-ability.learned { color: #8fd3ff; }
+
+/* ---------- Tutorial tips ---------- */
+.tip-ring {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px var(--gold), 0 0 0 9999px rgba(8, 5, 20, 0.35);
+  animation: tip-pulse 1s steps(2) infinite;
+}
+.tip-bubble {
+  position: fixed;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--card-2);
+  color: var(--ink);
+  box-shadow: 0 -4px 0 0 var(--gold), 0 4px 0 0 var(--gold), -4px 0 0 0 var(--gold), 4px 0 0 0 var(--gold), 0 10px 0 0 rgba(0, 0, 0, 0.4);
+  animation: toast-in 0.2s steps(3);
+}
+.tip-bubble::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--arrow-x, 50%) - 8px);
+  width: 16px;
+  height: 10px;
+  background: var(--gold);
+  bottom: -14px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+.tip-bubble.below::before { bottom: auto; top: -14px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.tip-text { margin: 0; align-self: stretch; line-height: 1.4; }
+@keyframes tip-pulse { 50% { box-shadow: 0 0 0 5px var(--gold), 0 0 0 9999px rgba(8, 5, 20, 0.35); } }
+
+/* ---------- Achievements ---------- */
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+.ach-card { display: flex; gap: 14px; align-items: center; margin: var(--px); }
+.ach-body { flex: 1; min-width: 0; }
+.ach-count { font-size: 14px; color: var(--muted); }
+.ach-badge {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  background: var(--bg-2);
+  position: relative;
+}
+.ach-badge::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  background: #4a4170;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 80% 60%, 62% 60%, 62% 78%, 80% 78%, 80% 100%, 20% 100%, 20% 78%, 38% 78%, 38% 60%, 20% 60%, 0 35%);
+}
+.ach-card.unlocked .ach-badge::after { background: var(--gold); }
+.ach-card.unlocked { --frame: var(--gold-deep); }
+.ach-card.claimed { --frame: var(--line); opacity: 0.75; }
+.ach-btn { min-width: 0; padding: 8px 10px; font-size: 16px; }
+
+@media (max-width: 560px) {
+  .nav-btn { padding: 8px 6px; font-size: 16px; }
+  .ach-card { flex-wrap: wrap; }
+  .ach-btn { width: 100%; }
+}
