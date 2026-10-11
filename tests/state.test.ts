@@ -93,10 +93,10 @@ describe('progress', () => {
     expect(isLevelOpen(s, '1-2')).toBe(false);
   });
 
-  it('knights unlock after level 1-4', () => {
+  it('knights unlock after level 1-2', () => {
     const s = newGame(0);
     expect(isUnlocked(s, 'knight')).toBe(false);
-    s.stars['1-4'] = 1;
+    s.stars['1-2'] = 1;
     expect(isUnlocked(s, 'knight')).toBe(true);
   });
 });

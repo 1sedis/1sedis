@@ -1254,3 +1254,16 @@ img { image-rendering: pixelated; }
 }
 .save-code:focus { outline: none; box-shadow: 0 0 0 2px var(--mint); }
 .save-error { color: var(--coral); }
+
+/* Black King dialogue */
+.story-modal { width: min(92vw, 460px); }
+.story { display: grid; grid-template-columns: 72px 1fr; gap: 12px 16px; align-items: start; }
+.story-face { width: 72px; height: 72px; filter: drop-shadow(0 0 10px #ff4f7bb3); animation: bob 1.2s steps(2, end) infinite; }
+.story-speech { background: var(--bg-2); padding: 10px 14px; position: relative; min-height: 72px; }
+.story-speech::before {
+  content: ''; position: absolute; left: -10px; top: 22px; width: 10px; height: 14px;
+  background: var(--bg-2); clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+.story-name { color: var(--coral); font-size: 15px; letter-spacing: 1px; text-transform: uppercase; }
+.story-text { margin: 4px 0 0; line-height: 1.45; font-size: 18px; }
+.story .modal-actions { grid-column: 1 / -1; }

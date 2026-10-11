@@ -17,6 +17,7 @@ import {
 import { audio } from '../audio';
 import { BoardView, type UnitView } from '../board';
 import { openRelicPicker, relicStrip } from '../relics';
+import { playStory } from '../story';
 import type { Ctx, Screen } from '../context';
 import { el, infoBtn, openModal, setText, toast } from '../dom';
 import { fmt } from '../format';
@@ -194,6 +195,7 @@ export class ArenaScreen implements Screen {
       return;
     }
     this.enterPrep();
+    void playStory(this.ctx.state, this.levelId, () => this.ctx.save());
   }
 
   private enterPrep(): void {
@@ -468,6 +470,16 @@ export class ArenaScreen implements Screen {
     return box;
   }
 
+  /** The first time an ally uses an ability, explain where abilities come from. */
+  private firstAbility(events: BattleEvent[]): void {
+    const s = this.ctx.state;
+    if (s.tutorial.includes('t_ability_seen')) return;
+    const e = events.find((ev) => ev.type === 'ability' && ev.side === 'ally');
+    if (!e?.fromKind) return;
+    s.tutorial.push('t_ability_seen');
+    toast(`${PIECES[e.fromKind].name}: приём «${ABILITIES[e.fromKind].name}»! Каждая фигура учит свой приём на 5-м уровне`, 'good');
+  }
+
   // ---------- Frame ----------
 
   frame(dt: number): void {
@@ -496,6 +508,7 @@ export class ArenaScreen implements Screen {
     this.board.setStep(180 / speed);
     this.board.render(this.collectUnits());
     if (events.length) {
+      this.firstAbility(events);
       this.board.react(events, (uid) => `b${uid}`);
       playBattleSounds(events);
     }
