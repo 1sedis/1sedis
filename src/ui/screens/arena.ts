@@ -70,8 +70,6 @@ export class ArenaScreen implements Screen {
   private eliteRow = el('div', 'terrain-row elite-row');
   private synergySig = '';
   private autoBtn!: HTMLButtonElement;
-  private threatBtn = el('button', 'toggle');
-  private showThreats = true;
   private threatSig = '';
   private infoPanel = el('div', 'side-stack');
   private battlePanel = el('div', 'side-stack');
@@ -156,12 +154,7 @@ export class ArenaScreen implements Screen {
       clearFormation(this.ctx.state);
       this.selection = null;
     });
-    this.threatBtn.title = 'Подсветить клетки, которые простреливает враг';
-    this.threatBtn.addEventListener('click', () => {
-      this.showThreats = !this.showThreats;
-      this.threatSig = '';
-    });
-    this.prepTools.append(autoBtn, clearBtn, this.threatBtn);
+    this.prepTools.append(autoBtn, clearBtn);
     trayPanel.append(trayHead, this.tray, this.synergyRow, this.prepTools);
     trayPanel.addEventListener('click', (e) => {
       if (!(e.target as HTMLElement).closest('button')) this.returnSelected();
@@ -651,8 +644,6 @@ export class ArenaScreen implements Screen {
       this.threatSig = '';
       this.board.setThreats(null);
     }
-    setText(this.threatBtn, `Угрозы: ${this.showThreats ? 'вкл' : 'выкл'}`);
-    this.threatBtn.classList.toggle('on', this.showThreats);
 
     if (this.battle) {
       for (const side of ['ally', 'enemy'] as const) {
@@ -696,10 +687,10 @@ export class ArenaScreen implements Screen {
 
   /** Recompute the threat overlay only when the formation or level changes. */
   private updateThreats(): void {
-    const sig = `${this.showThreats}|${this.levelId}|${this.ctx.state.formation.map((f) => `${f.kind}${f.x}${f.y}`).join()}`;
+    const sig = `${this.levelId}|${this.ctx.state.formation.map((f) => `${f.kind}${f.x}${f.y}`).join()}`;
     if (sig === this.threatSig) return;
     this.threatSig = sig;
-    this.board.setThreats(this.showThreats ? threatMap(battleSetup(this.ctx.state, this.levelId)) : null);
+    this.board.setThreats(threatMap(battleSetup(this.ctx.state, this.levelId)));
   }
 
   private tips(): void {
@@ -715,7 +706,7 @@ export class ArenaScreen implements Screen {
         'Нажмите на свою фигуру, а потом на клетку, чтобы её переставить. «Авто» расставит армию сама.'))
       || (!this.terrainRow.hidden && ctx.tip('t_terrain', this.terrainRow,
         'На доске ландшафт! Лес защищает, с холма стрелки бьют сильнее, камень и вода непроходимы. Нажмите на клетку, чтобы узнать больше.'))
-      || (this.board.root.querySelector('.cell.threat') && ctx.tip('t_threats', this.threatBtn,
+      || (this.board.root.querySelector('.cell.threat') && ctx.tip('t_threats', this.board.root.querySelector<HTMLElement>('.cell.threat'),
         'Красные клетки простреливают вражеские стрелки. Не ставьте туда короля и закрывайте линии пешками.'))
       || ctx.tip('t_reserve', freeReserve,
         'В резерве есть свободная фигура. Выберите её и нажмите на клетку в трёх нижних рядах.'));
