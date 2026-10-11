@@ -2,6 +2,7 @@ import { createBattle, stepBattle, threatMap, type Battle, type BattleEvent, typ
 import { adviceLabel, adviseUpgrade } from '../../game/advice';
 import { bestFormation } from '../../game/autoformation';
 import { SYNERGIES, synergyProgress } from '../../game/synergies';
+import { BOSSES, bossFor } from '../../game/bosses';
 import { TERRAIN_INFO, levelTerrain, terrainKinds } from '../../game/terrain';
 import { terrainUrl } from '../terrainArt';
 import { buildReport, pieceName } from '../../game/report';
@@ -56,6 +57,13 @@ export class ArenaScreen implements Screen {
   private trayTitle = el('span');
   private prepTools = el('div', 'tray-tools');
   private synergyRow = el('div', 'synergy-row');
+  private bossBar = el('div', 'boss-bar');
+  private bossName = el('span', 'boss-bar-name');
+  private bossPhase = el('span', 'boss-bar-phase');
+  private bossFill = el('div', 'boss-bar-fill');
+  private bossInfo = el('div', 'boss-info');
+  /** performance.now() until which the boss intro plays and the battle waits. */
+  private introUntil = 0;
   private terrainRow = el('div', 'terrain-row');
   private synergySig = '';
   private autoBtn!: HTMLButtonElement;
@@ -108,6 +116,12 @@ export class ArenaScreen implements Screen {
     const boardCol = el('div', 'board-col');
     const boardWrap = el('div', 'board-wrap');
     boardWrap.append(this.board.frame);
+    const bossHead = el('div', 'boss-bar-head');
+    bossHead.append(this.bossName, this.bossPhase);
+    const bossTrack = el('div', 'boss-bar-track');
+    bossTrack.append(this.bossFill, el('span', 'boss-bar-notch'));
+    this.bossBar.append(bossHead, bossTrack);
+    boardCol.append(this.bossBar);
     const trayPanel = el('div', 'bench-panel');
     const trayHead = el('div', 'panel-head');
     trayHead.append(el('span', 'panel-title', 'Резерв'), this.trayTitle);
@@ -162,7 +176,7 @@ export class ArenaScreen implements Screen {
       + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
       + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));
     this.hintText.classList.add('task-hint');
-    infoCard.append(taskHead, this.enemyText, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
+    infoCard.append(taskHead, this.enemyText, this.bossInfo, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
 
     const kingsCard = el('div', 'card');
@@ -214,6 +228,9 @@ export class ArenaScreen implements Screen {
     this.selection = null;
     this.board.showBanner(null);
     this.board.clearFx();
+    this.introUntil = 0;
+    this.board.intro(null);
+    this.board.setWarnings([]);
     sanitizeFormation(this.ctx.state, this.limit(), this.levelId);
     this.renderInfo();
   }
@@ -246,6 +263,13 @@ export class ArenaScreen implements Screen {
     }));
     if (kinds.length) this.terrainRow.append(infoBtn('Ландшафт', kinds.map((t) => `${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`).join('\n')));
     this.terrainRow.hidden = kinds.length === 0;
+    const bossId = bossFor(this.levelId);
+    this.bossInfo.hidden = !bossId;
+    if (bossId) {
+      const d = BOSSES[bossId];
+      this.bossInfo.replaceChildren(el('span', '', `★ ${d.skill} · ☠ ${d.rage}`), infoBtn(getLevel(this.levelId).boss ?? 'Босс',
+        `У босса втрое больше здоровья.\n★ ${d.skill}: ${d.skillText}.\n☠ ${d.rage} (ниже 50% здоровья): ${d.rageText}.`));
+    }
     const enemies = this.enemies();
     setText(this.enemyText, `Враги: ${enemies.length} · ур. ${enemies[0]?.level ?? level.level}${level.boss ? ` · ${level.boss}` : ''}`);
     const best = s.stars[level.id] ?? 0;
@@ -348,9 +372,18 @@ export class ArenaScreen implements Screen {
     this.selection = null;
     this.battle = createBattle(battleSetup(s, this.levelId));
     this.phase = 'battle';
-    audio.play('start');
     audio.setTrack(getLevel(this.levelId).boss ? 'boss' : 'battle');
     this.acc = 0;
+    const bossId = this.battle.bossId;
+    if (bossId && !(isAbyss(this.levelId) && this.autoDescend)) {
+      const boss = this.battle.units.find((u) => u.uid === this.battle!.bossUid)!;
+      this.board.intro({
+        name: getLevel(this.levelId).boss ?? 'Босс', sprite: spriteUrl(boss.kind, 'enemy', boss.tier as Tier),
+        skill: BOSSES[bossId].skill, rage: BOSSES[bossId].rage,
+      });
+      this.introUntil = performance.now() + 2200;
+      audio.play('roar');
+    } else audio.play('start');
     this.ctx.save();
   }
 
@@ -532,7 +565,12 @@ export class ArenaScreen implements Screen {
   frame(dt: number): void {
     const speed = this.ctx.settings.speed;
     let events: BattleEvent[] = [];
-    if (this.phase === 'battle' && this.battle) {
+    if (this.introUntil && performance.now() >= this.introUntil) {
+      this.introUntil = 0;
+      this.board.intro(null);
+      audio.play('start');
+    }
+    if (this.phase === 'battle' && this.battle && !this.introUntil) {
       this.acc += dt * speed;
       const live = this.acc / TICK_MS < LIVE_FX_LIMIT;
       let steps = 0;
@@ -555,6 +593,7 @@ export class ArenaScreen implements Screen {
     this.board.setStep(180 / speed);
     this.board.render(this.collectUnits());
     if (events.length) {
+      this.bossEvents(events);
       this.firstAbility(events);
       this.board.react(events, (uid) => `b${uid}`);
       playBattleSounds(events);
@@ -604,6 +643,35 @@ export class ArenaScreen implements Screen {
         setText(this.kingBars[side].text, `${Math.round(ratio * 100)}%`);
       }
       setText(this.battleTime, `Время боя: ${(this.battle.tick / 10).toFixed(1)} с · потери: ${this.battle.allyLosses}`);
+    }
+    this.renderBossBar();
+  }
+
+  private renderBossBar(): void {
+    const b = this.battle;
+    const boss = b?.units.find((u) => u.uid === b.bossUid);
+    this.bossBar.hidden = !b?.bossId || this.phase === 'prep';
+    if (this.bossBar.hidden || !b) return;
+    const ratio = boss ? Math.max(0, boss.hp) / boss.maxHp : 0;
+    this.bossFill.style.width = `${ratio * 100}%`;
+    setText(this.bossName, getLevel(this.levelId).boss ?? 'Босс');
+    setText(this.bossPhase, ratio <= 0 ? 'Повержен' : b.bossPhase === 2 ? `☠ ${BOSSES[b.bossId!].rage}` : `${Math.ceil(ratio * 100)}%`);
+    this.bossBar.classList.toggle('enraged', b.bossPhase === 2);
+    this.board.setWarnings(b.warnings.flatMap((w) => w.cells));
+  }
+
+  /** Callouts for boss skills, rage, new rocks and the boss falling. */
+  private bossEvents(events: BattleEvent[]): void {
+    const b = this.battle;
+    if (!b?.bossId) return;
+    for (const e of events) {
+      if (e.type === 'boss') this.board.callout(`${e.label}!`, 'skill');
+      else if (e.type === 'rage') this.board.callout(`Ярость: ${e.label}`, 'rage');
+      else if (e.type === 'terrain') this.board.setTerrain(b.terrain);
+      else if (e.type === 'death' && e.uid === b.bossUid) {
+        this.board.callout('Босс повержен!', 'down');
+        audio.play('bossDown');
+      }
     }
   }
 
@@ -722,4 +790,8 @@ function playBattleSounds(events: BattleEvent[]): void {
   if (types.has('heal')) audio.play('heal');
   if (types.has('ability')) audio.play('ability');
   if (types.has('shieldBreak')) audio.play('shieldBreak');
+  if (types.has('rage')) audio.play('roar');
+  if (types.has('warn')) audio.play('warn');
+  if (types.has('blast') || types.has('terrain')) audio.play('quake');
+  if (types.has('summon') || types.has('boss')) audio.play('ability');
 }

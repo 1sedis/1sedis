@@ -32,6 +32,8 @@ export class BoardView {
   private unitLayer: HTMLElement;
   private fxLayer: HTMLElement;
   private banner: HTMLElement;
+  private calloutEl: HTMLElement;
+  private introEl: HTMLElement;
   private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team; tier: Tier }>();
 
   constructor(onCell: (x: number, y: number) => void) {
@@ -48,7 +50,9 @@ export class BoardView {
     this.unitLayer = el('div', 'unit-layer');
     this.fxLayer = el('div', 'fx-layer');
     this.banner = el('div', 'banner');
-    this.root.append(this.unitLayer, this.fxLayer, this.banner);
+    this.calloutEl = el('div', 'boss-callout');
+    this.introEl = el('div', 'boss-intro');
+    this.root.append(this.unitLayer, this.fxLayer, this.banner, this.calloutEl, this.introEl);
 
     // Chess notation around the board: ranks 8..1 on the left, files a..h below.
     this.frame = el('div', 'board-frame');
@@ -188,12 +192,41 @@ export class BoardView {
         }
         if (e.crit && e.big) shake = Math.max(shake, 1);
       } else if (e.type === 'death' && e.big) shake = 2;
+      else if (e.type === 'blast' || e.type === 'rage') shake = 2;
+      else if (e.type === 'summon' || e.type === 'terrain') shake = Math.max(shake, 1);
       else if (e.type === 'save' || e.type === 'promote') shake = Math.max(shake, 1);
     }
     if (shake) {
       this.root.classList.toggle('shake-big', shake > 1);
       restart(this.root, 'shake');
     }
+  }
+
+  /** Big centred text for boss skills, rage and defeat. */
+  callout(text: string, kind: 'skill' | 'rage' | 'down'): void {
+    this.calloutEl.className = `boss-callout ${kind}`;
+    setText(this.calloutEl, text);
+    restart(this.calloutEl, 'show');
+  }
+
+  /** Boss entrance card over the board; null hides it. */
+  intro(info: { name: string; sprite: string; skill: string; rage: string } | null): void {
+    this.introEl.classList.toggle('show', info !== null);
+    if (!info) return;
+    const img = el('img', 'boss-intro-img');
+    img.src = info.sprite;
+    img.alt = '';
+    this.introEl.replaceChildren(
+      el('div', 'boss-intro-tag', 'Босс'), img, el('div', 'boss-intro-name', info.name),
+      el('div', 'boss-intro-skill', `★ ${info.skill}   ☠ ${info.rage}`),
+    );
+    restart(this.introEl, 'show');
+  }
+
+  /** Cells a boss is about to hit. */
+  setWarnings(cells: number[]): void {
+    const set = new Set(cells);
+    this.cells.forEach((c, i) => c.classList.toggle('warn', set.has(i)));
   }
 
   showBanner(text: string | null, win = false): void {
@@ -222,6 +255,17 @@ export class BoardView {
       } else if (e.type === 'promote') {
         this.place(el('div', 'fx-promote', 'Ферзь!'), e.x, e.y);
         this.burst(e, 14);
+      } else if (e.type === 'blast' || e.type === 'terrain') {
+        for (const i of e.cells ?? []) {
+          const at = { ...e, x: i % BOARD_SIZE, y: Math.floor(i / BOARD_SIZE) };
+          this.place(el('div', 'fx-blast'), at.x, at.y);
+          this.burst(at, 5);
+        }
+      } else if (e.type === 'summon') {
+        this.place(el('div', 'fx-summon'), e.x, e.y);
+        this.burst(e, 12);
+      } else if (e.type === 'boss' || e.type === 'rage' || e.type === 'warn') {
+        // Shown as a callout and as warning cells by the screen.
       } else {
         this.burst(e, 10);
       }

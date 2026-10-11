@@ -4,6 +4,7 @@ import {
   isAbyss, levelIncome, levelIndex, replayReward,
 } from './levels';
 import type { Branch } from './abilities';
+import { bossFor } from './bosses';
 import { levelTerrain, levelTerrainRows, walkable } from './terrain';
 import { PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
@@ -377,6 +378,7 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
     relics: [...s.relics],
     allyBranches: { ...s.abilityBranch },
     terrain: levelTerrainRows(levelId),
+    bossId: bossFor(levelId),
   };
 }
 

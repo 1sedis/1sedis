@@ -2,7 +2,8 @@
 
 export type Sfx =
   | 'hit' | 'shot' | 'crit' | 'death' | 'promote' | 'heal' | 'save' | 'ability' | 'shieldBreak'
-  | 'win' | 'lose' | 'start' | 'star' | 'click' | 'select' | 'buy' | 'levelup' | 'relic' | 'coins' | 'achievement';
+  | 'win' | 'lose' | 'start' | 'star' | 'click' | 'select' | 'buy' | 'levelup' | 'relic' | 'coins' | 'achievement'
+  | 'roar' | 'warn' | 'quake' | 'bossDown';
 
 export type TrackId = 'menu' | 'map' | 'battle' | 'boss';
 
@@ -320,6 +321,24 @@ class AudioEngine {
         break;
       case 'relic':
         this.arp([note('C5'), note('G5'), note('C6'), note('E6'), note('G6'), note('C7')], t, 0.05, 0.11, false);
+        break;
+      case 'roar':
+        this.voice(110, t, 0.6, 0.22, out, { type: 'sawtooth', slideTo: 55 });
+        this.voice(165, t + 0.05, 0.5, 0.14, out, { type: 'sawtooth', slideTo: 70 });
+        this.noise(t, 0.5, 0.4, out, 'lowpass', 700);
+        break;
+      case 'warn':
+        this.voice(880, t, 0.08, 0.1, out, { pulse: true });
+        this.voice(880, t + 0.14, 0.08, 0.1, out, { pulse: true });
+        break;
+      case 'quake':
+        this.noise(t, 0.45, 0.6, out, 'lowpass', 400);
+        this.voice(70, t, 0.4, 0.25, out, { type: 'triangle', slideTo: 35 });
+        break;
+      case 'bossDown':
+        this.noise(t, 0.7, 0.6, out, 'lowpass', 1200);
+        this.voice(300, t, 0.7, 0.18, out, { type: 'sawtooth', slideTo: 40 });
+        this.arp([note('C5'), note('E5'), note('G5'), note('C6'), note('G6'), note('C7')], t + 0.6, 0.08, 0.13);
         break;
       case 'achievement':
         this.arp([note('G5'), note('C6'), note('E6'), note('G6')], t, 0.07, 0.12);

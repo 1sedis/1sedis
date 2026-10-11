@@ -1323,3 +1323,68 @@ button.ability-chip:hover { opacity: 1; }
 .terrain-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 15px; color: var(--ink); cursor: help; }
 .terrain-chip img { width: 22px; height: 22px; image-rendering: pixelated; }
 .codex-terrain { display: flex; align-items: center; gap: 8px; } .codex-terrain img { width: 28px; height: 28px; image-rendering: pixelated; flex: none; }
+
+/* ---------- Bosses ---------- */
+.boss-bar { margin: 0 auto 10px; width: min(100%, 680px); padding: 8px 12px; background: #2a1030;
+  box-shadow: 0 0 0 3px var(--coral-deep), 0 6px 0 #0006; animation: boss-bar-in .4s steps(4, end); }
+.boss-bar-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.boss-bar-name { color: var(--coral); font-size: 20px; letter-spacing: 1px; text-transform: uppercase; }
+.boss-bar-phase { color: var(--muted); font-size: 15px; }
+.boss-bar-track { position: relative; height: 14px; background: #0b0818; box-shadow: 0 0 0 2px #0b0818; }
+.boss-bar-fill { height: 100%; background: linear-gradient(90deg, var(--coral-deep), var(--coral)); transition: width .15s; }
+.boss-bar-notch { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 3px; background: var(--gold); }
+.boss-bar.enraged { box-shadow: 0 0 0 3px var(--gold), 0 6px 0 #0006; animation: boss-rage 0.8s steps(2, end) infinite; }
+.boss-bar.enraged .boss-bar-phase { color: var(--gold); }
+.boss-bar.enraged .boss-bar-fill { background: linear-gradient(90deg, #ff2d55, var(--gold)); }
+@keyframes boss-bar-in { from { transform: translateY(-10px); opacity: 0; } }
+@keyframes boss-rage { 50% { background: #3d0f22; } }
+.boss-info { display: flex; align-items: center; gap: 8px; color: var(--coral); font-size: 15px; }
+
+/* Warning cells before a boss blow */
+.cell.warn::after {
+  content: '!'; position: absolute; inset: 0; z-index: 2; display: grid; place-items: center;
+  color: #fff; font-size: clamp(14px, 3vw, 26px); text-shadow: 0 2px 0 #000;
+  background: #ff2d5566; box-shadow: inset 0 0 0 3px #ff2d55;
+  animation: warn-blink .3s steps(2, end) infinite;
+}
+@keyframes warn-blink { 50% { background: #ff2d5522; } }
+.fx-blast { position: absolute; width: 12.5%; height: 12.5%; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fff 0 20%, #ff9a3c 21% 45%, #ff2d55 46% 65%, transparent 66%);
+  animation: blast .45s steps(5, end) forwards; z-index: 3; }
+@keyframes blast { from { transform: translate(-50%, -50%) scale(.3); } to { transform: translate(-50%, -50%) scale(1.6); opacity: 0; } }
+.fx-summon { position: absolute; width: 12.5%; height: 12.5%; transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 4px var(--violet), inset 0 0 0 4px #ff4f7b; animation: summon .6s steps(6, end) forwards; z-index: 3; }
+@keyframes summon { from { transform: translate(-50%, -50%) scale(1.8) rotate(45deg); opacity: 0; } 50% { opacity: 1; } to { transform: translate(-50%, -50%) scale(.6) rotate(0); opacity: 0; } }
+
+/* Callouts */
+.boss-callout { position: absolute; left: 50%; top: 22%; z-index: 6; pointer-events: none; opacity: 0; white-space: nowrap;
+  transform: translate(-50%, -50%); padding: 6px 16px; font-size: clamp(18px, 3.4vw, 32px); color: #fff;
+  background: var(--coral-deep); box-shadow: 0 -4px 0 #1a1433, 0 4px 0 #1a1433, -4px 0 0 #1a1433, 4px 0 0 #1a1433; }
+.boss-callout.show { animation: callout 1.4s steps(10, end) forwards; }
+.boss-callout.rage { background: #ff2d55; color: #fff3b0; top: 40%; font-size: clamp(22px, 4.4vw, 42px); }
+.boss-callout.down { background: var(--gold); color: #2b1d02; top: 40%; font-size: clamp(22px, 4.6vw, 44px); }
+.boss-callout.down.show { animation-duration: 2.2s; }
+@keyframes callout {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -80%); }
+}
+
+/* Entrance card */
+.boss-intro { position: absolute; inset: 0; z-index: 7; display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; background: radial-gradient(circle, #3d0f22ee 0 40%, #0b0818f2 75%); pointer-events: none; }
+.boss-intro.show { display: flex; animation: intro 2.2s steps(12, end) forwards; }
+.boss-intro-tag { color: var(--gold); letter-spacing: 6px; text-transform: uppercase; font-size: clamp(14px, 2.4vw, 20px); }
+.boss-intro-img { width: 34%; aspect-ratio: 1; filter: drop-shadow(0 0 18px #ff2d55); animation: intro-img 2.2s steps(12, end) forwards; }
+.boss-intro-name { color: #fff; font-size: clamp(24px, 5vw, 48px); text-shadow: 0 4px 0 #000; }
+.boss-intro-skill { color: var(--coral); font-size: clamp(13px, 2.2vw, 18px); }
+@keyframes intro { 0% { opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes intro-img { 0% { transform: scale(2.4) translateY(-10%); } 25% { transform: scale(1); } 30% { transform: scale(1.08); } 35%, 100% { transform: scale(1); } }
+
+/* Bosses on the board look the part */
+.unit.boss .unit-sprite { animation: bob 1s steps(2, end) infinite, boss-glow 1.2s steps(2, end) infinite; }
+@keyframes boss-glow { 50% { filter: drop-shadow(0 0 14px #ff2d55) brightness(1.15); } }
+.unit.boss::after { content: '♛'; position: absolute; top: -14%; left: 50%; transform: translateX(-50%); color: var(--gold);
+  font-size: clamp(10px, 2vw, 18px); text-shadow: 0 2px 0 #000; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .boss-bar.enraged, .cell.warn::after, .unit.boss .unit-sprite { animation: none; } }

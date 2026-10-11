@@ -1,4 +1,5 @@
 import { KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
+import { BOSSES, MAX_SUMMONS, WARN_TICKS, type BossId } from './bosses';
 import { synergyBonus } from './synergies';
 import { FOREST_DEFENSE, HILL_BONUS, parseTerrain, walkable, type Terrain } from './terrain';
 import { abilityOf, abilityTier, type Branch } from './abilities';
@@ -41,6 +42,18 @@ export interface BattleSetup {
   allyBranches?: Partial<Record<PieceKind, Branch>>;
   /** Terrain map rows (see terrain.ts); plain when omitted. */
   terrain?: string[];
+  /** Boss mechanic for the enemy boss piece, if any. */
+  bossId?: BossId;
+}
+
+/** A telegraphed boss blow: cells light up, then get hit. */
+export interface BossWarning {
+  at: number;
+  cells: number[];
+  damage: number;
+  fromUid: number;
+  /** Leave a rock on the first cell if it is free. */
+  rock?: boolean;
 }
 
 export interface Unit {
@@ -86,7 +99,10 @@ export interface Unit {
 }
 
 export interface BattleEvent {
-  type: 'hit' | 'death' | 'promote' | 'heal' | 'save' | 'ability' | 'shieldBreak';
+  type: 'hit' | 'death' | 'promote' | 'heal' | 'save' | 'ability' | 'shieldBreak'
+    | 'boss' | 'rage' | 'warn' | 'blast' | 'summon' | 'terrain';
+  /** Cells for 'warn', 'blast' and 'terrain' events (index y * 8 + x). */
+  cells?: number[];
   /** Ability name for 'ability' events. */
   label?: string;
   uid: number;
@@ -122,8 +138,15 @@ export interface Battle {
   report: Record<number, UnitReport>;
   /** The player's chosen abilities. */
   branches: Partial<Record<PieceKind, Branch>>;
-  /** Terrain per cell, index y * 8 + x. */
+  /** Terrain per cell, index y * 8 + x (bosses can change it). */
   terrain: Terrain[];
+  bossId?: BossId;
+  bossUid?: number;
+  /** 1 normal, 2 enraged (below half health). */
+  bossPhase: 1 | 2;
+  bossTimer: number;
+  summons: number;
+  warnings: BossWarning[];
 }
 
 export interface UnitReport {
@@ -194,7 +217,14 @@ export function createBattle(setup: BattleSetup): Battle {
     };
   }
   const b: Battle = { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
-    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches }, terrain: parseTerrain(setup.terrain) };
+    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches }, terrain: [...parseTerrain(setup.terrain)],
+    bossPhase: 1, bossTimer: 0, summons: 0, warnings: [] };
+  const boss = setup.bossId ? units.find((u) => u.side === 'enemy' && u.boss) : undefined;
+  if (boss && setup.bossId) {
+    b.bossId = setup.bossId;
+    b.bossUid = boss.uid;
+    b.bossTimer = Math.round(BOSSES[setup.bossId].cooldown * 0.6);
+  }
   for (const u of units) {
     resetAbilityTimer(b, u, 0.5);
     if (u.kind !== 'pawn' || u.tier === 0) continue;
@@ -441,6 +471,7 @@ function defense(b: Battle, target: Unit): number {
   m *= aura;
   if (b.tick < target.cursedUntil) m *= target.curseMult;
   if (b.terrain[target.y * BOARD_SIZE + target.x] === 'forest') m *= FOREST_DEFENSE;
+  if (target.uid === b.bossUid && b.bossId === 'fortress' && b.bossPhase === 2) m *= 0.6;
   return m;
 }
 
@@ -666,8 +697,8 @@ function threatens(grid: Grid, terrain: Terrain[], e: Unit, x: number, y: number
 }
 
 /** How dangerous a cell is for a king: threats weigh most, nearby enemies a little, friends reduce it. */
-function kingDanger(grid: Grid, terrain: Terrain[], king: Unit, foes: Unit[], x: number, y: number): number {
-  let danger = 0;
+function kingDanger(grid: Grid, terrain: Terrain[], king: Unit, foes: Unit[], x: number, y: number, warned?: Set<number>): number {
+  let danger = warned?.has(y * BOARD_SIZE + x) ? 25 : 0;
   for (const e of foes) {
     if (threatens(grid, terrain, e, x, y)) danger += 10;
     danger += 3 / Math.max(1, chebyshev(e, x, y));
@@ -683,19 +714,23 @@ function kingDanger(grid: Grid, terrain: Terrain[], king: Unit, foes: Unit[], x:
 
 /** When threatened, the king steps to a clearly safer neighbouring square. */
 function kingEscape(b: Battle, king: Unit): [number, number] | null {
+  // Boss blows only hit the player's side; the king sees the red cells coming.
+  const warned = king.side === 'ally' ? new Set(b.warnings.flatMap((w) => w.cells)) : undefined;
+  const inBlast = !!warned?.has(king.y * BOARD_SIZE + king.x);
   // A king left without an army stands its ground instead of running until the clock ends.
-  if (alive(b, king.side).length === 1) return null;
+  if (alive(b, king.side).length === 1 && !inBlast) return null;
   const foes = alive(b, king.side === 'ally' ? 'enemy' : 'ally');
   const grid = buildGrid(b, king);
-  const underThreat = foes.some((e) => threatens(grid, b.terrain, e, king.x, king.y) || chebyshev(e, king.x, king.y) <= 2);
+  const underThreat = inBlast
+    || foes.some((e) => threatens(grid, b.terrain, e, king.x, king.y) || chebyshev(e, king.x, king.y) <= 2);
   if (!underThreat) return null;
   let best: [number, number] | null = null;
-  let bestDanger = kingDanger(grid, b.terrain, king, foes, king.x, king.y) - 2; // only move for a real gain
+  let bestDanger = kingDanger(grid, b.terrain, king, foes, king.x, king.y, warned) - 2; // only move for a real gain
   for (const [dx, dy] of moveOffsets('king')) {
     const x = king.x + dx;
     const y = king.y + dy;
     if (!standable(b.terrain, x, y) || grid[y * BOARD_SIZE + x]) continue;
-    const d = kingDanger(grid, b.terrain, king, foes, x, y);
+    const d = kingDanger(grid, b.terrain, king, foes, x, y, warned);
     if (d < bestDanger) {
       bestDanger = d;
       best = [x, y];
@@ -800,10 +835,168 @@ export function stepBattle(b: Battle): void {
     if (sideDefeated(b, 'ally') || sideDefeated(b, 'enemy')) break;
   }
   if (b.relics.has('royalHealer') && b.tick % HEAL_EVERY === 0) royalHeal(b);
+  if (!sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) bossTick(b);
   b.units = b.units.filter((u) => u.hp > 0 || u.flash > 0);
   if (sideDefeated(b, 'ally')) b.result = 'loss';
   else if (sideDefeated(b, 'enemy')) b.result = 'win';
   else if (b.tick >= MAX_TICKS) b.result = 'loss';
+}
+
+// ---------- Bosses ----------
+
+function bossTick(b: Battle): void {
+  resolveWarnings(b);
+  if (!b.bossId) return;
+  const boss = b.units.find((u) => u.uid === b.bossUid && u.hp > 0);
+  if (!boss) {
+    b.warnings = [];
+    return;
+  }
+  const def = BOSSES[b.bossId];
+  if (b.bossPhase === 1 && boss.hp <= boss.maxHp * 0.5) {
+    b.bossPhase = 2;
+    enrage(b, boss);
+    b.bossTimer = Math.min(b.bossTimer, 20);
+  }
+  if (--b.bossTimer > 0) return;
+  b.bossTimer = castBoss(b, boss) ? (b.bossPhase === 2 ? def.rageCooldown : def.cooldown) : 10;
+}
+
+function bossEvent(b: Battle, boss: Unit, type: 'boss' | 'rage', label: string): void {
+  b.events.push({ type, uid: boss.uid, side: boss.side, x: boss.x, y: boss.y, amount: 0, fromX: boss.x, fromY: boss.y, fromUid: boss.uid, fromKind: boss.kind, label });
+}
+
+function enrage(b: Battle, boss: Unit): void {
+  const def = BOSSES[b.bossId!];
+  bossEvent(b, boss, 'rage', def.rage);
+  switch (b.bossId) {
+    case 'captain':
+      for (const p of alive(b, boss.side)) {
+        if (p.kind === 'pawn') p.shield = p.maxShield = Math.max(p.shield, p.maxHp * 0.3);
+      }
+      break;
+    case 'rider':
+    case 'guardian':
+      boss.atkMult *= 1.3;
+      applyStats(boss, boss.kind);
+      break;
+    case 'queen':
+      summon(b, boss);
+      summon(b, boss);
+      break;
+    default:
+      break;
+  }
+}
+
+/** Put a fresh enemy pawn on a free cell of the enemy's middle rows, close to the boss. */
+function summon(b: Battle, boss: Unit): boolean {
+  const cells: [number, number][] = [];
+  for (const y of [1, 2]) for (let x = 0; x < BOARD_SIZE; x++) if (standable(b.terrain, x, y) && !unitAt(b, x, y)) cells.push([x, y]);
+  if (!cells.length) return false;
+  cells.sort((a, c) => chebyshev(boss, a[0], a[1]) - chebyshev(boss, c[0], c[1]) || a[0] - c[0]);
+  const [x, y] = cells[0];
+  const uid = Math.max(...b.units.map((u) => u.uid), ...Object.keys(b.report).map(Number)) + 1;
+  const u = makeUnit(uid, boss.side, { kind: 'pawn', x, y, level: boss.level }, 1, 1, 1, true);
+  u.wait = 10;
+  b.units.push(u);
+  b.report[uid] = { uid, side: u.side, kind: 'pawn', boss: false, promoted: false, startX: x, startY: y, dealt: 0, taken: 0, healed: 0, kills: 0 };
+  b.summons++;
+  b.events.push({ type: 'summon', uid, side: u.side, x, y, amount: 0, fromX: boss.x, fromY: boss.y, fromUid: boss.uid, fromKind: boss.kind });
+  return true;
+}
+
+function warn(b: Battle, boss: Unit, cells: number[], damage: number, rock = false): void {
+  b.warnings.push({ at: b.tick + WARN_TICKS, cells, damage, fromUid: boss.uid, rock });
+  b.events.push({ type: 'warn', uid: boss.uid, side: boss.side, x: boss.x, y: boss.y, amount: WARN_TICKS, fromX: boss.x, fromY: boss.y, fromUid: boss.uid, cells });
+}
+
+function castBoss(b: Battle, boss: Unit): boolean {
+  const def = BOSSES[b.bossId!];
+  const foes = alive(b, 'ally');
+  if (!foes.length) return false;
+  const damage = baseDamage(b, boss);
+  const idx = (x: number, y: number) => y * BOARD_SIZE + x;
+  switch (b.bossId) {
+    case 'captain': {
+      if (b.summons >= MAX_SUMMONS || !summon(b, boss)) return false;
+      break;
+    }
+    case 'rider': {
+      const priority = (t: Unit) => (RANGED.has(t.kind) ? 0 : t.kind === 'king' ? 1 : 2);
+      const targets = [...foes].sort((a, c) => priority(a) - priority(c) || a.hp - c.hp || a.uid - c.uid);
+      for (const t of targets) {
+        const spot = moveOffsets('king').map(([dx, dy]) => [t.x + dx, t.y + dy] as const)
+          .find(([x, y]) => standable(b.terrain, x, y) && !unitAt(b, x, y));
+        if (!spot) continue;
+        bossEvent(b, boss, 'boss', def.skill);
+        boss.x = spot[0];
+        boss.y = spot[1];
+        dealDamage(b, boss, t, damage * 1.5, false);
+        if (t.hp > 0) t.wait += 10;
+        boss.wait = boss.attackCd;
+        return true;
+      }
+      return false;
+    }
+    case 'fortress': {
+      const target = [...foes].sort((a, c) => c.hp - a.hp || a.uid - c.uid)[0];
+      const cells = [idx(target.x, target.y)];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1], [0, 1]]) {
+        const x = target.x + dx;
+        const y = target.y + dy;
+        if (inside(x, y) && y >= 3 && cells.length < 3) cells.push(idx(x, y));
+      }
+      warn(b, boss, cells, damage * 1.4, true);
+      break;
+    }
+    case 'queen': {
+      const perFile = new Array(BOARD_SIZE).fill(0);
+      for (const f of foes) perFile[f.x]++;
+      const file = perFile.indexOf(Math.max(...perFile));
+      warn(b, boss, Array.from({ length: BOARD_SIZE }, (_, y) => idx(file, y)), damage);
+      break;
+    }
+    case 'guardian': {
+      const crowd = (u: Unit) => foes.filter((f) => chebyshev(u, f.x, f.y) <= 1).length;
+      const centre = [...foes].sort((a, c) => crowd(c) - crowd(a) || a.uid - c.uid)[0];
+      const cells: number[] = [];
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside(centre.x + dx, centre.y + dy)) cells.push(idx(centre.x + dx, centre.y + dy));
+      warn(b, boss, cells, damage * 1.2);
+      break;
+    }
+    default:
+      return false;
+  }
+  bossEvent(b, boss, 'boss', def.skill);
+  return true;
+}
+
+function resolveWarnings(b: Battle): void {
+  const due = b.warnings.filter((w) => w.at <= b.tick);
+  if (!due.length) return;
+  b.warnings = b.warnings.filter((w) => w.at > b.tick);
+  for (const w of due) {
+    const src = b.units.find((u) => u.uid === w.fromUid && u.hp > 0);
+    if (!src) continue;
+    b.events.push({ type: 'blast', uid: src.uid, side: src.side, x: src.x, y: src.y, amount: 0, fromX: src.x, fromY: src.y, fromUid: src.uid, cells: w.cells });
+    for (const i of w.cells) {
+      const t = unitAt(b, i % BOARD_SIZE, Math.floor(i / BOARD_SIZE));
+      if (t && t.side !== src.side) dealDamage(b, src, t, w.damage, false);
+    }
+    if (w.rock) {
+      const i = w.cells.find((c) => {
+        const y = Math.floor(c / BOARD_SIZE);
+        return y >= 3 && y <= 6 && walkable(b.terrain[c]) && !unitAt(b, c % BOARD_SIZE, y);
+      });
+      if (i !== undefined) {
+        b.terrain[i] = 'rock';
+        const x = i % BOARD_SIZE;
+        const y = Math.floor(i / BOARD_SIZE);
+        b.events.push({ type: 'terrain', uid: src.uid, side: src.side, x, y, amount: 0, fromX: src.x, fromY: src.y, fromUid: src.uid, cells: [i] });
+      }
+    }
+  }
 }
 
 /** Run a battle to completion (used by tests and balance checks). */

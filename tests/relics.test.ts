@@ -81,7 +81,7 @@ describe('relic effects', () => {
   it('relics make the same battle easier', () => {
     const run = (relics: Parameters<typeof createBattle>[0]['relics']) => {
       const s = newGame(0);
-      const b = createBattle({ ...battleSetup(s, '1-9'), relics });
+      const b = createBattle({ ...battleSetup(s, '1-9'), relics, bossId: undefined });
       simulate(b);
       return b.units.filter((u) => u.side === 'enemy').reduce((sum, u) => sum + Math.max(0, u.hp), 0);
     };
