@@ -20,8 +20,8 @@ export interface PieceDef {
 export const PIECES: Record<PieceKind, PieceDef> = {
   king: {
     kind: 'king', name: 'Король', role: 'Сердце армии',
-    hp: 240, atk: 10, attackCd: 12, moveCd: 0, range: 0, cost: 0,
-    description: 'Не двигается. Соседние союзники получают +20% к атаке. Пал король — бой проигран.',
+    hp: 240, atk: 10, attackCd: 12, moveCd: 14, range: 0, cost: 0,
+    description: 'Отступает от угроз и прячется за своими. Соседние союзники получают +20% к атаке. Пал король — бой проигран.',
   },
   pawn: {
     kind: 'pawn', name: 'Пешка', role: 'Стена',
@@ -72,6 +72,7 @@ export const KNIGHT_OFFSETS: Dir[] = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2],
 export function moveOffsets(kind: PieceKind): Dir[] {
   switch (kind) {
     case 'knight': return KNIGHT_OFFSETS;
+    case 'king': return ALL;
     case 'bishop': return DIAG;
     case 'rook': return ORTHO;
     case 'queen': return ALL;

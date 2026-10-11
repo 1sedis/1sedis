@@ -498,8 +498,69 @@ function greedyStep(b: Battle, u: Unit, goal: Unit[]): [number, number] | null {
   return best;
 }
 
+/** Can enemy `e` hit the cell (x, y) from where it stands now? */
+function threatens(grid: Grid, e: Unit, x: number, y: number): boolean {
+  const dx = x - e.x;
+  const dy = y - e.y;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) === 1) return true;
+  if (e.kind === 'knight' && ((Math.abs(dx) === 1 && Math.abs(dy) === 2) || (Math.abs(dx) === 2 && Math.abs(dy) === 1))) return true;
+  const range = PIECES[e.kind].range;
+  if (!range) return false;
+  const straight = dx === 0 || dy === 0;
+  const diagonal = Math.abs(dx) === Math.abs(dy);
+  const fits = e.kind === 'rook' ? straight : e.kind === 'bishop' ? diagonal : straight || diagonal;
+  const dist = Math.max(Math.abs(dx), Math.abs(dy));
+  if (!fits || dist > range) return false;
+  const sx = Math.sign(dx);
+  const sy = Math.sign(dy);
+  for (let i = 1; i < dist; i++) if (grid[(e.y + sy * i) * BOARD_SIZE + e.x + sx * i]) return false;
+  return true;
+}
+
+/** How dangerous a cell is for a king: threats weigh most, nearby enemies a little, friends reduce it. */
+function kingDanger(grid: Grid, king: Unit, foes: Unit[], x: number, y: number): number {
+  let danger = 0;
+  for (const e of foes) {
+    if (threatens(grid, e, x, y)) danger += 10;
+    danger += 3 / Math.max(1, chebyshev(e, x, y));
+  }
+  for (let ox = -1; ox <= 1; ox++) {
+    for (let oy = -1; oy <= 1; oy++) {
+      const f = inside(x + ox, y + oy) ? grid[(y + oy) * BOARD_SIZE + x + ox] : undefined;
+      if (f && f.side === king.side && (ox || oy)) danger -= 1.5;
+    }
+  }
+  return danger;
+}
+
+/** When threatened, the king steps to a clearly safer neighbouring square. */
+function kingEscape(b: Battle, king: Unit): [number, number] | null {
+  const foes = alive(b, king.side === 'ally' ? 'enemy' : 'ally');
+  const grid = buildGrid(b, king);
+  const underThreat = foes.some((e) => threatens(grid, e, king.x, king.y) || chebyshev(e, king.x, king.y) <= 2);
+  if (!underThreat) return null;
+  let best: [number, number] | null = null;
+  let bestDanger = kingDanger(grid, king, foes, king.x, king.y) - 2; // only move for a real gain
+  for (const [dx, dy] of moveOffsets('king')) {
+    const x = king.x + dx;
+    const y = king.y + dy;
+    if (!inside(x, y) || grid[y * BOARD_SIZE + x]) continue;
+    const d = kingDanger(grid, king, foes, x, y);
+    if (d < bestDanger) {
+      bestDanger = d;
+      best = [x, y];
+    }
+  }
+  return best;
+}
+
 function moveUnit(b: Battle, u: Unit): void {
-  if (u.kind === 'king' || u.moveCd === 0) {
+  if (u.moveCd === 0) {
+    u.wait = 3;
+    return;
+  }
+  if (u.kind === 'king') {
+    // Kings never advance; they only step away from danger.
     u.wait = 3;
     return;
   }
@@ -542,6 +603,14 @@ function moveUnit(b: Battle, u: Unit): void {
 }
 
 function act(b: Battle, u: Unit): void {
+  if (u.kind === 'king') {
+    const escape = kingEscape(b, u);
+    if (escape) {
+      [u.x, u.y] = escape;
+      u.wait = u.moveCd;
+      return;
+    }
+  }
   const targets = reachFrom(b, u.side, u.kind, u.x, u.y);
   if (targets.length > 0) strike(b, u, pickTarget(u, targets));
   else moveUnit(b, u);

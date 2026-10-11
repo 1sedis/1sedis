@@ -44,9 +44,10 @@ describe('battle rules', () => {
 
   it('pieces on the line block ranged attacks', () => {
     const shotAtKing = (blocked: boolean) => {
-      // The ally king never moves, so placing it in front of the rook blocks the file.
+      // The ally king stays put while unthreatened, so it blocks the file in front of the rook.
       const king = blocked ? p('king', 0, 6) : p('king', 7, 7);
-      const b = createBattle({ allies: [king, p('rook', 0, 7)], enemies: [p('king', 0, 0)] });
+      // The target is a pawn on the file: kings now step out of the line of fire.
+      const b = createBattle({ allies: [king, p('rook', 0, 7)], enemies: [p('king', 7, 0), p('pawn', 0, 1)] });
       for (let i = 0; i < 5; i++) {
         stepBattle(b);
         if (b.events.some((e) => e.type === 'hit' && e.fromX === 0 && e.fromY === 7)) return true;
