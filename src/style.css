@@ -1759,7 +1759,7 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
 .terrain-tile.terrain-dark { opacity: .9; animation: dark-pulse 2.4s ease-in-out infinite; }
 @keyframes dark-pulse { 50% { opacity: .6; } }
 @media (prefers-reduced-motion: reduce) { .terrain-tile.terrain-dark { animation: none; } }
-.prestige-card .distortion-info { font-size: 14px; line-height: 1.35; }
+.prestige-card .distortion-info { font-size: 14px; line-height: 1.35; white-space: pre-line; }
 .chronicle-btn { width: 100%; margin-top: 6px; }
 .chronicle-modal { max-width: 520px; max-height: 80vh; overflow-y: auto; }
 .chronicle h2 { margin: 0 0 10px; }

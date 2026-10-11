@@ -1,4 +1,5 @@
-import { DISTORTIONS, distortionFor } from '../game/distortions';
+import { DISTORTIONS, distortionsFor, type DistortionId } from '../game/distortions';
+import { LORE } from '../game/story';
 import type { UnitView } from './board';
 import type { Step } from './cutscene';
 
@@ -78,17 +79,19 @@ function opening(queen = false): Step[] {
   return steps;
 }
 
-function distortionCard(game: number): Step[] {
-  const id = distortionFor(game);
-  if (!id) return [];
-  return [{ t: 'title', text: `Искажение: ${DISTORTIONS[id].name}`, sub: DISTORTIONS[id].text, accent: true }];
+/** The card of a distortion that joins the ones already in force. */
+function distortionCard(id: DistortionId, joins: boolean): Step[] {
+  return [{ t: 'title', text: `${joins ? 'Новое искажение' : 'Искажение'}: ${DISTORTIONS[id].name}`, sub: DISTORTIONS[id].text, accent: true }];
 }
 
-/** What each new game shows: a chapter of the Chronicle played on the board, then the new distortion. */
-export function gameIntroScene(game: number): Step[] {
-  const head: Step[] = [{ t: 'title', text: `Партия ${game}` }];
-  switch (game) {
-    case 2:
+/**
+ * A chapter of the Chronicle acted out on the board (see CHRONICLE in
+ * game/story.ts for when each one plays), ending with the distortion it brings.
+ */
+export function loreScene(lore: number, game: number): Step[] {
+  const head: Step[] = [{ t: 'title', text: LORE[lore]?.title ?? `Партия ${game}`, sub: `Летопись · партия ${game}` }];
+  switch (lore) {
+    case 0:
       return [
         ...opening(true), ...head,
         { t: 'caption', text: 'Чёрный ферзь пал.' },
@@ -108,9 +111,9 @@ export function gameIntroScene(game: number): Step[] {
         ...[1, 2, 5, 6].map((x): Step => ({ t: 'glow', id: `bp${x}`, color: '#c77dff' })),
         { t: 'glow', id: 'bn', color: '#c77dff' },
         { t: 'teamHop', team: 'enemy' },
-        ...distortionCard(game),
+        ...distortionCard('awakening', false),
       ];
-    case 3:
+    case 1:
       return [
         ...opening(), ...head,
         { t: 'move', id: 'bk', x: 4, y: 3, ms: 800 },
@@ -123,9 +126,9 @@ export function gameIntroScene(game: number): Step[] {
         { t: 'move', id: 'wp2', x: 2, y: 5, ms: 400 },
         { t: 'fade', id: 'wp2', to: 0.35, ms: 900 },
         say('bk', 'Из трещин сочится тьма. Мои фигуры её пьют, а твои — растворяются.'),
-        ...distortionCard(game),
+        ...distortionCard('darkness', true),
       ];
-    case 4:
+    case 2:
       return [
         ...opening(), ...head,
         { t: 'caption', text: 'Бездна под доской — не пустота. Это все фигуры, сброшенные за тысячу партий.' },
@@ -145,9 +148,10 @@ export function gameIntroScene(game: number): Step[] {
         { t: 'badge', id: 'bp6', trait: 'armored' },
         { t: 'badge', id: 'bn', trait: 'vampire' },
         say('bk', 'Моя гвардия стоит на каждой клетке — с первой до последней.'),
-        ...distortionCard(game),
+        { t: 'caption', text: 'Пробуждение и тьма никуда не делись. Искажения копятся.' },
+        ...distortionCard('guard', true),
       ];
-    case 5:
+    case 3:
       return [
         ...opening(), ...head,
         { t: 'move', id: 'bk', x: 4, y: 3, ms: 800 },
@@ -161,18 +165,11 @@ export function gameIntroScene(game: number): Step[] {
         say('bk', 'Довольно прятаться за пешками. В этой партии я выйду сам.'),
         { t: 'grow', id: 'bk', scale: 1.35 },
         { t: 'roar', id: 'bk' },
-        ...distortionCard(game),
-      ];
-    case 6:
-      return [
-        ...opening(), ...head,
-        { t: 'caption', text: 'Ты понимаешь: дело не в ферзе и не в короле.' },
         { t: 'shadow' },
         { t: 'caption', text: 'На миг над доской проходит тень — огромная, как ладонь.' },
         { t: 'hop', id: 'bk' },
         say('bk', 'Ты тоже это почувствовал? Не смотри наверх. Пока — не смотри.'),
-        { t: 'caption', text: 'Чтобы закончить цикл, мало выиграть партию. Нужно не дать доске перевернуться.' },
-        ...distortionCard(game),
+        ...distortionCard('blackKing', true),
       ];
     default:
       return [
@@ -182,7 +179,7 @@ export function gameIntroScene(game: number): Step[] {
         { t: 'caption', text: 'Доска снова переворачивается. Но теперь ты считаешь партии сам.' },
         say('bk', 'Снова ты. Каждая корона — шаг к руке над доской.'),
         { t: 'caption', text: 'Однажды доска не перевернётся. Не в этот раз. Но однажды.' },
-        ...distortionCard(game),
+        ...distortionsFor(game, 1).flatMap((id) => distortionCard(id, false)),
       ];
   }
 }
@@ -194,6 +191,8 @@ export function revealScene(): Step[] {
   const hand = (text: string): Step => ({ t: 'say', id: 'giant-hand', text, name: '???', voice: 'hand' });
   return [
     ...opening(true),
+    { t: 'title', text: LORE[4].title, sub: 'Летопись' },
+    { t: 'caption', text: 'Ты понимаешь: дело не в ферзе и не в короле. Доску переворачивает рука над ней.' },
     { t: 'caption', text: 'Обычная партия. Обычный ход.' },
     { t: 'move', id: 'wp5', x: 5, y: 5 },
     { t: 'move', id: 'bp2', x: 2, y: 2 },

@@ -1,23 +1,37 @@
 import { describe, expect, test } from 'vitest';
-import { DISTORTION_ORDER, distortionFor } from '../src/game/distortions';
+import { DISTORTION_ORDER, distortionsFor } from '../src/game/distortions';
 import { withElites } from '../src/game/elites';
 import { ALL_LEVELS, enemyPlacements, getLevel } from '../src/game/levels';
 import { levelTerrain, walkable, withDarkness } from '../src/game/terrain';
 import { createBattle, stepBattle } from '../src/game/battle';
-import { battleSetup, levelDistortion, newGame, terrainFor } from '../src/game/state';
+import { battleSetup, levelDistortions, newGame, terrainFor } from '../src/game/state';
+import { CHRONICLE, LORE, chronicleAt } from '../src/game/story';
 
 describe('distortions', () => {
-  test('game 1 has none, games 2-5 bring each one, then they cycle', () => {
-    expect(distortionFor(1)).toBeNull();
-    expect([2, 3, 4, 5].map(distortionFor)).toEqual(DISTORTION_ORDER);
-    expect(distortionFor(6)).toBe(DISTORTION_ORDER[0]);
+  test('they pile up through games 2 and 3, then take turns', () => {
+    expect(distortionsFor(1, 4)).toEqual([]);
+    expect(distortionsFor(2, 1)).toEqual(['awakening']);
+    expect(distortionsFor(2, 3)).toEqual(['awakening', 'darkness']);
+    expect(distortionsFor(3, 2)).toEqual(['awakening', 'darkness', 'guard']);
+    expect(distortionsFor(3, 4)).toEqual(DISTORTION_ORDER);
+    expect([4, 5, 6, 7, 8].map((g) => distortionsFor(g, 1)[0])).toEqual([...DISTORTION_ORDER, DISTORTION_ORDER[0]]);
   });
 
   test('never in the abyss', () => {
     const s = newGame(0);
     s.prestige = 2;
-    expect(levelDistortion(s, '1-1')).toBe('darkness');
-    expect(levelDistortion(s, 'abyss-5')).toBeNull();
+    expect(levelDistortions(s, '1-1')).toContain('darkness');
+    expect(levelDistortions(s, 'abyss-5')).toEqual([]);
+  });
+
+  test('the chronicle is told over games 2 and 3 and every chapter has a moment', () => {
+    expect(CHRONICLE.map((b) => b.lore)).toEqual(LORE.map((_, i) => i));
+    expect(chronicleAt(2, 'start')).toBe(0);
+    expect(chronicleAt(2, '3-1')).toBe(1);
+    expect(chronicleAt(3, 'start')).toBe(2);
+    expect(chronicleAt(3, '3-1')).toBe(3);
+    expect(chronicleAt(7, 'start')).toBe(5);
+    expect(chronicleAt(1, 'start')).toBeNull();
   });
 
   test('darkness adds two mirrored pairs on plain cells only', () => {
@@ -66,14 +80,15 @@ describe('distortions', () => {
     const s = newGame(0);
     s.prestige = 1;
     expect(battleSetup(s, '1-1').enemyAbilityShift).toBe(3);
-    s.prestige = 4;
-    const setup = battleSetup(s, '1-1');
+    s.prestige = 2;
+    const setup = battleSetup(s, '3-1');
     expect(setup.enemyKingHp).toBe(2);
     const b = createBattle(setup);
-    const king = b.units.find((u) => u.side === 'enemy' && u.kind === 'king')!;
+    const king = b.units.find((u) => u.side === 'enemy' && u.kind === 'king' && !u.boss)!;
     const plain = createBattle({ ...setup, enemyKingHp: 1 }).units.find((u) => u.side === 'enemy' && u.kind === 'king')!;
     expect(king.maxHp).toBeCloseTo(plain.maxHp * 2, 0);
-    s.prestige = 2;
-    expect(terrainFor(s, '1-1').includes('dark')).toBe(true);
+    s.prestige = 1;
+    expect(terrainFor(s, '1-1').includes('dark')).toBe(false);
+    expect(terrainFor(s, '3-1').includes('dark')).toBe(true);
   });
 });

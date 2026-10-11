@@ -1,7 +1,6 @@
 /**
- * Distortions: every new game the Black King bends one rule of the campaign.
- * Game 2 brings the first one; after game 5 they repeat in a cycle.
- * They never touch the Abyss.
+ * Distortions: the Black King bends the rules of the campaign as the story goes.
+ * They never touch the Abyss or the finale.
  */
 export type DistortionId = 'awakening' | 'darkness' | 'guard' | 'blackKing';
 
@@ -50,10 +49,17 @@ export const DISTORTIONS: Record<DistortionId, DistortionDef> = {
 
 export const DISTORTION_ORDER: DistortionId[] = ['awakening', 'darkness', 'guard', 'blackKing'];
 
-/** The distortion of a game (game 1 has none). */
-export function distortionFor(game: number): DistortionId | null {
-  if (game < 2) return null;
-  return DISTORTION_ORDER[(game - 2) % DISTORTION_ORDER.length];
+/**
+ * Distortions in force for a campaign chapter. They pile up through the story:
+ * game 2 brings "Пробуждение", then "Тьма" from chapter 3; game 3 adds
+ * "Чёрная гвардия", then "Король на поле" from chapter 3. After the story
+ * (game 4 on) one distortion at a time, in turn.
+ */
+export function distortionsFor(game: number, chapter: number): DistortionId[] {
+  if (game < 2) return [];
+  if (game === 2) return chapter >= 3 ? ['awakening', 'darkness'] : ['awakening'];
+  if (game === 3) return chapter >= 3 ? ['awakening', 'darkness', 'guard', 'blackKing'] : ['awakening', 'darkness', 'guard'];
+  return [DISTORTION_ORDER[(game - 4) % DISTORTION_ORDER.length]];
 }
 
 /** Levels earlier enemies learn abilities under "Пробуждение". */

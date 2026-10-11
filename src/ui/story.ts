@@ -1,10 +1,9 @@
-import { STORY, loreForGame, storyKey, LORE } from '../game/story';
-import { DISTORTIONS, distortionFor } from '../game/distortions';
-import type { GameState } from '../game/state';
+import { CHRONICLE, LORE, STORY, chronicleAt, loreKey, storyKey } from '../game/story';
+import { gameNumber, type GameState } from '../game/state';
 import { el, openModal } from './dom';
 import type { BoardView, UnitView } from './board';
 import { Stage, playStageOverlay } from './cutscene';
-import { gameIntroScene, levelScene, revealScene } from './scenes';
+import { levelScene, loreScene, revealScene } from './scenes';
 
 /** The Black King's scene before a level, acted on the arena board, once per save. */
 export function playStory(s: GameState, levelId: string, save: () => void, board: BoardView, cast: UnitView[]): Promise<void> {
@@ -16,33 +15,52 @@ export function playStory(s: GameState, levelId: string, save: () => void, board
   return new Stage(board, cast).run(steps);
 }
 
-/** The scene that opens a new game: the Chronicle chapter acted out, then the new distortion. */
-export function playGameIntro(game: number): Promise<void> {
-  return playStageOverlay(gameIntroScene(game), Math.min(4, Math.max(1, game - 1)));
+/** Play a chapter of the Chronicle on its own board and remember it was told. */
+function playLore(s: GameState, lore: number, game: number, save: () => void): Promise<void> {
+  if (!s.tutorial.includes(loreKey(lore))) {
+    s.tutorial.push(loreKey(lore));
+    save();
+  }
+  return lore === 4 ? playStageOverlay(revealScene(), 6) : playStageOverlay(loreScene(lore, game), Math.min(4, Math.max(1, game)));
 }
 
-/** The edge of the board opens: the Hand's first appearance. */
-export function playReveal(): Promise<void> {
-  return playStageOverlay(revealScene(), 6);
+/** The scene that opens a new game: its chapter of the Chronicle and the distortion it brings. */
+export function playGameIntro(s: GameState, save: () => void): Promise<void> {
+  const game = gameNumber(s);
+  const lore = chronicleAt(game, 'start');
+  return lore === null ? Promise.resolve() : playLore(s, lore, game, save);
 }
 
-/** Re-read the chronicle: every chapter up to the current game, and the ending once it is reached. */
-export function openChronicle(game: number, onCredits?: () => void): void {
+/** A chapter of the Chronicle told on entering a level (once per game). */
+export function playLevelLore(s: GameState, levelId: string, save: () => void): Promise<void> {
+  const game = gameNumber(s);
+  const lore = chronicleAt(game, levelId);
+  const key = `${loreKey(lore ?? -1)}_g${game}`;
+  if (lore === null || s.tutorial.includes(key)) return Promise.resolve();
+  s.tutorial.push(key);
+  return playLore(s, lore, game, save);
+}
+
+/** The edge of the board opens: the Hand's first appearance (the Chronicle's fifth chapter). */
+export function playReveal(s: GameState, save: () => void): Promise<void> {
+  return playLore(s, 4, gameNumber(s), save);
+}
+
+/** Re-read the Chronicle: every chapter told so far (with a replay), and the ending once it is reached. */
+export function openChronicle(s: GameState, save: () => void, onCredits?: () => void): void {
   const content = el('div', 'chronicle');
   content.append(el('h2', '', 'Летопись'));
-  const count = Math.min(game - 1, LORE.length);
-  if (count <= 0) content.append(el('p', 'muted', 'Летопись начнётся со второй партии.'));
-  for (let g = 2; g <= count + 1; g++) {
-    const lore = loreForGame(g)!;
-    const id = distortionFor(g);
+  const told = CHRONICLE.filter((b) => s.tutorial.includes(loreKey(b.lore)));
+  if (!told.length) content.append(el('p', 'muted', 'Летопись начнётся во второй партии.'));
+  for (const beat of told) {
+    const lore = LORE[beat.lore];
     const item = el('div', 'chronicle-item');
-    item.append(el('div', 'chronicle-title', `Партия ${g} · ${lore.title}`));
+    item.append(el('div', 'chronicle-title', `${beat.at === 'finale' ? 'Край доски' : `Партия ${beat.game}`} · ${lore.title}`));
     for (const line of lore.lines) item.append(el('p', '', line));
-    if (id) item.append(el('div', 'chronicle-distortion', `◆ ${DISTORTIONS[id].name}: ${DISTORTIONS[id].text}`));
     const watch = el('button', 'btn btn-small chronicle-watch', '▶ Смотреть');
     watch.addEventListener('click', () => {
       done();
-      void playGameIntro(g);
+      void playLore(s, beat.lore, beat.game, save);
     });
     item.append(watch);
     content.append(item);

@@ -8,7 +8,7 @@ import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId }
 import { bossFor } from './bosses';
 import { withElites, type Trait } from './elites';
 import { levelTerrain, levelTerrainRows, parseTerrain, walkable, withDarkness, type Terrain } from './terrain';
-import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionFor, type DistortionId } from './distortions';
+import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionsFor, type DistortionId } from './distortions';
 import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { shardsForFloor } from './altar';
@@ -148,12 +148,14 @@ export function isAbyssOpen(s: GameState): boolean {
   return isCleared(s, ABYSS_UNLOCK);
 }
 
-/** The finale opens in game 6 after the Black Queen, or at Abyss floor 50. */
-export const FINALE_GAME = 6;
-export const FINALE_FLOOR = 50;
+/** The finale opens in game 3 after the Black Queen (and stays open after it), or at Abyss floor 30. */
+export const FINALE_GAME = 3;
+export const FINALE_FLOOR = 30;
 
 export function isFinaleOpen(s: GameState): boolean {
-  return s.finale.beaten || s.abyss.best >= FINALE_FLOOR || (gameNumber(s) >= FINALE_GAME && isCleared(s, PRESTIGE_UNLOCK));
+  const game = gameNumber(s);
+  return s.finale.beaten || s.finale.phase > 0 || s.abyss.best >= FINALE_FLOOR || game > FINALE_GAME
+    || (game === FINALE_GAME && isCleared(s, PRESTIGE_UNLOCK));
 }
 
 export function isLevelOpen(s: GameState, id: string): boolean {
@@ -437,20 +439,24 @@ const BATTLE_PERKS: ReadonlySet<NodeId> = new Set<NodeId>([
 ]);
 
 /** The distortion bending this level's rules (campaign levels only). */
-export function levelDistortion(s: GameState, levelId: string): DistortionId | null {
-  return isAbyss(levelId) || isFinale(levelId) ? null : distortionFor(gameNumber(s));
+export function levelDistortions(s: GameState, levelId: string): DistortionId[] {
+  return isAbyss(levelId) || isFinale(levelId) ? [] : distortionsFor(gameNumber(s), chapterOf(levelId).id);
+}
+
+function hasDistortion(s: GameState, levelId: string, id: DistortionId): boolean {
+  return levelDistortions(s, levelId).includes(id);
 }
 
 /** Terrain rows of a level as this game sees it. */
 export function terrainRowsFor(s: GameState, levelId: string): string[] | undefined {
   if (isFinale(levelId)) return finalePhase(levelId) === 2 ? undefined : withDarkness(levelId, undefined);
   const rows = levelTerrainRows(levelId);
-  return levelDistortion(s, levelId) === 'darkness' ? withDarkness(levelId, rows) : rows;
+  return hasDistortion(s, levelId, 'darkness') ? withDarkness(levelId, rows) : rows;
 }
 
 export function terrainFor(s: GameState, levelId: string): Terrain[] {
   if (isFinale(levelId)) return parseTerrain(terrainRowsFor(s, levelId));
-  return levelTerrain(levelId, levelDistortion(s, levelId) === 'darkness');
+  return levelTerrain(levelId, hasDistortion(s, levelId, 'darkness'));
 }
 
 /**
@@ -517,8 +523,8 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const m = forgeMultiplier(s);
   const rb = rouletteBonuses(s.roulette);
   const bonus = prestigeEnemyBonus(s, levelId);
-  const distortion = levelDistortion(s, levelId);
-  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortion === 'guard')
+  const distortions = levelDistortions(s, levelId);
+  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard'))
     .map((p) => ({ ...p, level: p.level + bonus }));
   if (isAbyss(levelId)) {
     const terrain = levelTerrain(levelId);
@@ -555,9 +561,9 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
     terrain: terrainRowsFor(s, levelId),
     bossId: bossFor(levelId),
     perks: s.crownTree.filter((id) => BATTLE_PERKS.has(id)),
-    enemyAbilityShift: distortion === 'awakening' ? AWAKENING_SHIFT : 0,
-    enemyKingHp: distortion === 'blackKing' ? BLACK_KING_HP : 1,
-    enemyKingAtk: distortion === 'blackKing' ? BLACK_KING_ATK : 1,
+    enemyAbilityShift: distortions.includes('awakening') ? AWAKENING_SHIFT : 0,
+    enemyKingHp: distortions.includes('blackKing') ? BLACK_KING_HP : 1,
+    enemyKingAtk: distortions.includes('blackKing') ? BLACK_KING_ATK : 1,
   };
 }
 

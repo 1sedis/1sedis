@@ -17,14 +17,14 @@ import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
-  available, battleSetup, clearFormation, levelDistortion, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
+  available, battleSetup, clearFormation, levelDistortions, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
   moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, upgradePiece, type BattleOutcome,
   type FormationSlot,
 } from '../../game/state';
 import { audio } from '../audio';
 import { BoardView, type UnitView } from '../board';
 import { openRelicPicker, relicStrip } from '../relics';
-import { playStory } from '../story';
+import { playLevelLore, playStory } from '../story';
 import { playEnding, playFinaleScene } from '../finale';
 import { skipScenes } from '../cutscene';
 import { handUrl } from '../handArt';
@@ -233,9 +233,12 @@ export class ArenaScreen implements Screen {
     this.enterPrep();
     const save = () => this.ctx.save();
     const cast = this.collectUnits();
-    this.scene = isFinale(this.levelId)
-      ? playFinaleScene(this.ctx.state, finalePhase(this.levelId), save, this.board, cast)
-      : playStory(this.ctx.state, this.levelId, save, this.board, cast);
+    const s = this.ctx.state;
+    const id = this.levelId;
+    this.scene = isFinale(id)
+      ? playFinaleScene(s, finalePhase(id), save, this.board, cast)
+      // A chapter of the Chronicle (on its own board) comes before the Black King's lines.
+      : playLevelLore(s, id, save).then(() => playStory(s, id, save, this.board, cast));
     const scene = this.scene;
     void scene.then(() => {
       if (this.scene === scene) this.scene = null;
@@ -282,11 +285,11 @@ export class ArenaScreen implements Screen {
     const terrain = terrainFor(s, this.levelId);
     this.board.setTerrain(terrain);
     const kinds = [...new Set(terrain)].filter((t) => t !== 'plain');
-    const distortion = levelDistortion(s, this.levelId);
-    this.distortionRow.hidden = !distortion;
-    if (distortion) {
-      const d = DISTORTIONS[distortion];
-      this.distortionRow.replaceChildren(el('span', '', `◆ ${d.name}`), infoBtn(`Искажение: ${d.name}`, d.text));
+    const distortions = levelDistortions(s, this.levelId);
+    this.distortionRow.hidden = distortions.length === 0;
+    if (distortions.length) {
+      this.distortionRow.replaceChildren(el('span', '', distortions.map((id) => `◆ ${DISTORTIONS[id].name}`).join('  ')),
+        infoBtn('Искажения', distortions.map((id) => `${DISTORTIONS[id].name}: ${DISTORTIONS[id].text}`).join('\n')));
     }
     this.terrainRow.replaceChildren(...kinds.map((t) => {
       const chip = el('span', 'terrain-chip');

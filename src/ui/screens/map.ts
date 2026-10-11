@@ -15,7 +15,7 @@ import { openCrownTree } from '../crownTree';
 import { openChronicle, playGameIntro, playReveal } from '../story';
 import { playCredits } from '../finale';
 import { handUrl } from '../handArt';
-import { DISTORTIONS, distortionFor } from '../../game/distortions';
+import { DISTORTIONS, distortionsFor } from '../../game/distortions';
 
 const REVEAL_KEY = 'story_final_reveal';
 
@@ -110,7 +110,7 @@ export class MapScreen implements Screen {
       'После финального босса можно начать кампанию заново ради корон.\nКороны тратятся в «Древе короны» на доктрины: новые шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы древа открываются в следующих партиях.\nВраги становятся сильнее (в первой главе чуть-чуть, к Тронному залу на 2 уровня), награды растут. Каждая партия приносит искажение — Чёрный король меняет одно правило. Короны, древо, достижения, осколки и рекорд Бездны сохраняются.'));
     this.prestigeBtn.addEventListener('click', () => void this.onPrestige());
     this.treeBtn.addEventListener('click', () => openCrownTree(this.ctx));
-    this.chronicleBtn.addEventListener('click', () => openChronicle(gameNumber(this.ctx.state),
+    this.chronicleBtn.addEventListener('click', () => openChronicle(this.ctx.state, () => this.ctx.save(),
       this.ctx.state.finale.beaten ? () => void playCredits(this.ctx.state) : undefined));
     this.prestigeCard.append(pHead, this.prestigeInfo, this.distortionInfo, this.prestigeBtn, this.treeBtn, this.chronicleBtn);
 
@@ -174,7 +174,7 @@ export class MapScreen implements Screen {
     if (this.revealing || document.querySelector('.stage-overlay, .modal-overlay')) return;
     this.revealing = true;
     try {
-      await playReveal();
+      await playReveal(this.ctx.state, () => this.ctx.save());
       this.ctx.state.tutorial.push(REVEAL_KEY);
       this.ctx.save();
       this.finaleCard.hidden = false;
@@ -199,7 +199,7 @@ export class MapScreen implements Screen {
     audio.play('achievement');
     toast(`Партия ${s.prestige + 1}: +${got} корон!`, 'good');
     this.show();
-    await playGameIntro(gameNumber(s));
+    await playGameIntro(s, () => this.ctx.save());
   }
 
   private renderRelics(): void {
@@ -309,10 +309,12 @@ export class MapScreen implements Screen {
     this.treeBtn.hidden = s.prestige === 0 && s.crowns === 0 && s.crownTree.length === 0;
     // Not shown until there is something to say: the final boss is beaten or the tree is in play.
     this.prestigeCard.hidden = !ready && this.treeBtn.hidden;
-    const distortion = distortionFor(gameNumber(s));
-    this.distortionInfo.hidden = !distortion;
-    if (distortion) setText(this.distortionInfo, `◆ ${DISTORTIONS[distortion].name}: ${DISTORTIONS[distortion].text}`);
-    this.chronicleBtn.hidden = gameNumber(s) < 2;
+    // Distortions of this game: the first chapters' ones, and those that join from chapter 3.
+    const early = distortionsFor(gameNumber(s), 1);
+    const late = distortionsFor(gameNumber(s), 3).filter((id) => !early.includes(id));
+    this.distortionInfo.hidden = early.length + late.length === 0;
+    setText(this.distortionInfo, [...early.map((id) => `◆ ${DISTORTIONS[id].name}`), ...late.map((id) => `◆ ${DISTORTIONS[id].name} (с 3-й главы)`)].join('\n'));
+    this.chronicleBtn.hidden = !s.tutorial.some((k) => /^lore_\d+$/.test(k));
     void (abyssOpen && this.ctx.tip('t_abyss', this.abyssBtn,
       'Открыта Бездна! Бесконечные этажи с наградами. Включите авто-спуск, чтобы армия спускалась сама.'));
     void (this.ctx.tip('t_relic', this.relicBtn, 'Вы заслужили реликвию! Выберите один из трёх постоянных бонусов.')

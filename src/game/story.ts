@@ -31,8 +31,8 @@ export const storyKey = (levelId: string) => `story_${levelId}`;
 // ---------- The Chronicle ----------
 
 /**
- * The Chronicle: each new game reveals a chapter of why the board keeps turning
- * over. Entry N is shown when game N + 1 starts.
+ * The Chronicle: chapters of why the board keeps turning over, told across
+ * games 2 and 3 (see CHRONICLE) and closed by the finale.
  */
 export interface LoreEntry {
   title: string;
@@ -90,8 +90,26 @@ export const LORE: LoreEntry[] = [
   },
 ];
 
-/** The chronicle entry for a game (game 2 shows LORE[0]); later games repeat the last one. */
-export function loreForGame(game: number): LoreEntry | null {
-  if (game < 2) return null;
-  return LORE[Math.min(game - 2, LORE.length - 1)];
+/** When a chapter of the Chronicle is told: at the start of a game, on entering a level, or when the finale opens. */
+export interface ChronicleBeat {
+  lore: number;
+  game: number;
+  at: 'start' | 'finale' | string;
+}
+
+export const CHRONICLE: ChronicleBeat[] = [
+  { lore: 0, game: 2, at: 'start' },
+  { lore: 1, game: 2, at: '3-1' },
+  { lore: 2, game: 3, at: 'start' },
+  { lore: 3, game: 3, at: '3-1' },
+  { lore: 4, game: 3, at: 'finale' },
+  { lore: 5, game: 4, at: 'start' },
+];
+
+export const loreKey = (lore: number) => `lore_${lore}`;
+
+/** The chapter told at this moment of this game, if any (after the story every new game repeats the last). */
+export function chronicleAt(game: number, at: string): number | null {
+  const beat = CHRONICLE.find((b) => b.game === Math.min(game, 4) && b.at === at);
+  return beat ? beat.lore : null;
 }
