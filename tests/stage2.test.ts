@@ -8,7 +8,7 @@ import { CONSOLATION_SHARE, battleSetup, commandLimit, newGame, recordResult, ty
 function army(level: number): GameState {
   const s = newGame(0);
   for (let c = 1; c <= 4; c++) for (let n = 1; n <= 9; n++) s.stars[`${c}-${n}`] = 1;
-  s.army = { king: 1, pawn: 6, knight: 2, bishop: 2, rook: 2, queen: 1 };
+  s.army = { ...s.army, king: 1, pawn: 6, knight: 2, bishop: 2, rook: 2, queen: 1 };
   for (const k of Object.keys(s.levels) as (keyof typeof s.levels)[]) s.levels[k] = level;
   return s;
 }

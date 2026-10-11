@@ -127,6 +127,8 @@ export const ALL_LEVELS: LevelDef[] = CHAPTERS.flatMap((c) => c.levels);
 /** The level that unlocks a piece for recruitment (null = available from the start). */
 export const UNLOCKED_BY: Record<PieceKind, string | null> = {
   king: null, pawn: null, knight: '1-2', bishop: '1-9', rook: '2-9', queen: '3-9',
+  // Prestige pieces are unlocked in the Crown Tree, not by levels.
+  archbishop: null, chancellor: null, ghost: null,
 };
 
 const LETTERS: Record<string, PieceKind> = { k: 'king', p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen' };

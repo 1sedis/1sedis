@@ -114,6 +114,63 @@ const MAPS: Record<PieceKind, string[]> = {
     '..ohffffffssso..',
     '..oooooooooooo..',
   ],
+  // Archbishop: a bishop's mitre with a horse's ear and mane.
+  archbishop: [
+    '...o...gg.......',
+    '..oho.oggo......',
+    '..ohfoohffo.....',
+    '...ohffffofo....',
+    '...ohffefoso....',
+    '..ohffffoffso...',
+    '.offffoohffso...',
+    '..ooo..ohfsso...',
+    '....oooooooo....',
+    '.....ohffso.....',
+    '.....ohgfso.....',
+    '....ohfffsso....',
+    '...ohhffffsso...',
+    '..oooooooooooo..',
+    '..ohffffffssso..',
+    '..oooooooooooo..',
+  ],
+  // Chancellor: a rook's battlements topped by a horse's head.
+  chancellor: [
+    '.......oo.o.....',
+    '......ohfoho....',
+    '.....ohffeffo...',
+    '....ohffffffso..',
+    '....offfoohfso..',
+    '.ooo.oooooooo...',
+    '.oho.ohfo.ofo...',
+    '.ohoooffooofo...',
+    '.ohffffffffso...',
+    '.oooooooooooo...',
+    '..ohffoofsso....',
+    '..ohgffffsso....',
+    '.oooooooooooo...',
+    '.ohffffffssso...',
+    '.oooooooooooo...',
+    '................',
+  ],
+  // Ghost: a hooded wisp with glowing eyes, no base.
+  ghost: [
+    '................',
+    '.....oooooo.....',
+    '....ohhfffso....',
+    '...ohffffffso...',
+    '...ohfoffoffo...',
+    '...ohfgffgfso...',
+    '...ohffffffso...',
+    '...ohffffffso...',
+    '..ohfffffffsso..',
+    '..ohffffffffso..',
+    '..ohfffffffsso..',
+    '..offfffffffso..',
+    '..ofsofsofsoso..',
+    '..oo.oo.oo.oo...',
+    '................',
+    '................',
+  ],
 };
 
 export type Team = 'ally' | 'enemy';
@@ -137,8 +194,8 @@ const PALETTES: Record<Team, Record<string, string>[]> = {
 };
 
 /** Row painted as a coloured band from tier 1, and the base row trimmed at tier 2. */
-const BAND_ROW: Record<PieceKind, number> = { king: 9, queen: 9, rook: 9, bishop: 9, knight: 10, pawn: 10 };
-const BASE_ROW: Record<PieceKind, number> = { king: 14, queen: 13, rook: 12, bishop: 14, knight: 14, pawn: 14 };
+const BAND_ROW: Record<PieceKind, number> = { archbishop: 10, chancellor: 10, ghost: 9, king: 9, queen: 9, rook: 9, bishop: 9, knight: 10, pawn: 10 };
+const BASE_ROW: Record<PieceKind, number> = { archbishop: 14, chancellor: 13, ghost: 11, king: 14, queen: 13, rook: 12, bishop: 14, knight: 14, pawn: 14 };
 
 /** The pixel map for a piece at a tier: higher tiers add a band and a trimmed base. */
 export function tierMap(kind: PieceKind, tier: Tier): string[] {

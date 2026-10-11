@@ -4,10 +4,11 @@ import {
   isAbyss, levelIncome, levelIndex, replayReward,
 } from './levels';
 import type { Branch } from './abilities';
+import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId } from './crownTree';
 import { bossFor } from './bosses';
 import { withElites } from './elites';
 import { levelTerrain, levelTerrainRows, walkable } from './terrain';
-import { PIECES, type PieceKind } from './pieces';
+import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { shardsForFloor } from './altar';
 import { SPIN_COST, altarRefund, emptyRoulette, rollBuff, rouletteBonuses, type BuffDef, type RouletteState } from './roulette';
@@ -35,7 +36,9 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
 
 export const BUILDING_ORDER: BuildingId[] = ['treasury', 'hq', 'forge'];
 
-const UPGRADE_BASE: Record<PieceKind, number> = { king: 60, pawn: 30, knight: 80, bishop: 110, rook: 160, queen: 400 };
+const UPGRADE_BASE: Record<PieceKind, number> = {
+  king: 60, pawn: 30, knight: 80, bishop: 110, rook: 160, queen: 400, archbishop: 300, chancellor: 340, ghost: 260,
+};
 
 export interface FormationSlot { kind: PieceKind; x: number; y: number }
 
@@ -74,7 +77,10 @@ export interface GameState {
   /** Number of completed "new game" resets; raises enemy levels and rewards. */
   prestige: number;
   /** Next abyss floor to fight and the deepest floor ever cleared. */
-  abyss: { floor: number; best: number };
+  /** `guardian`: the kind of the last Abyss guardian beaten (fights for you with "Страж на службе"). */
+  abyss: { floor: number; best: number; guardian?: PieceKind };
+  /** Crown Tree nodes owned; they survive new games. */
+  crownTree: NodeId[];
   /** Abyss shards and Altar of the Abyss perk levels; both survive a new game. */
   shards: number;
   /** Roulette of the Abyss: buffs bought with shards, kept across new games. */
@@ -86,7 +92,7 @@ export interface GameState {
 }
 
 function perKind(value: number): Record<PieceKind, number> {
-  return { king: value, pawn: value, knight: value, bishop: value, rook: value, queen: value };
+  return { king: value, pawn: value, knight: value, bishop: value, rook: value, queen: value, archbishop: value, chancellor: value, ghost: value };
 }
 
 export function newGame(now = Date.now()): GameState {
@@ -116,6 +122,7 @@ export function newGame(now = Date.now()): GameState {
     crowns: 0,
     prestige: 0,
     abyss: { floor: 1, best: 0 },
+    crownTree: [],
     shards: 0,
     roulette: emptyRoulette(),
     stats: {
@@ -152,8 +159,50 @@ export function totalStars(s: GameState): number {
 }
 
 export function isUnlocked(s: GameState, kind: PieceKind): boolean {
+  if (PRESTIGE_PIECES.includes(kind)) return s.crownTree.some((id) => NODE_BY_ID[id].piece === kind);
   const by = UNLOCKED_BY[kind];
   return by === null || isCleared(s, by);
+}
+
+// ---------- Crown Tree ----------
+
+/** The current game number: 1 before any new game. */
+export function gameNumber(s: GameState): number {
+  return s.prestige + 1;
+}
+
+export function hasNode(s: GameState, id: NodeId): boolean {
+  return s.crownTree.includes(id);
+}
+
+export function buyNode(s: GameState, id: NodeId): boolean {
+  const node = NODE_BY_ID[id];
+  if (nodeState(s.crownTree, gameNumber(s), node) !== 'available' || s.crowns < nodeCost(node)) return false;
+  s.crowns -= nodeCost(node);
+  s.crownTree.push(id);
+  return true;
+}
+
+/** Give back every crown spent on the tree, minus the reset fee. */
+export function resetTree(s: GameState): boolean {
+  const refund = spentCrowns(s.crownTree);
+  if (!refund || s.crowns + refund < RESET_COST) return false;
+  s.crowns += refund - RESET_COST;
+  s.crownTree = [];
+  return true;
+}
+
+/** Bosses beaten in this game (for "Дань"). */
+function bossesCleared(s: GameState): number {
+  return ['1-9', '2-9', '3-9', '4-9'].filter((id) => isCleared(s, id)).length;
+}
+
+export function spinCost(s: GameState): number {
+  return hasNode(s, 'luck') ? 4 : SPIN_COST;
+}
+
+function legendMult(s: GameState): number {
+  return hasNode(s, 'echo') ? 2 : 1;
 }
 
 // ---------- Economy ----------
@@ -176,28 +225,24 @@ export function hasRelic(s: GameState, id: RelicId): boolean {
 }
 
 export function commandLimit(s: GameState, levelId: string): number {
-  return chapterOf(levelId).limit + s.buildings.hq + (hasRelic(s, 'reserve') ? 1 : 0);
+  return chapterOf(levelId).limit + s.buildings.hq + (hasRelic(s, 'reserve') ? 1 : 0) + (hasNode(s, 'banner') ? 1 : 0);
 }
 
 export function forgeMultiplier(s: GameState): number {
   return 1 + 0.06 * s.buildings.forge;
 }
 
-/** Crowns: +2% attack and health each. */
-export function crownStatMultiplier(s: GameState): number {
-  return 1 + 0.02 * s.crowns;
-}
-
-/** Gold from battles and the treasury: +4% per crown, +50% per prestige, plus roulette gold. */
+/** Gold from battles and the treasury: +50% per new game, plus roulette gold. */
 export function goldMultiplier(s: GameState): number {
-  return (1 + 0.04 * s.crowns) * (1 + 0.5 * s.prestige) * rouletteBonuses(s.roulette).gold;
+  return (1 + 0.5 * s.prestige) * rouletteBonuses(s.roulette).gold;
 }
 
 /** Spin the roulette `count` times. Null when there are not enough shards. */
 export function spinRoulette(s: GameState, count = 1, rand: () => number = Math.random): BuffDef[] | null {
-  if (s.shards < SPIN_COST * count) return null;
-  s.shards -= SPIN_COST * count;
-  return Array.from({ length: count }, () => rollBuff(s.roulette, rand));
+  const cost = spinCost(s) * count;
+  if (s.shards < cost) return null;
+  s.shards -= cost;
+  return Array.from({ length: count }, () => rollBuff(s.roulette, rand, legendMult(s)));
 }
 
 /** Enemy levels added by the current prestige. */
@@ -207,7 +252,8 @@ export function prestigeEnemyBonus(s: GameState): number {
 
 export function incomePerMinute(s: GameState): number {
   const base = ALL_LEVELS.filter((l) => isCleared(s, l.id)).reduce((sum, l) => sum + levelIncome(l.id), 0);
-  return base * (1 + 0.25 * s.buildings.treasury) * (hasRelic(s, 'fertile') ? 1.35 : 1) * goldMultiplier(s);
+  const tribute = hasNode(s, 'tribute') ? 1 + 0.25 * bossesCleared(s) : 1;
+  return base * (1 + 0.25 * s.buildings.treasury) * (hasRelic(s, 'fertile') ? 1.35 : 1) * tribute * goldMultiplier(s);
 }
 
 export function treasuryCapHours(s: GameState): number {
@@ -251,9 +297,13 @@ export function canAffordUpgrade(s: GameState): boolean {
 
 // ---------- Purchases (return true on success) ----------
 
+export function queenCap(s: GameState): number {
+  return hasNode(s, 'twoQueens') ? 2 : 1;
+}
+
 export function recruit(s: GameState, kind: PieceKind): boolean {
   if (kind === 'king' || !isUnlocked(s, kind)) return false;
-  if (kind === 'queen' && s.army.queen >= 1) return false;
+  if (kind === 'queen' && s.army.queen >= queenCap(s)) return false;
   const cost = recruitCost(s, kind);
   if (s.gold < cost) return false;
   s.gold -= cost;
@@ -362,12 +412,37 @@ export function sanitizeFormation(s: GameState, limit: number, levelId?: string)
   }
 }
 
+/** Crown Tree nodes the battle engine needs to know about. */
+const BATTLE_PERKS: ReadonlySet<NodeId> = new Set<NodeId>([
+  'doubleStep', 'castling', 'fork', 'check', 'earlyCrown', 'sacrifice', 'heralds', 'warlord', 'shadowReserve', 'fog',
+]);
+
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
-  const m = forgeMultiplier(s) * crownStatMultiplier(s);
+  const m = forgeMultiplier(s);
   const rb = rouletteBonuses(s.roulette);
   const bonus = prestigeEnemyBonus(s);
-  const enemies = withElites(levelId, enemyPlacements(getLevel(levelId))).map((p) => ({ ...p, level: p.level + bonus }));
+  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId))).map((p) => ({ ...p, level: p.level + bonus }));
+  if (isAbyss(levelId)) {
+    const terrain = levelTerrain(levelId);
+    const free = (x: number, y: number) => walkable(terrain[y * BOARD_SIZE + x])
+      && !allies.some((a) => a.x === x && a.y === y) && !enemies.some((e) => e.x === x && e.y === y);
+    // "Переманивание": one enemy piece changes sides and takes the mirrored square.
+    if (hasNode(s, 'lure')) {
+      const pool = enemies.filter((p) => p.kind !== 'king' && !p.boss);
+      const pick = pool[abyssFloor(levelId) % Math.max(1, pool.length)];
+      if (pick && free(pick.x, BOARD_SIZE - 1 - pick.y)) {
+        enemies = enemies.filter((p) => p !== pick);
+        allies.push({ kind: pick.kind, x: pick.x, y: BOARD_SIZE - 1 - pick.y, level: pick.level, trait: pick.trait });
+      }
+    }
+    // "Страж на службе": the last beaten guardian fights for you.
+    if (hasNode(s, 'guardian') && s.abyss.guardian) {
+      const spot = [[3, 6], [4, 6], [2, 6], [5, 6], [3, 5], [4, 5], [1, 6], [6, 6]].find(([x, y]) => free(x, y));
+      const level = enemies.find((p) => p.kind !== 'king')?.level ?? enemies[0]?.level ?? 1;
+      if (spot) allies.push({ kind: s.abyss.guardian, x: spot[0], y: spot[1], level, boss: true });
+    }
+  }
   return {
     allies, enemies,
     allyHpMult: m * rb.hp,
@@ -382,6 +457,7 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
     allyBranches: { ...s.abilityBranch },
     terrain: levelTerrainRows(levelId),
     bossId: bossFor(levelId),
+    perks: s.crownTree.filter((id) => BATTLE_PERKS.has(id)),
   };
 }
 
@@ -401,6 +477,8 @@ export interface BattleOutcome {
   shards: number;
   /** Share of enemy health removed (1 on a win). */
   damageShare: number;
+  /** A free roulette buff from "Трофеи" on a first clear. */
+  trophy?: BuffDef;
 }
 
 /** A lost battle still pays: up to half of a replay reward, in proportion to the damage done. */
@@ -438,7 +516,8 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   s.relicPicks += relicsEarned;
   s.gold += reward;
   countBattle(s, b, win, reward);
-  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0, damageShare };
+  const trophy = firstClear && hasNode(s, 'trophies') ? rollBuff(s.roulette, Math.random, legendMult(s)) : undefined;
+  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0, damageShare, trophy };
 }
 
 function countBattle(s: GameState, b: Battle, win: boolean, reward: number): void {
@@ -462,8 +541,9 @@ function recordAbyss(
   let relicsEarned = 0;
   let shards = 0;
   if (win) {
-    shards = shardsForFloor(floor);
+    shards = shardsForFloor(floor) + (hasNode(s, 'hunger') ? 1 : 0);
     s.shards += shards;
+    if (floor % 10 === 0) s.abyss.guardian = enemyPlacements(getLevel(levelId)).find((p) => p.boss)?.kind ?? s.abyss.guardian;
     reward = abyssReward(floor) * (hasRelic(s, 'plunder') ? 1.3 : 1);
     reward = Math.round(reward * goldMultiplier(s));
     s.abyss.floor = floor + 1;
@@ -507,6 +587,13 @@ export function prestige(s: GameState, now = Date.now()): number {
   fresh.abyss = { floor: 1, best: s.abyss.best };
   fresh.shards = s.shards;
   fresh.roulette = s.roulette;
+  fresh.crownTree = s.crownTree;
+  fresh.abyss.guardian = s.abyss.guardian;
+  if (s.crownTree.includes('heritage')) {
+    fresh.gold = 1500;
+    fresh.buildings.treasury = 3;
+  }
+  if (s.crownTree.includes('vault')) fresh.relicPicks += 1;
   Object.assign(s, fresh);
   return gained;
 }
@@ -586,6 +673,7 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       buildings: { ...state.buildings, ...data.buildings },
       stats: { ...state.stats, ...data.stats },
       abyss: { ...state.abyss, ...data.abyss },
+      crownTree: [...(data.crownTree ?? [])],
       roulette: { ...state.roulette, ...data.roulette, owned: { ...data.roulette?.owned } },
       // The old Altar became the roulette: give back every shard spent on it.
       shards: (data.shards ?? 0) + altarRefund((data as { altar?: Record<string, number> }).altar),

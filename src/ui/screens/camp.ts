@@ -1,9 +1,9 @@
 import { UNLOCKED_BY, getLevel } from '../../game/levels';
 import { ABILITY_LEVELS, abilityOf, abilityTier, type Branch } from '../../game/abilities';
 import { BUFF_BY_ID, EPIC_PITY, LEGEND_PITY, RARITY, SPIN_COST, ownedSummary } from '../../game/roulette';
-import { PIECES, levelMultiplier, type PieceKind } from '../../game/pieces';
+import { PIECES, PRESTIGE_PIECES, levelMultiplier, type PieceKind } from '../../game/pieces';
 import {
-  BUILDINGS, BUILDING_ORDER, buildingCost, buyBuilding, spinRoulette, isAbyssOpen, forgeMultiplier, isUnlocked, recruit, recruitCost,
+  BUILDINGS, BUILDING_ORDER, buildingCost, buyBuilding, queenCap, spinCost, spinRoulette, isAbyssOpen, forgeMultiplier, isUnlocked, recruit, recruitCost,
   upgradeCost, upgradePiece, type BuildingId,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
@@ -14,7 +14,7 @@ import { spriteUrl, type Tier } from '../sprites';
 import { openCodex } from '../codex';
 import { showMulti, showSpin } from '../roulette';
 
-const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
+const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
 const SHORT_BUILDING: Record<BuildingId, string> = { treasury: '+25% дохода казны', hq: '+1 фигура в бою', forge: '+6% к силе армии' };
 
 interface ArmyRow {
@@ -70,7 +70,7 @@ export class CampScreen implements Screen {
 
     const altarHead = el('div', 'panel-head');
     altarHead.append(el('span', 'panel-title', 'Рулетка бездны'), this.shardCount, infoBtn('Рулетка бездны',
-      `Осколки ◆ добываются только в Бездне. Каждая крутка стоит ${SPIN_COST} ◆ и даёт случайное вечное улучшение — оно остаётся даже после новой партии.\n`
+      `Осколки ◆ добываются только в Бездне. Каждая крутка стоит ${SPIN_COST} ◆ (4 ◆ с доктриной «Удача») и даёт случайное вечное улучшение — оно остаётся даже после новой партии.\n`
       + Object.values(RARITY).map((r) => `${r.name}: ${r.weight}%`).join(' · ') + '\n'
       + `Эпическая или лучше — не реже раза в ${EPIC_PITY} круток, легендарная — не позже ${LEGEND_PITY}-й.\n`
       + 'Легендарные улучшения уникальны и меняют поведение фигур.'));
@@ -208,6 +208,8 @@ export class CampScreen implements Screen {
       const def = PIECES[row.kind];
       const unlocked = isUnlocked(s, row.kind);
       row.root.classList.toggle('locked', !unlocked);
+      // Prestige pieces stay out of sight until the Crown Tree unlocks them.
+      row.root.hidden = PRESTIGE_PIECES.includes(row.kind) && !unlocked;
       const lvl = s.levels[row.kind];
       const m = levelMultiplier(lvl) * forge;
       const tier = abilityTier(lvl);
@@ -230,7 +232,7 @@ export class CampScreen implements Screen {
       row.icon.classList.toggle('tier-2', tier === 2);
       row.icon.parentElement!.dataset.tier = String(unlocked ? tier : -1);
 
-      const maxedQueen = row.kind === 'queen' && s.army.queen >= 1;
+      const maxedQueen = row.kind === 'queen' && s.army.queen >= queenCap(s);
       const rCost = recruitCost(s, row.kind);
       setText(row.recruitBtn, !unlocked ? '🔒' : maxedQueen ? 'Есть' : `Нанять · ${fmt(rCost)}`);
       row.recruitBtn.disabled = !unlocked || maxedQueen || s.gold < rCost;
@@ -248,10 +250,11 @@ export class CampScreen implements Screen {
     const r = s.roulette;
     this.altarCard.hidden = !isAbyssOpen(s) && s.shards === 0 && r.spins === 0;
     setText(this.shardCount, `◆ ${fmt(s.shards)}`);
-    setText(this.spinBtn, `Крутить · ${SPIN_COST} ◆`);
-    setText(this.spin10Btn, `×10 · ${SPIN_COST * 10} ◆`);
-    this.spinBtn.disabled = s.shards < SPIN_COST;
-    this.spin10Btn.disabled = s.shards < SPIN_COST * 10;
+    const cost = spinCost(s);
+    setText(this.spinBtn, `Крутить · ${cost} ◆`);
+    setText(this.spin10Btn, `×10 · ${cost * 10} ◆`);
+    this.spinBtn.disabled = s.shards < cost;
+    this.spin10Btn.disabled = s.shards < cost * 10;
     setText(this.pityLine, `До гаранта: эпической — ${EPIC_PITY - r.sinceEpic}, легендарной — ${LEGEND_PITY - r.sinceLegend}`);
     const sig = JSON.stringify(r.owned);
     if (sig !== this.rouletteSig) {

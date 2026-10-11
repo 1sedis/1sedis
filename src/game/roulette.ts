@@ -32,7 +32,8 @@ export const EPIC_PITY = 10;
 export const LEGEND_PITY = 50;
 
 const KINDS: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'];
-const KIND_NAME: Record<PieceKind, string> = { king: 'короля', pawn: 'пешек', knight: 'коней', bishop: 'слонов', rook: 'ладей', queen: 'ферзей' };
+const KIND_NAME: Record<PieceKind, string> = { king: 'короля', pawn: 'пешек', knight: 'коней', bishop: 'слонов', rook: 'ладей', queen: 'ферзей',
+  archbishop: 'архиепископов', chancellor: 'канцлеров', ghost: 'призраков' };
 
 export const BUFFS: BuffDef[] = [
   { id: 'c_atk', rarity: 'common', name: 'Осколок ярости', text: '+2% к атаке армии', icon: 'army' },
@@ -70,18 +71,19 @@ export function emptyRoulette(): RouletteState {
   return { owned: {}, spins: 0, sinceEpic: 0, sinceLegend: 0 };
 }
 
-function pickRarity(r: RouletteState, rand: () => number): Rarity {
+function pickRarity(r: RouletteState, rand: () => number, legendMult = 1): Rarity {
   if (r.sinceLegend + 1 >= LEGEND_PITY) return 'legendary';
   const pool: Rarity[] = r.sinceEpic + 1 >= EPIC_PITY ? ['epic', 'legendary'] : ['common', 'rare', 'epic', 'legendary'];
-  const total = pool.reduce((n, k) => n + RARITY[k].weight, 0);
+  const weight = (k: Rarity) => RARITY[k].weight * (k === 'legendary' ? legendMult : 1);
+  const total = pool.reduce((n, k) => n + weight(k), 0);
   let roll = rand() * total;
-  for (const k of pool) if ((roll -= RARITY[k].weight) < 0) return k;
+  for (const k of pool) if ((roll -= weight(k)) < 0) return k;
   return pool[pool.length - 1];
 }
 
 /** Roll one buff and record it. Legendaries never repeat; once all are owned, an epic drops instead. */
-export function rollBuff(r: RouletteState, rand: () => number = Math.random): BuffDef {
-  let rarity = pickRarity(r, rand);
+export function rollBuff(r: RouletteState, rand: () => number = Math.random, legendMult = 1): BuffDef {
+  let rarity = pickRarity(r, rand, legendMult);
   let pool = BUFFS.filter((b) => b.rarity === rarity && !(b.legend && r.owned[b.id]));
   if (!pool.length) {
     rarity = 'epic';

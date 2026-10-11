@@ -71,6 +71,7 @@ describe('prestige', () => {
     s.prestige = 2;
     s.crowns = 10;
     expect(battleSetup(s, '1-1').enemies[0].level).toBe(before + 4);
-    expect(goldMultiplier(s)).toBeCloseTo(1.4 * 2);
+    // Crowns are spent in the Crown Tree now; only the new-game bonus raises gold.
+    expect(goldMultiplier(s)).toBeCloseTo(2);
   });
 });

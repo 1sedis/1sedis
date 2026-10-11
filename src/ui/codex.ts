@@ -1,5 +1,5 @@
 import { ABILITY_LEVELS, abilityOf } from '../game/abilities';
-import { PIECES, type PieceKind } from '../game/pieces';
+import { PIECES, PRESTIGE_PIECES, type PieceKind } from '../game/pieces';
 import { SYNERGIES } from '../game/synergies';
 import { el, openModal } from './dom';
 import { spriteUrl } from './sprites';
@@ -8,7 +8,7 @@ import { terrainUrl } from './terrainArt';
 import { traitUrl } from './traitIcons';
 import { TRAITS, TRAIT_ORDER } from '../game/elites';
 
-const ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
+const ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
 
 /** Reference of all pieces (yours and the enemy's) and composition bonuses. */
 export function openCodex(): void {
@@ -34,10 +34,11 @@ export function openCodex(): void {
     sum.append(pics, text);
     const body = el('div', 'codex-body');
     body.append(el('p', '', def.description));
+    if (PRESTIGE_PIECES.includes(kind)) body.append(el('p', 'codex-ability', '♛ Открывается в Древе короны.'));
     for (const b of [0, 1] as const) {
       const ab = abilityOf(kind, b);
       body.append(el('p', 'codex-ability',
-        `★ ${ab.name}${b === 0 ? ' (и у врагов)' : ''}: ${ab.tiers[0]} С ур. ${ABILITY_LEVELS[1]}: ${ab.tiers[1]}`));
+        `★ ${ab.name}${b === 0 && !PRESTIGE_PIECES.includes(kind) ? ' (и у врагов)' : ''}: ${ab.tiers[0]} С ур. ${ABILITY_LEVELS[1]}: ${ab.tiers[1]}`));
     }
     card.append(sum, body);
     list.append(card);

@@ -25,20 +25,22 @@ export const SYNERGIES: SynergyDef[] = [
 const ARMY_KINDS: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'];
 
 /** How far each synergy is: [have, need]. */
-export function synergyProgress(kinds: PieceKind[]): { def: SynergyDef; have: number; active: boolean }[] {
+/** `discount` lowers every requirement (the "Герольды" doctrine). */
+export function synergyProgress(kinds: PieceKind[], discount = 0): { def: SynergyDef; have: number; need: number; active: boolean }[] {
   return SYNERGIES.map((def) => {
+    const need = Math.max(1, def.need - discount);
     const have = def.kind
       ? kinds.filter((k) => k === def.kind).length
       : ARMY_KINDS.filter((k) => kinds.includes(k)).length;
-    return { def, have: Math.min(have, def.need), active: have >= def.need };
+    return { def, have: Math.min(have, need), need, active: have >= need };
   });
 }
 
 /** Multipliers a piece of `kind` gets from the active synergies of an army. */
-export function synergyBonus(kinds: PieceKind[], kind: PieceKind): { hp: number; atk: number } {
+export function synergyBonus(kinds: PieceKind[], kind: PieceKind, discount = 0): { hp: number; atk: number } {
   let hp = 1;
   let atk = 1;
-  for (const { def, active } of synergyProgress(kinds)) {
+  for (const { def, active } of synergyProgress(kinds, discount)) {
     if (!active || (def.kind && def.kind !== kind)) continue;
     hp *= def.hp;
     atk *= def.atk;

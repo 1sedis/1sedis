@@ -30,6 +30,9 @@ function spots(t: FormationTemplate): Record<PieceKind, [number, number][]> {
       : uniq([[clampX(k - 2), 6], [clampX(k + 2), 6], [clampX(k - 3), 6], [clampX(k + 3), 6]]),
     bishop: uniq([[clampX(k - 1), back], [clampX(k + 2), back], [clampX(k - 2), back], [clampX(k + 1), back], [clampX(k - 1), 7], [clampX(k + 2), 7]]),
     rook: [[0, 7], [7, 7], [1, 7], [6, 7], [5, 6], [1, 6]],
+    archbishop: uniq([[clampX(k + 2), back], [clampX(k - 2), back], [clampX(k + 1), 7], [clampX(k - 1), 7]]),
+    chancellor: [[7, 7], [0, 7], [6, 7], [1, 7], [6, 6], [1, 6]],
+    ghost: [[1, 6], [6, 6], [0, 6], [7, 6], [2, 7], [5, 7]],
   };
 }
 
@@ -50,7 +53,7 @@ export function autoFormation(s: GameState, limit: number, template: FormationTe
   // Roughly half the slots go to pawns, the rest to the strongest pieces.
   const pawnShare = Math.ceil(limit / 2);
   for (let i = 0; i < pawnShare; i++) take('pawn');
-  for (const kind of ['queen', 'rook', 'bishop', 'knight'] as PieceKind[]) while (take(kind));
+  for (const kind of ['queen', 'chancellor', 'archbishop', 'rook', 'ghost', 'bishop', 'knight'] as PieceKind[]) while (take(kind));
   while (take('pawn'));
 
   const prefs = spots(template);

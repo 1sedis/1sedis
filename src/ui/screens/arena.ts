@@ -34,7 +34,7 @@ import { spriteUrl, type Tier } from '../sprites';
 const TICK_MS = 100;
 /** More pending ticks than this means we are catching up: skip effects. */
 const LIVE_FX_LIMIT = 20;
-const TRAY_ORDER: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'];
+const TRAY_ORDER: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
 
 type Phase = 'prep' | 'battle' | 'result';
 type Selection = { kind: PieceKind; from: { x: number; y: number } | null } | null;
@@ -490,6 +490,7 @@ export class ArenaScreen implements Screen {
     if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', 'Новая реликвия! Выберите одну из трёх.'));
     if (o.win) {
       content.append(el('div', 'result-reward', `+${fmt(o.reward)} золота`));
+      if (o.trophy) content.append(el('div', 'result-unlock relic', `Трофей: «${o.trophy.name}» — ${o.trophy.text}`));
       if (o.shards > 0) content.append(el('div', 'result-unlock shard', `+${o.shards} ◆ осколков бездны — крутите за них рулетку в «Улучшениях»`));
       if (o.firstClear) {
         content.append(el('div', 'result-unlock', `Земля захвачена: +${levelIncome(this.levelId)} золота/мин в казну`));
@@ -573,14 +574,14 @@ export class ArenaScreen implements Screen {
     this.synergyRow.hidden = !prep;
     if (!prep) return;
     const kinds = this.ctx.state.formation.map((f) => f.kind);
-    const progress = synergyProgress(kinds);
+    const progress = synergyProgress(kinds, this.ctx.state.crownTree.includes('heralds') ? 1 : 0);
     const sig = progress.map((p) => p.have).join(',');
     if (sig === this.synergySig) return;
     const wasActive = new Set([...this.synergyRow.querySelectorAll<HTMLElement>('.synergy.active')].map((n) => n.dataset.id));
     const first = this.synergySig === '';
     this.synergySig = sig;
-    this.synergyRow.replaceChildren(...progress.map(({ def, have, active }) => {
-      const chip = el('span', `synergy${active ? ' active' : ''}`, active ? `✦ ${def.name}` : `${def.name} ${have}/${def.need}`);
+    this.synergyRow.replaceChildren(...progress.map(({ def, have, need, active }) => {
+      const chip = el('span', `synergy${active ? ' active' : ''}`, active ? `✦ ${def.name}` : `${def.name} ${have}/${need}`);
       chip.dataset.id = def.id;
       chip.title = def.description;
       if (active && !first && !wasActive.has(def.id)) chip.classList.add('pop');

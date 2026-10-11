@@ -1,4 +1,6 @@
-export type PieceKind = 'king' | 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen';
+export type PieceKind = 'king' | 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen'
+  // Prestige pieces from the Crown Tree.
+  | 'archbishop' | 'chancellor' | 'ghost';
 
 export interface PieceDef {
   kind: PieceKind;
@@ -48,12 +50,36 @@ export const PIECES: Record<PieceKind, PieceDef> = {
     hp: 180, atk: 26, attackCd: 10, moveCd: 7, range: 4, cost: 400,
     description: 'Бьёт во все 8 направлений. В армии может быть только один.',
   },
+  archbishop: {
+    kind: 'archbishop', name: 'Архиепископ', role: 'Слон и конь',
+    hp: 150, atk: 22, attackCd: 11, moveCd: 8, range: 4, cost: 280,
+    description: 'Стреляет по диагонали как слон и прыгает буквой «Г» как конь.',
+  },
+  chancellor: {
+    kind: 'chancellor', name: 'Канцлер', role: 'Ладья и конь',
+    hp: 210, atk: 20, attackCd: 12, moveCd: 9, range: 7, cost: 340,
+    description: 'Стреляет по прямой как ладья и прыгает буквой «Г» как конь.',
+  },
+  ghost: {
+    kind: 'ghost', name: 'Призрак', role: 'Охотник из тени',
+    hp: 120, atk: 24, attackCd: 9, moveCd: 7, range: 0, cost: 240,
+    description: 'Прыгает на 2 клетки в любую сторону сквозь фигуры и камни и охотится на стрелков и короля.',
+  },
 };
 
-/** Pieces the player can recruit, in shop order. */
-export const RECRUITABLE: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'];
+/** Pieces that only exist for players who unlocked them in the Crown Tree. */
+export const PRESTIGE_PIECES: PieceKind[] = ['archbishop', 'chancellor', 'ghost'];
 
-export const RANGED: ReadonlySet<PieceKind> = new Set(['bishop', 'rook', 'queen']);
+/** Pieces the player can recruit, in shop order. */
+export const RECRUITABLE: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
+
+export const RANGED: ReadonlySet<PieceKind> = new Set(['bishop', 'rook', 'queen', 'archbishop', 'chancellor']);
+
+/** Pieces that jump like a knight (also as an attack). */
+export const JUMPERS: ReadonlySet<PieceKind> = new Set(['knight', 'archbishop', 'chancellor']);
+
+/** Pieces that hunt shooters and the king first. */
+export const HUNTERS: ReadonlySet<PieceKind> = new Set(['knight', 'ghost']);
 
 /** Stat multiplier for a piece upgrade level (level 1 = base). */
 export function levelMultiplier(level: number): number {
@@ -68,6 +94,10 @@ const ALL: Dir[] = [...ORTHO, ...DIAG];
 
 export const KNIGHT_OFFSETS: Dir[] = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
 
+/** The ghost jumps up to two cells in any direction, over anything. */
+const GHOST_OFFSETS: Dir[] = [];
+for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) if (dx || dy) GHOST_OFFSETS.push([dx, dy]);
+
 /** Single-step move offsets (pawns are handled separately: forward only). */
 export function moveOffsets(kind: PieceKind): Dir[] {
   switch (kind) {
@@ -76,6 +106,9 @@ export function moveOffsets(kind: PieceKind): Dir[] {
     case 'bishop': return DIAG;
     case 'rook': return ORTHO;
     case 'queen': return ALL;
+    case 'archbishop': return [...DIAG, ...KNIGHT_OFFSETS];
+    case 'chancellor': return [...ORTHO, ...KNIGHT_OFFSETS];
+    case 'ghost': return GHOST_OFFSETS;
     default: return [];
   }
 }
@@ -86,6 +119,8 @@ export function lineDirections(kind: PieceKind): Dir[] {
     case 'bishop': return DIAG;
     case 'rook': return ORTHO;
     case 'queen': return ALL;
+    case 'archbishop': return DIAG;
+    case 'chancellor': return ORTHO;
     default: return [];
   }
 }

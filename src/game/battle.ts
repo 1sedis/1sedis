@@ -1,7 +1,8 @@
-import { KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
+import { HUNTERS, JUMPERS, KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
 import { BOSSES, MAX_SUMMONS, WARN_TICKS, type BossId } from './bosses';
 import type { Trait } from './elites';
 import type { LegendId } from './roulette';
+import type { NodeId } from './crownTree';
 import { synergyBonus } from './synergies';
 import { FOREST_DEFENSE, HILL_BONUS, parseTerrain, walkable, type Terrain } from './terrain';
 import { abilityOf, abilityTier, type Branch } from './abilities';
@@ -54,6 +55,8 @@ export interface BattleSetup {
   allyCrit?: number;
   allyOpening?: number;
   legends?: LegendId[];
+  /** Crown Tree doctrines that change the rules of battle. */
+  perks?: NodeId[];
 }
 
 /** A telegraphed boss blow: cells light up, then get hit. */
@@ -111,6 +114,12 @@ export interface Unit {
   raged: boolean;
   /** A phoenix pawn has already come back once. */
   reborn: boolean;
+  /** Has made its first move (for "Двойной шаг"). */
+  moved: boolean;
+  /** "Шах" can stun this king again from this tick. */
+  checkReady: number;
+  /** Came back from "Теневой резерв". */
+  shade: boolean;
 }
 
 export interface BattleEvent {
@@ -163,6 +172,11 @@ export interface Battle {
   summons: number;
   warnings: BossWarning[];
   legends: ReadonlySet<LegendId>;
+  /** Crown Tree doctrines (the player's side only). */
+  perks: ReadonlySet<NodeId>;
+  castled: boolean;
+  /** Fallen pieces already returned by "Теневой резерв". */
+  shadows: number;
   allyCrit: number;
   allyOpening: number;
 }
@@ -205,7 +219,7 @@ function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult
     atkMult: atkMult * (boss ? BOSS_ATK : 1),
     pawnMoveMult, buff: 1, struck: false,
     tier: abilities ? abilityTier(p.level) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
-    cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false, reborn: false,
+    cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false, reborn: false, moved: false, checkReady: 0, shade: false,
   };
   applyStats(u, p.kind);
   u.hp = u.maxHp;
@@ -229,7 +243,7 @@ export function createBattle(setup: BattleSetup): Battle {
   const kinds = setup.allies.map((p) => p.kind);
   for (const p of setup.allies) {
     const kingHp = p.kind === 'king' ? setup.allyKingHpMult ?? 1 : 1;
-    const syn = synergyBonus(kinds, p.kind);
+    const syn = synergyBonus(kinds, p.kind, setup.perks?.includes('heralds') ? 1 : 0);
     const rk = setup.allyKind?.[p.kind] ?? { atk: 1, hp: 1 };
     units.push(makeUnit(uid++, 'ally', p, hp * kingHp * syn.hp * rk.hp, atk * syn.atk * rk.atk, march, true));
   }
@@ -257,7 +271,10 @@ export function createBattle(setup: BattleSetup): Battle {
   const b: Battle = { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
     allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches }, terrain: [...parseTerrain(setup.terrain)],
     bossPhase: 1, bossTimer: 0, summons: 0, warnings: [],
-    legends: new Set(setup.legends ?? []), allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1 };
+    legends: new Set(setup.legends ?? []), perks: new Set(setup.perks ?? []), castled: false, shadows: 0,
+    allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1 };
+  // "Туман войны": the enemy is blind for the first 3 seconds.
+  if (b.perks.has('fog')) for (const u of units) if (u.side === 'enemy') u.wait += 30;
   const boss = setup.bossId ? units.find((u) => u.side === 'enemy' && u.boss) : undefined;
   if (boss && setup.bossId) {
     b.bossId = setup.bossId;
@@ -339,15 +356,17 @@ function reachFrom(b: Battle, side: Side, kind: PieceKind, x: number, y: number)
       if (dx || dy) add(unitAt(b, x + dx, y + dy));
     }
   }
-  if (kind === 'knight') {
+  if (JUMPERS.has(kind)) {
     for (const [dx, dy] of KNIGHT_OFFSETS) add(unitAt(b, x + dx, y + dy));
   }
-  const range = PIECES[kind].range;
-  for (const [dx, dy] of lineDirections(kind)) {
+  // "Король-полководец": the player's king strikes two squares in every direction.
+  const warlord = kind === 'king' && side === 'ally' && b.perks.has('warlord');
+  const range = warlord ? 2 : PIECES[kind].range;
+  for (const [dx, dy] of warlord ? lineDirections('queen') : lineDirections(kind)) {
     for (let step = 1; step <= range; step++) {
       const cx = x + dx * step;
       const cy = y + dy * step;
-      if (!inside(cx, cy) || (isWall(b.terrain, cx, cy) && !(kind === 'rook' && side === 'ally' && b.legends.has('ram')))) break;
+      if (!inside(cx, cy) || (isWall(b.terrain, cx, cy) && !((kind === 'rook' || kind === 'chancellor') && side === 'ally' && b.legends.has('ram')))) break;
       const t = unitAt(b, cx, cy);
       if (t) {
         add(t); // own pieces are ignored by add(), but still block the line
@@ -373,7 +392,7 @@ function auraBonus(b: Battle, u: Unit): number {
 function pickTarget(u: Unit, targets: Unit[]): Unit {
   const priority = (t: Unit) => {
     if (t.kind === 'king') return 0;
-    if (u.kind === 'knight' && RANGED.has(t.kind)) return 1;
+    if (HUNTERS.has(u.kind) && RANGED.has(t.kind)) return 1;
     return 2;
   };
   return [...targets].sort((a, c) => priority(a) - priority(c) || a.hp - c.hp || a.uid - c.uid)[0];
@@ -441,6 +460,19 @@ function tryCast(b: Battle, u: Unit): boolean {
       b.events.push({ type: 'heal', uid: wounded.uid, side: wounded.side, x: wounded.x, y: wounded.y, amount, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind });
       break;
     }
+    case 'archbishop': {
+      const near = friends.filter((f) => f !== u && chebyshev(u, f.x, f.y) <= 1 && f.hp < f.maxHp);
+      if (!near.length) return false;
+      abilityEvent(b, u);
+      for (const f of near) {
+        const amount = Math.min(f.maxHp - f.hp, f.maxHp * (strong ? 0.25 : 0.15));
+        f.hp += amount;
+        b.report[u.uid].healed += amount;
+        b.events.push({ type: 'heal', uid: f.uid, side: f.side, x: f.x, y: f.y, amount, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind });
+      }
+      break;
+    }
+    case 'chancellor':
     case 'rook': {
       // The file or rank with the most enemies, shooting through everything.
       let line: Unit[] = [];
@@ -476,7 +508,7 @@ function tryCast(b: Battle, u: Unit): boolean {
 
 /** Active alternative abilities: the bishop's curse and the queen's tide. */
 function castAlt(b: Battle, u: Unit, strong: boolean, friends: Unit[]): boolean {
-  if (u.kind === 'bishop') {
+  if (u.kind === 'bishop' || u.kind === 'archbishop') {
     const targets = reachFrom(b, u.side, u.kind, u.x, u.y).filter((t) => b.tick >= t.cursedUntil);
     if (!targets.length) return false;
     const target = [...targets].sort((a, c) => Number(c.kind === 'king') - Number(a.kind === 'king') || c.hp - a.hp)[0];
@@ -502,7 +534,8 @@ function defense(b: Battle, target: Unit): number {
   let m = 1;
   if (alt(b, target)) {
     if (target.kind === 'king') m *= target.tier === 2 ? 0.5 : 0.7;
-    if (target.kind === 'rook') m *= target.tier === 2 ? 0.5 : 0.65;
+    if (target.kind === 'rook' || target.kind === 'chancellor') m *= target.tier === 2 ? 0.5 : 0.65;
+    if (target.kind === 'ghost') m *= target.tier === 2 ? 0.55 : 0.7;
   }
   let aura = 1;
   for (let dx = -1; dx <= 1; dx++) {
@@ -511,7 +544,7 @@ function defense(b: Battle, target: Unit): number {
       const f = unitAt(b, target.x + dx, target.y + dy);
       if (!f || f.side !== target.side || f.tier !== 2 || !alt(b, f)) continue;
       if (f.kind === 'king') aura = Math.min(aura, 0.85);
-      if (f.kind === 'rook') aura = Math.min(aura, 0.8);
+      if (f.kind === 'rook' || f.kind === 'chancellor') aura = Math.min(aura, 0.8);
     }
   }
   m *= aura;
@@ -536,6 +569,11 @@ function strike(b: Battle, u: Unit, target: Unit): void {
       abilityEvent(b, u);
     }
   }
+  // Ghost's strike from the shadows: the first blow of the battle hits much harder.
+  if (u.kind === 'ghost' && u.tier > 0 && !alt(b, u) && !u.struck) {
+    damage *= u.tier === 2 ? 4 : 2.5;
+    abilityEvent(b, u);
+  }
   const big = target.kind === 'king' || target.boss;
   if (u.kind === 'rook' && big && has(b, u.side, 'heavyShot')) damage *= 1.5;
   const crit = isCrit(b, u);
@@ -548,6 +586,16 @@ function strike(b: Battle, u: Unit, target: Unit): void {
   dealDamage(b, u, target, damage, crit);
   if (u.kind === 'king' && legend.has('wrath')) {
     for (const f of alive(b, target.side)) if (f !== target && chebyshev(u, f.x, f.y) <= 1) dealDamage(b, u, f, damage * 0.6, false);
+  }
+  if (u.side === 'ally' && u.kind === 'knight' && b.perks.has('fork')) {
+    // "Вилка": the knight's jump also lands on a second enemy within its reach.
+    const second = reachFrom(b, u.side, 'knight', u.x, u.y).find((t) => t !== target && t.hp > 0);
+    if (second) dealDamage(b, u, second, damage * 0.6, false);
+  }
+  if (u.side === 'ally' && target.kind === 'king' && target.hp > 0 && b.perks.has('check') && b.tick >= target.checkReady) {
+    target.wait += 10;
+    target.checkReady = b.tick + 40;
+    traitEvent(b, target, 'Шах!');
   }
   if (u.kind === 'bishop' && legend.has('beam')) beamThrough(b, u, target, damage);
   if (u.kind === 'rook' && legend.has('ram')) ramThrough(b, u, target, damage * 0.7);
@@ -659,13 +707,40 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     }
     if (target.trait === 'explosive') explode(b, target);
     if (u.side === 'ally' && b.legends.has('bloodlust') && u.hp > 0) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.3);
+    if (target.side === 'ally' && target.kind === 'pawn' && b.perks.has('sacrifice')) {
+      for (const f of alive(b, 'ally')) {
+        if (chebyshev(target, f.x, f.y) === 1) f.shield = f.maxShield = Math.max(f.shield, f.maxHp * 0.25);
+      }
+    }
     if (target.side === 'ally' && target.kind === 'pawn' && b.legends.has('phoenix') && !target.reborn) rebirth(b, target);
+    else if (target.side === 'ally' && target.kind !== 'king' && b.perks.has('shadowReserve') && b.shadows < 2 && !target.shade) {
+      returnAsShade(b, target);
+    }
   } else if (target.trait === 'furious' && !target.raged && target.hp < target.maxHp * 0.5) {
     target.raged = true;
     traitEvent(b, target, 'Ярость!');
   }
   if (target.trait === 'thorns' && !reflected && !shot && u.hp > 0 && damage > 0) {
     dealDamage(b, target, u, damage * 0.3, false, true);
+  }
+}
+
+/** "Теневой резерв": a fallen piece comes back in the rear with a third of its health. */
+function returnAsShade(b: Battle, u: Unit): void {
+  for (const y of [7, 6, 5]) {
+    for (const x of [3, 4, 2, 5, 1, 6, 0, 7]) {
+      if (!standable(b.terrain, x, y) || unitAt(b, x, y)) continue;
+      b.shadows++;
+      u.shade = true;
+      u.x = x;
+      u.y = y;
+      u.hp = u.maxHp / 3;
+      u.wait = 10;
+      b.allyLosses = Math.max(0, b.allyLosses - 1);
+      delete b.report[u.uid].killedBy;
+      traitEvent(b, u, 'Тень!');
+      return;
+    }
   }
 }
 
@@ -740,7 +815,7 @@ function reachesGoal(grid: Grid, terrain: Terrain[], side: Side, kind: PieceKind
     return !!t && t.side !== side && goal.has(t);
   };
   for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if ((dx || dy) && hit(x + dx, y + dy)) return true;
-  if (kind === 'knight' && KNIGHT_OFFSETS.some(([dx, dy]) => hit(x + dx, y + dy))) return true;
+  if (JUMPERS.has(kind) && KNIGHT_OFFSETS.some(([dx, dy]) => hit(x + dx, y + dy))) return true;
   const range = PIECES[kind].range;
   for (const [dx, dy] of lineDirections(kind)) {
     for (let step = 1; step <= range; step++) {
@@ -819,12 +894,13 @@ function threatens(grid: Grid, terrain: Terrain[], e: Unit, x: number, y: number
   const dx = x - e.x;
   const dy = y - e.y;
   if (Math.max(Math.abs(dx), Math.abs(dy)) === 1) return true;
-  if (e.kind === 'knight' && ((Math.abs(dx) === 1 && Math.abs(dy) === 2) || (Math.abs(dx) === 2 && Math.abs(dy) === 1))) return true;
+  if (JUMPERS.has(e.kind) && ((Math.abs(dx) === 1 && Math.abs(dy) === 2) || (Math.abs(dx) === 2 && Math.abs(dy) === 1))) return true;
   const range = PIECES[e.kind].range;
   if (!range) return false;
   const straight = dx === 0 || dy === 0;
   const diagonal = Math.abs(dx) === Math.abs(dy);
-  const fits = e.kind === 'rook' ? straight : e.kind === 'bishop' ? diagonal : straight || diagonal;
+  const dirs = lineDirections(e.kind);
+  const fits = dirs.length === 4 && dirs[0][0] * dirs[0][1] === 0 ? straight : dirs.length === 4 ? diagonal : straight || diagonal;
   const dist = Math.max(Math.abs(dx), Math.abs(dy));
   if (!fits || dist > range) return false;
   const sx = Math.sign(dx);
@@ -851,6 +927,14 @@ function kingDanger(grid: Grid, terrain: Terrain[], king: Unit, foes: Unit[], x:
     }
   }
   return danger;
+}
+
+/** Can an enemy hit the king right now (or is it standing in a boss blast)? */
+function kingThreatened(b: Battle, king: Unit): boolean {
+  const grid = buildGrid(b, king);
+  const foes = alive(b, king.side === 'ally' ? 'enemy' : 'ally');
+  const blast = b.warnings.some((w) => w.cells.includes(king.y * BOARD_SIZE + king.x));
+  return blast || foes.some((e) => threatens(grid, b.terrain, e, king.x, king.y));
 }
 
 /** When threatened, the king steps to a clearly safer neighbouring square. */
@@ -886,9 +970,11 @@ function moveUnit(b: Battle, u: Unit): void {
     return;
   }
   if (u.kind === 'king') {
-    // Kings never advance; they only step away from danger. In a duel of lone kings they meet.
+    // Kings never advance; they only step away from danger. In a duel of lone kings they meet,
+    // and a warlord king leads the charge.
     const duel = alive(b, u.side).length === 1 && alive(b, u.side === 'ally' ? 'enemy' : 'ally').length === 1;
-    const step = duel ? pathStep(b, u, alive(b, u.side === 'ally' ? 'enemy' : 'ally')) : null;
+    const warlord = u.side === 'ally' && b.perks.has('warlord');
+    const step = duel || warlord ? pathStep(b, u, alive(b, u.side === 'ally' ? 'enemy' : 'ally')) : null;
     if (step) {
       [u.x, u.y] = step;
       u.wait = u.moveCd;
@@ -904,10 +990,15 @@ function moveUnit(b: Battle, u: Unit): void {
       nx = sides.map((d) => u.x + d).find((x) => standable(b.terrain, x, ny) && !unitAt(b, x, ny)) ?? u.x;
     }
     if (standable(b.terrain, nx, ny) && !unitAt(b, nx, ny)) {
+      // "Двойной шаг": the first move goes two squares if the way is clear.
+      const ny2 = ny + forward(u.side);
+      if (u.side === 'ally' && !u.moved && nx === u.x && b.perks.has('doubleStep') && standable(b.terrain, nx, ny2) && !unitAt(b, nx, ny2)) {
+        u.y = ny2;
+      } else u.y = ny;
       u.x = nx;
-      u.y = ny;
+      u.moved = true;
       u.wait = u.moveCd;
-      const early = has(b, u.side, 'earlyCrown') ? 1 : 0;
+      const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (u.side === 'ally' && b.perks.has('earlyCrown') ? 2 : 0);
       const promotes = u.side === 'ally' ? u.y <= early : u.y >= BOARD_SIZE - 1;
       if (promotes) {
         if (has(b, u.side, 'queensGambit')) u.atkMult *= 1.5;
@@ -927,7 +1018,7 @@ function moveUnit(b: Battle, u: Unit): void {
   const enemies = alive(b, u.side === 'ally' ? 'enemy' : 'ally');
   // Knights hunt shooters and the king first.
   let goal = enemies;
-  if (u.kind === 'knight') {
+  if (HUNTERS.has(u.kind)) {
     const prey = enemies.filter((e) => e.kind === 'king' || RANGED.has(e.kind));
     if (prey.length) goal = prey;
   }
@@ -943,7 +1034,19 @@ function moveUnit(b: Battle, u: Unit): void {
 }
 
 function act(b: Battle, u: Unit): void {
-  if (u.kind === 'king') {
+  if (u.kind === 'king' && u.side === 'ally' && b.perks.has('castling') && !b.castled && kingThreatened(b, u)) {
+    const rook = alive(b, 'ally').filter((f) => f.kind === 'rook' || f.kind === 'chancellor')
+      .sort((a, c) => chebyshev(u, a.x, a.y) - chebyshev(u, c.x, c.y))[0];
+    if (rook) {
+      b.castled = true;
+      [u.x, u.y, rook.x, rook.y] = [rook.x, rook.y, u.x, u.y];
+      traitEvent(b, u, 'Рокировка!');
+      u.wait = u.moveCd;
+      return;
+    }
+  }
+  const warlord = u.kind === 'king' && u.side === 'ally' && b.perks.has('warlord');
+  if (u.kind === 'king' && !warlord) {
     const escape = kingEscape(b, u);
     if (escape) {
       [u.x, u.y] = escape;
