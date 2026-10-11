@@ -32,6 +32,7 @@ export class BoardView {
   /** The board with its coordinate frame; this is what screens insert. */
   readonly frame: HTMLElement;
   readonly root: HTMLElement;
+  private stage: HTMLElement;
   private cells: HTMLElement[] = [];
   private unitLayer: HTMLElement;
   private fxLayer: HTMLElement;
@@ -58,7 +59,11 @@ export class BoardView {
     this.banner = el('div', 'banner');
     this.calloutEl = el('div', 'boss-callout');
     this.introEl = el('div', 'boss-intro');
-    this.root.append(this.unitLayer, this.fxLayer, this.banner, this.calloutEl, this.introEl);
+    this.root.append(this.unitLayer, this.fxLayer);
+    // Overlays live outside the board in their own stage, so no piece layer
+    // (Safari promotes animated pieces to separate layers) can ever cover them.
+    this.stage = el('div', 'board-stage');
+    this.stage.append(this.root, this.banner, this.calloutEl, this.introEl);
     // One-shot animations must drop their class when done: a hidden screen that is shown
     // again restarts every running CSS animation, which would replay old callouts.
     this.calloutEl.addEventListener('animationend', () => this.calloutEl.classList.remove('show'));
@@ -72,7 +77,7 @@ export class BoardView {
     for (let r = BOARD_SIZE; r >= 1; r--) ranks.append(el('span', '', String(r)));
     const files = el('div', 'board-files');
     for (const f of 'abcdefgh') files.append(el('span', '', f));
-    this.frame.append(ranks, this.root, el('span'), files);
+    this.frame.append(ranks, this.stage, el('span'), files);
   }
 
   /** The element of the first piece matching team and kind (for tutorial tips). */

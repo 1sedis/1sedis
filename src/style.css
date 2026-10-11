@@ -1721,4 +1721,11 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
 .unit-sprite { will-change: transform; }
 .king-row .bar-fill, .boss-bar-fill { transition: width .15s; }
 /* The result banner sits above pieces (layer 2), effects (3) and boss callouts (6). */
-.board .banner { z-index: 8; }
+
+/* Board and its overlays: the board is one isolated block, overlays sit above it. */
+.board-stage { position: relative; isolation: isolate; }
+.board-stage > .board { z-index: 0; isolation: isolate; }
+.board-stage > .banner { z-index: 10; will-change: transform, opacity; }
+.board-stage > .boss-callout { z-index: 11; }
+.board-stage > .boss-intro { z-index: 12; }
+.unit-sprite { will-change: auto; }
