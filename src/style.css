@@ -1653,3 +1653,58 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
 @keyframes relic-deal { from { transform: translateY(40px); opacity: 0; } }
 @keyframes relic-flip { 0% { transform: scaleX(1); } 50% { transform: scaleX(0.02); } 100% { transform: scaleX(1); } }
 .relic-card:not(.face-down):not(.flipping):hover { transform: translateY(-4px); }
+
+/* ---------- Roulette of the Abyss ---------- */
+.spin-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+.spin-btn { flex: 1; min-width: 130px; }
+.pity-line { color: var(--muted); font-size: 16px; }
+.legend-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.legend-list:empty { display: none; }
+.legend-chip { padding: 2px 8px; color: #2b1d02; background: var(--gold); box-shadow: 0 0 0 2px var(--gold-deep); font-size: 16px; cursor: help; }
+.bonus-list { display: grid; gap: 2px; color: var(--ink); font-size: 16px; }
+.bonus-line::before { content: '+ '; color: #b78cff; }
+
+.spin-modal { width: min(96vw, 760px); text-align: center; }
+.spin-viewport { position: relative; overflow: hidden; height: 168px; margin: 12px 0; background: #0b0818; box-shadow: inset 0 0 0 3px var(--line); }
+.spin-strip { display: flex; gap: 8px; padding: 12px 0; will-change: transform; }
+.spin-marker { position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: var(--gold); box-shadow: 0 0 12px var(--gold); z-index: 2; }
+.spin-viewport::before, .spin-viewport::after { content: ''; position: absolute; top: 0; bottom: 0; width: 18%; z-index: 1; pointer-events: none; }
+.spin-viewport::before { left: 0; background: linear-gradient(90deg, #0b0818, transparent); }
+.spin-viewport::after { right: 0; background: linear-gradient(-90deg, #0b0818, transparent); }
+.spin-viewport.landed-legendary { box-shadow: inset 0 0 0 3px var(--gold), 0 0 24px #ffcf4a88; animation: legend-glow .6s steps(2, end) 4; }
+.spin-viewport.landed-epic { box-shadow: inset 0 0 0 3px #b06bff, 0 0 18px #b06bff77; }
+@keyframes legend-glow { 50% { box-shadow: inset 0 0 0 3px #fff, 0 0 40px #ffcf4a; } }
+
+.buff-card { --rc: #a8b0c8; flex: none; width: 112px; height: 144px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: linear-gradient(180deg, #1d1a30, #141226); box-shadow: inset 0 0 0 3px var(--rc), inset 0 -26px 0 rgba(0,0,0,.25); padding: 8px 6px; }
+.buff-card.r-rare { --rc: #4aa8ff; }
+.buff-card.r-epic { --rc: #b06bff; background: linear-gradient(180deg, #2a1d48, #161028); }
+.buff-card.r-legendary { --rc: #ffcf4a; background: linear-gradient(180deg, #4a3410, #1c1408); }
+.buff-rarity { font-size: 12px; color: var(--rc); text-transform: uppercase; letter-spacing: 1px; }
+.buff-icon { width: 56px; height: 56px; image-rendering: pixelated; filter: drop-shadow(0 3px 0 #000a); }
+.buff-name { font-size: 14px; line-height: 1.15; color: var(--ink); text-align: center; }
+.buff-card.big { width: auto; max-width: 420px; height: auto; margin: 0 auto; padding: 16px 20px; gap: 8px; }
+.buff-card.big .buff-icon { width: 80px; height: 80px; }
+.buff-card.big .buff-name { font-size: 24px; }
+.buff-card.big .buff-rarity { font-size: 16px; }
+.buff-text { color: var(--muted); font-size: 16px; line-height: 1.4; }
+.spin-result { min-height: 40px; }
+.spin-result.show .buff-card { animation: title-pop .45s steps(5, end); }
+.spin-result.show .r-legendary { box-shadow: inset 0 0 0 3px var(--gold), 0 0 30px #ffcf4a99; }
+
+.multi-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
+.multi-slot { position: relative; }
+.multi-slot .buff-card { width: 100%; height: 100%; min-height: 170px; padding: 10px 6px; }
+.multi-slot .buff-card .buff-icon { width: 48px; height: 48px; }
+.multi-slot .buff-card .buff-name { font-size: 15px; }
+.multi-slot .buff-card .buff-text { font-size: 13px; }
+.multi-back { position: absolute; inset: 0; display: none; place-items: center; font-size: 40px; color: var(--gold);
+  background: repeating-conic-gradient(#3a2a72 0 25%, #2c2058 0 50%) 0 0 / 16px 16px; box-shadow: inset 0 0 0 3px var(--gold-deep); }
+.multi-slot.face-down .multi-back { display: grid; }
+.multi-slot.flip { animation: relic-flip .28s steps(6, end); }
+.multi-slot.best .buff-card { box-shadow: inset 0 0 0 3px var(--rc), 0 0 22px var(--rc); }
+@media (width <= 560px) {
+  .multi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .spin-viewport { height: 150px; }
+  .buff-card { width: 96px; height: 128px; }
+}

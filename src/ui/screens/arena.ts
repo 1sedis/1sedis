@@ -490,7 +490,7 @@ export class ArenaScreen implements Screen {
     if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', 'Новая реликвия! Выберите одну из трёх.'));
     if (o.win) {
       content.append(el('div', 'result-reward', `+${fmt(o.reward)} золота`));
-      if (o.shards > 0) content.append(el('div', 'result-unlock shard', `+${o.shards} ◆ осколков бездны — потратьте их в Алтаре бездны`));
+      if (o.shards > 0) content.append(el('div', 'result-unlock shard', `+${o.shards} ◆ осколков бездны — крутите за них рулетку в «Улучшениях»`));
       if (o.firstClear) {
         content.append(el('div', 'result-unlock', `Земля захвачена: +${levelIncome(this.levelId)} золота/мин в казну`));
         const unlocked = (Object.keys(UNLOCKED_BY) as PieceKind[]).find((k) => UNLOCKED_BY[k] === this.levelId);

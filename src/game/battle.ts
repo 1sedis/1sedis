@@ -1,6 +1,7 @@
 import { KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
 import { BOSSES, MAX_SUMMONS, WARN_TICKS, type BossId } from './bosses';
 import type { Trait } from './elites';
+import type { LegendId } from './roulette';
 import { synergyBonus } from './synergies';
 import { FOREST_DEFENSE, HILL_BONUS, parseTerrain, walkable, type Terrain } from './terrain';
 import { abilityOf, abilityTier, type Branch } from './abilities';
@@ -47,6 +48,12 @@ export interface BattleSetup {
   terrain?: string[];
   /** Boss mechanic for the enemy boss piece, if any. */
   bossId?: BossId;
+  /** Roulette buffs for the player's army. */
+  allyKind?: Partial<Record<PieceKind, { atk: number; hp: number }>>;
+  allyPawnShield?: number;
+  allyCrit?: number;
+  allyOpening?: number;
+  legends?: LegendId[];
 }
 
 /** A telegraphed boss blow: cells light up, then get hit. */
@@ -102,6 +109,8 @@ export interface Unit {
   trait?: Trait;
   /** A furious elite has already announced its rage. */
   raged: boolean;
+  /** A phoenix pawn has already come back once. */
+  reborn: boolean;
 }
 
 export interface BattleEvent {
@@ -153,6 +162,9 @@ export interface Battle {
   bossTimer: number;
   summons: number;
   warnings: BossWarning[];
+  legends: ReadonlySet<LegendId>;
+  allyCrit: number;
+  allyOpening: number;
 }
 
 export interface UnitReport {
@@ -193,7 +205,7 @@ function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult
     atkMult: atkMult * (boss ? BOSS_ATK : 1),
     pawnMoveMult, buff: 1, struck: false,
     tier: abilities ? abilityTier(p.level) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
-    cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false,
+    cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false, reborn: false,
   };
   applyStats(u, p.kind);
   u.hp = u.maxHp;
@@ -218,7 +230,21 @@ export function createBattle(setup: BattleSetup): Battle {
   for (const p of setup.allies) {
     const kingHp = p.kind === 'king' ? setup.allyKingHpMult ?? 1 : 1;
     const syn = synergyBonus(kinds, p.kind);
-    units.push(makeUnit(uid++, 'ally', p, hp * kingHp * syn.hp, atk * syn.atk, march, true));
+    const rk = setup.allyKind?.[p.kind] ?? { atk: 1, hp: 1 };
+    units.push(makeUnit(uid++, 'ally', p, hp * kingHp * syn.hp * rk.hp, atk * syn.atk * rk.atk, march, true));
+  }
+  // Legendary "shadow double": a half-strength copy next to the player's queen.
+  const queen = setup.legends?.includes('double') ? setup.allies.find((p) => p.kind === 'queen') : undefined;
+  if (queen) {
+    const taken = new Set(units.map((u) => `${u.x},${u.y}`));
+    const terrain = parseTerrain(setup.terrain);
+    const spot = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]]
+      .map(([dx, dy]) => [queen.x + dx, queen.y + dy])
+      .find(([x, y]) => x >= 0 && x < BOARD_SIZE && y >= 5 && y < BOARD_SIZE && !taken.has(`${x},${y}`) && walkable(terrain[y * BOARD_SIZE + x]));
+    if (spot) {
+      const rk = setup.allyKind?.queen ?? { atk: 1, hp: 1 };
+      units.push(makeUnit(uid++, 'ally', { ...queen, x: spot[0], y: spot[1] }, hp * 0.5 * rk.hp, atk * 0.5 * rk.atk, march, true));
+    }
   }
   for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1, 1, true));
   const report: Record<number, UnitReport> = {};
@@ -230,7 +256,8 @@ export function createBattle(setup: BattleSetup): Battle {
   }
   const b: Battle = { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
     allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches }, terrain: [...parseTerrain(setup.terrain)],
-    bossPhase: 1, bossTimer: 0, summons: 0, warnings: [] };
+    bossPhase: 1, bossTimer: 0, summons: 0, warnings: [],
+    legends: new Set(setup.legends ?? []), allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1 };
   const boss = setup.bossId ? units.find((u) => u.side === 'enemy' && u.boss) : undefined;
   if (boss && setup.bossId) {
     b.bossId = setup.bossId;
@@ -246,6 +273,11 @@ export function createBattle(setup: BattleSetup): Battle {
       u.moveCd = Math.round(u.moveCd * 0.55);
     } else {
       u.shield = u.maxShield = u.maxHp * (u.tier === 2 ? 0.6 : 0.3);
+    }
+  }
+  if (setup.allyPawnShield) {
+    for (const u of units) {
+      if (u.side === 'ally' && u.kind === 'pawn') u.shield = u.maxShield = Math.max(u.shield, u.maxHp * setup.allyPawnShield);
     }
   }
   return b;
@@ -267,7 +299,7 @@ function has(b: Battle, side: Side, relic: RelicId): boolean {
 /** Deterministic pseudo-random crit roll, so battles stay reproducible. */
 function isCrit(b: Battle, u: Unit): boolean {
   const h = Math.imul(b.tick + 1, 73856093) ^ Math.imul(u.uid, 19349663) ^ Math.imul(u.x * 8 + u.y + 1, 83492791);
-  return ((h >>> 0) % 1000) / 1000 < CRIT_CHANCE;
+  return ((h >>> 0) % 1000) / 1000 < CRIT_CHANCE + (u.side === 'ally' ? b.allyCrit : 0);
 }
 
 function inside(x: number, y: number): boolean {
@@ -315,7 +347,7 @@ function reachFrom(b: Battle, side: Side, kind: PieceKind, x: number, y: number)
     for (let step = 1; step <= range; step++) {
       const cx = x + dx * step;
       const cy = y + dy * step;
-      if (!inside(cx, cy) || isWall(b.terrain, cx, cy)) break;
+      if (!inside(cx, cy) || (isWall(b.terrain, cx, cy) && !(kind === 'rook' && side === 'ally' && b.legends.has('ram')))) break;
       const t = unitAt(b, cx, cy);
       if (t) {
         add(t); // own pieces are ignored by add(), but still block the line
@@ -355,6 +387,7 @@ function resetAbilityTimer(b: Battle, u: Unit, share = 1): void {
 function baseDamage(b: Battle, u: Unit): number {
   let damage = u.atk * auraBonus(b, u) * u.buff;
   if (u.trait === 'furious' && u.hp < u.maxHp * 0.5) damage *= 1.5;
+  if (u.side === 'ally' && b.tick <= 50) damage *= b.allyOpening;
   if (RANGED.has(u.kind) && b.terrain[u.y * BOARD_SIZE + u.x] === 'hill') damage *= HILL_BONUS;
   if (b.tick < u.rallyUntil) damage *= u.rallyMult;
   if (has(b, u.side, 'warCry') && b.tick <= 60) damage *= 1.35;
@@ -510,12 +543,54 @@ function strike(b: Battle, u: Unit, target: Unit): void {
     damage *= CRIT_MULT;
     if (u.side === 'ally') b.allyStats.crits++;
   }
+  const legend = u.side === 'ally' ? b.legends : NO_LEGENDS;
+  if (u.kind === 'king' && legend.has('wrath')) damage *= 2;
   dealDamage(b, u, target, damage, crit);
+  if (u.kind === 'king' && legend.has('wrath')) {
+    for (const f of alive(b, target.side)) if (f !== target && chebyshev(u, f.x, f.y) <= 1) dealDamage(b, u, f, damage * 0.6, false);
+  }
+  if (u.kind === 'bishop' && legend.has('beam')) beamThrough(b, u, target, damage);
+  if (u.kind === 'rook' && legend.has('ram')) ramThrough(b, u, target, damage * 0.7);
   if (charge && u.tier === 2 && target.hp > 0) target.wait += 15;
   if (u.kind === 'knight' && !u.struck && has(b, u.side, 'stunJump') && target.hp > 0) target.wait += 20;
   if (u.kind === 'bishop' && has(b, u.side, 'piercing')) pierce(b, u, target, damage * 0.6);
   u.struck = true;
   u.wait = u.attackCd;
+  // Chain jump: a knight that just felled its target acts again at once.
+  if (u.kind === 'knight' && legend.has('chain') && target.hp <= 0) {
+    u.wait = 0;
+    traitEvent(b, u, 'Цепной прыжок!');
+  }
+}
+
+const NO_LEGENDS: ReadonlySet<LegendId> = new Set();
+
+/** Legendary beam: the bishop's shot goes on along the diagonal through every enemy in range. */
+function beamThrough(b: Battle, u: Unit, target: Unit, damage: number): void {
+  const dx = Math.sign(target.x - u.x);
+  const dy = Math.sign(target.y - u.y);
+  if (!dx || !dy) return;
+  const range = PIECES.bishop.range;
+  for (let step = chebyshev(u, target.x, target.y) + 1; step <= range; step++) {
+    const x = u.x + dx * step;
+    const y = u.y + dy * step;
+    if (!inside(x, y) || isWall(b.terrain, x, y)) return;
+    const t = unitAt(b, x, y);
+    if (t && t.side !== u.side) dealDamage(b, u, t, damage, false);
+  }
+}
+
+/** Legendary ram: the rook's shot also hits the next enemy behind its target, through anything. */
+function ramThrough(b: Battle, u: Unit, target: Unit, damage: number): void {
+  const dx = Math.sign(target.x - u.x);
+  const dy = Math.sign(target.y - u.y);
+  for (let x = target.x + dx, y = target.y + dy; inside(x, y); x += dx, y += dy) {
+    const t = unitAt(b, x, y);
+    if (t && t.side !== u.side) {
+      dealDamage(b, u, t, damage, false);
+      return;
+    }
+  }
 }
 
 /** Hit the next piece behind the target on the same diagonal. */
@@ -583,12 +658,32 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
       }
     }
     if (target.trait === 'explosive') explode(b, target);
+    if (u.side === 'ally' && b.legends.has('bloodlust') && u.hp > 0) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.3);
+    if (target.side === 'ally' && target.kind === 'pawn' && b.legends.has('phoenix') && !target.reborn) rebirth(b, target);
   } else if (target.trait === 'furious' && !target.raged && target.hp < target.maxHp * 0.5) {
     target.raged = true;
     traitEvent(b, target, 'Ярость!');
   }
   if (target.trait === 'thorns' && !reflected && !shot && u.hp > 0 && damage > 0) {
     dealDamage(b, target, u, damage * 0.3, false, true);
+  }
+}
+
+/** A phoenix pawn comes back once, in the rear, with half its health. */
+function rebirth(b: Battle, u: Unit): void {
+  for (const y of [7, 6, 5]) {
+    for (const x of [3, 4, 2, 5, 1, 6, 0, 7]) {
+      if (!standable(b.terrain, x, y) || unitAt(b, x, y)) continue;
+      u.reborn = true;
+      u.x = x;
+      u.y = y;
+      u.hp = u.maxHp * 0.5;
+      u.wait = 10;
+      b.allyLosses = Math.max(0, b.allyLosses - 1);
+      delete b.report[u.uid].killedBy;
+      traitEvent(b, u, 'Феникс!');
+      return;
+    }
   }
 }
 

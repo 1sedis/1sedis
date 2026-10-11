@@ -1,9 +1,9 @@
 import { UNLOCKED_BY, getLevel } from '../../game/levels';
 import { ABILITY_LEVELS, abilityOf, abilityTier, type Branch } from '../../game/abilities';
-import { ALTAR, ALTAR_ORDER, type AltarId } from '../../game/altar';
+import { BUFF_BY_ID, EPIC_PITY, LEGEND_PITY, RARITY, SPIN_COST, ownedSummary } from '../../game/roulette';
 import { PIECES, levelMultiplier, type PieceKind } from '../../game/pieces';
 import {
-  BUILDINGS, BUILDING_ORDER, altarCost, buildingCost, buyAltar, buyBuilding, isAbyssOpen, forgeMultiplier, isUnlocked, recruit, recruitCost,
+  BUILDINGS, BUILDING_ORDER, buildingCost, buyBuilding, spinRoulette, isAbyssOpen, forgeMultiplier, isUnlocked, recruit, recruitCost,
   upgradeCost, upgradePiece, type BuildingId,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
@@ -12,12 +12,9 @@ import { fmt } from '../format';
 import { audio } from '../audio';
 import { spriteUrl, type Tier } from '../sprites';
 import { openCodex } from '../codex';
+import { showMulti, showSpin } from '../roulette';
 
 const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
-const SHORT_ALTAR: Record<AltarId, string> = {
-  darkSteel: '+4% к атаке', deepHide: '+4% к здоровью', mantle: '+20% здоровья короля',
-  voidGold: '+10% к золоту', veterans: '+1 ур. фигур в новой партии', echo: '+1 реликвия в новой партии',
-};
 const SHORT_BUILDING: Record<BuildingId, string> = { treasury: '+25% дохода казны', hq: '+1 фигура в бою', forge: '+6% к силе армии' };
 
 interface ArmyRow {
@@ -39,7 +36,12 @@ export class CampScreen implements Screen {
   private buildingRows: BuildingRow[] = [];
   private altarCard = el('div', 'card camp-altar');
   private shardCount = el('span', 'shard-count');
-  private altarRows: { id: AltarId; level: HTMLElement; btn: HTMLButtonElement }[] = [];
+  private spinBtn = el('button', 'btn btn-shard spin-btn');
+  private spin10Btn = el('button', 'btn btn-shard spin-btn');
+  private pityLine = el('div', 'pity-line');
+  private legendList = el('div', 'legend-list');
+  private bonusList = el('div', 'bonus-list');
+  private rouletteSig = '';
 
   constructor(private ctx: Ctx) {
     const top = el('div', 'arena-top');
@@ -67,11 +69,16 @@ export class CampScreen implements Screen {
     for (const id of BUILDING_ORDER) buildings.append(this.buildBuildingRow(id));
 
     const altarHead = el('div', 'panel-head');
-    altarHead.append(el('span', 'panel-title', 'Алтарь бездны'), this.shardCount, infoBtn('Алтарь бездны',
-      'Осколки ◆ добываются только в Бездне.\nУлучшения алтаря остаются навсегда, даже после новой партии.\n'
-      + ALTAR_ORDER.map((id) => `${ALTAR[id].name}: ${ALTAR[id].description}.`).join('\n')));
-    this.altarCard.append(altarHead);
-    for (const id of ALTAR_ORDER) this.altarCard.append(this.buildAltarRow(id));
+    altarHead.append(el('span', 'panel-title', 'Рулетка бездны'), this.shardCount, infoBtn('Рулетка бездны',
+      `Осколки ◆ добываются только в Бездне. Каждая крутка стоит ${SPIN_COST} ◆ и даёт случайное вечное улучшение — оно остаётся даже после новой партии.\n`
+      + Object.values(RARITY).map((r) => `${r.name}: ${r.weight}%`).join(' · ') + '\n'
+      + `Эпическая или лучше — не реже раза в ${EPIC_PITY} круток, легендарная — не позже ${LEGEND_PITY}-й.\n`
+      + 'Легендарные улучшения уникальны и меняют поведение фигур.'));
+    const spinRow = el('div', 'spin-buttons');
+    this.spinBtn.addEventListener('click', () => this.spin(1));
+    this.spin10Btn.addEventListener('click', () => this.spin(10));
+    spinRow.append(this.spinBtn, this.spin10Btn);
+    this.altarCard.append(altarHead, spinRow, this.pityLine, this.legendList, this.bonusList);
     const sideCol = el('div', 'camp-side');
     sideCol.append(buildings, this.altarCard);
 
@@ -163,25 +170,15 @@ export class CampScreen implements Screen {
     return root;
   }
 
-  private buildAltarRow(id: AltarId): HTMLElement {
-    const def = ALTAR[id];
-    const root = el('div', 'row');
-    const body = el('div', 'row-body');
-    const level = el('span', 'row-level');
-    const name = el('div', 'row-name', def.name);
-    name.append(' ', level);
-    body.append(name, el('div', 'row-desc', SHORT_ALTAR[id]));
-    const btn = el('button', 'btn btn-shard');
-    btn.addEventListener('click', () => {
-      if (buyAltar(this.ctx.state, id)) {
-        pulse(btn);
-        audio.play('relic');
-        this.ctx.save();
-      }
-    });
-    root.append(el('div', 'row-badge badge-shard'), body, btn);
-    this.altarRows.push({ id, level, btn });
-    return root;
+  private spin(count: number): void {
+    const prizes = spinRoulette(this.ctx.state, count);
+    if (!prizes) return;
+    this.ctx.save();
+    const done = () => {
+      this.rouletteSig = '';
+    };
+    if (count === 1) showSpin(prizes[0], done);
+    else showMulti(prizes, done);
   }
 
   /** Full description behind the "?" of a piece row. */
@@ -248,16 +245,25 @@ export class CampScreen implements Screen {
       'Уровень усиливает все фигуры этого типа. На 5-м уровне фигура выучит особый приём.')
       || (isUnlocked(s, 'knight') && s.army.knight === 0 && this.ctx.tip('t_knight', knightRow?.recruitBtn,
         'Конь открыт! Наймите его: он прыгает через строй и охотится на стрелков и короля.')));
-    this.altarCard.hidden = !isAbyssOpen(s) && s.shards === 0 && ALTAR_ORDER.every((id) => s.altar[id] === 0);
+    const r = s.roulette;
+    this.altarCard.hidden = !isAbyssOpen(s) && s.shards === 0 && r.spins === 0;
     setText(this.shardCount, `◆ ${fmt(s.shards)}`);
-    for (const row of this.altarRows) {
-      const def = ALTAR[row.id];
-      const lvl = s.altar[row.id];
-      const maxed = lvl >= def.maxLevel;
-      setText(row.level, `${lvl}/${def.maxLevel}`);
-      const cost = altarCost(s, row.id);
-      setText(row.btn, maxed ? 'Макс.' : `◆ ${fmt(cost)}`);
-      row.btn.disabled = maxed || s.shards < cost;
+    setText(this.spinBtn, `Крутить · ${SPIN_COST} ◆`);
+    setText(this.spin10Btn, `×10 · ${SPIN_COST * 10} ◆`);
+    this.spinBtn.disabled = s.shards < SPIN_COST;
+    this.spin10Btn.disabled = s.shards < SPIN_COST * 10;
+    setText(this.pityLine, `До гаранта: эпической — ${EPIC_PITY - r.sinceEpic}, легендарной — ${LEGEND_PITY - r.sinceLegend}`);
+    const sig = JSON.stringify(r.owned);
+    if (sig !== this.rouletteSig) {
+      this.rouletteSig = sig;
+      const legends = Object.keys(r.owned).map((id) => BUFF_BY_ID[id]).filter((b) => b?.legend);
+      this.legendList.replaceChildren(...legends.map((b) => {
+        const chip = el('span', 'legend-chip', `♛ ${b.name}`);
+        chip.title = b.text;
+        return chip;
+      }));
+      const lines = ownedSummary(r);
+      this.bonusList.replaceChildren(...(lines.length ? lines : ['Пока пусто — крутите рулетку!']).map((l) => el('div', 'bonus-line', l)));
     }
     for (const row of this.buildingRows) {
       const def = BUILDINGS[row.id];

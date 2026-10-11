@@ -9,7 +9,8 @@ import { withElites } from './elites';
 import { levelTerrain, levelTerrainRows, walkable } from './terrain';
 import { PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
-import { ALTAR, emptyAltar, shardsForFloor, type AltarId } from './altar';
+import { shardsForFloor } from './altar';
+import { SPIN_COST, altarRefund, emptyRoulette, rollBuff, rouletteBonuses, type BuffDef, type RouletteState } from './roulette';
 import { RELICS, STARS_PER_RELIC, rollOffer, type RelicId } from './relics';
 
 /** Rows the player may deploy on (bottom three rows). */
@@ -76,7 +77,8 @@ export interface GameState {
   abyss: { floor: number; best: number };
   /** Abyss shards and Altar of the Abyss perk levels; both survive a new game. */
   shards: number;
-  altar: Record<AltarId, number>;
+  /** Roulette of the Abyss: buffs bought with shards, kept across new games. */
+  roulette: RouletteState;
   stats: {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
@@ -115,7 +117,7 @@ export function newGame(now = Date.now()): GameState {
     prestige: 0,
     abyss: { floor: 1, best: 0 },
     shards: 0,
-    altar: emptyAltar(),
+    roulette: emptyRoulette(),
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
       flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
@@ -186,22 +188,16 @@ export function crownStatMultiplier(s: GameState): number {
   return 1 + 0.02 * s.crowns;
 }
 
-/** Gold from battles and the treasury: +4% per crown, +50% per prestige, +10% per "Золото бездны". */
+/** Gold from battles and the treasury: +4% per crown, +50% per prestige, plus roulette gold. */
 export function goldMultiplier(s: GameState): number {
-  return (1 + 0.04 * s.crowns) * (1 + 0.5 * s.prestige) * (1 + 0.1 * s.altar.voidGold);
+  return (1 + 0.04 * s.crowns) * (1 + 0.5 * s.prestige) * rouletteBonuses(s.roulette).gold;
 }
 
-export function altarCost(s: GameState, id: AltarId): number {
-  const def = ALTAR[id];
-  return Math.round(def.baseCost * def.growth ** s.altar[id]);
-}
-
-export function buyAltar(s: GameState, id: AltarId): boolean {
-  const cost = altarCost(s, id);
-  if (s.altar[id] >= ALTAR[id].maxLevel || s.shards < cost) return false;
-  s.shards -= cost;
-  s.altar[id]++;
-  return true;
+/** Spin the roulette `count` times. Null when there are not enough shards. */
+export function spinRoulette(s: GameState, count = 1, rand: () => number = Math.random): BuffDef[] | null {
+  if (s.shards < SPIN_COST * count) return null;
+  s.shards -= SPIN_COST * count;
+  return Array.from({ length: count }, () => rollBuff(s.roulette, rand));
 }
 
 /** Enemy levels added by the current prestige. */
@@ -369,13 +365,19 @@ export function sanitizeFormation(s: GameState, limit: number, levelId?: string)
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s) * crownStatMultiplier(s);
+  const rb = rouletteBonuses(s.roulette);
   const bonus = prestigeEnemyBonus(s);
   const enemies = withElites(levelId, enemyPlacements(getLevel(levelId))).map((p) => ({ ...p, level: p.level + bonus }));
   return {
     allies, enemies,
-    allyHpMult: m * (1 + 0.04 * s.altar.deepHide),
-    allyAtkMult: m * (1 + 0.04 * s.altar.darkSteel),
-    allyKingHpMult: 1 + 0.2 * s.altar.mantle,
+    allyHpMult: m * rb.hp,
+    allyAtkMult: m * rb.atk,
+    allyKingHpMult: rb.kingHp,
+    allyKind: rb.kind,
+    allyPawnShield: rb.pawnShield,
+    allyCrit: rb.crit,
+    allyOpening: rb.opening,
+    legends: rb.legends,
     relics: [...s.relics],
     allyBranches: { ...s.abilityBranch },
     terrain: levelTerrainRows(levelId),
@@ -504,10 +506,7 @@ export function prestige(s: GameState, now = Date.now()): number {
   fresh.stats = s.stats;
   fresh.abyss = { floor: 1, best: s.abyss.best };
   fresh.shards = s.shards;
-  fresh.altar = s.altar;
-  // Altar perks that shape the new run.
-  for (const kind of Object.keys(fresh.levels) as PieceKind[]) fresh.levels[kind] = 1 + s.altar.veterans;
-  fresh.relicPicks = s.altar.echo;
+  fresh.roulette = s.roulette;
   Object.assign(s, fresh);
   return gained;
 }
@@ -587,7 +586,10 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       buildings: { ...state.buildings, ...data.buildings },
       stats: { ...state.stats, ...data.stats },
       abyss: { ...state.abyss, ...data.abyss },
-      altar: { ...state.altar, ...data.altar },
+      roulette: { ...state.roulette, ...data.roulette, owned: { ...data.roulette?.owned } },
+      // The old Altar became the roulette: give back every shard spent on it.
+      shards: (data.shards ?? 0) + altarRefund((data as { altar?: Record<string, number> }).altar),
+      altar: undefined,
     } as GameState;
   } catch {
     return null;
