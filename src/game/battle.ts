@@ -109,6 +109,24 @@ export interface Battle {
   kingSaved: boolean;
   /** Player-side counters for achievements. */
   allyStats: { promotions: number; kills: number; crits: number; abilities: number };
+  /** Per-piece record for the after-battle report; kept even after a piece dies. */
+  report: Record<number, UnitReport>;
+}
+
+export interface UnitReport {
+  uid: number;
+  side: Side;
+  kind: PieceKind;
+  boss: boolean;
+  promoted: boolean;
+  startX: number;
+  startY: number;
+  dealt: number;
+  taken: number;
+  healed: number;
+  kills: number;
+  /** Who finished this piece, and where the killer stood. */
+  killedBy?: { uid: number; kind: PieceKind; x: number; y: number; atX: number; atY: number };
 }
 
 function applyStats(u: Unit, kind: PieceKind): void {
@@ -156,8 +174,15 @@ export function createBattle(setup: BattleSetup): Battle {
     units.push(makeUnit(uid++, 'ally', p, hp * kingHp, atk, march, true));
   }
   for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1, 1, true));
+  const report: Record<number, UnitReport> = {};
+  for (const u of units) {
+    report[u.uid] = {
+      uid: u.uid, side: u.side, kind: u.kind, boss: u.boss, promoted: false, startX: u.x, startY: u.y,
+      dealt: 0, taken: 0, healed: 0, kills: 0,
+    };
+  }
   return { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
-    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 } };
+    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report };
 }
 
 function has(b: Battle, side: Side, relic: RelicId): boolean {
@@ -286,6 +311,7 @@ function tryCast(b: Battle, u: Unit): boolean {
       abilityEvent(b, u);
       const amount = Math.min(wounded.maxHp - wounded.hp, wounded.maxHp * (strong ? 0.35 : 0.2));
       wounded.hp += amount;
+      b.report[u.uid].healed += amount;
       b.events.push({ type: 'heal', uid: wounded.uid, side: wounded.side, x: wounded.x, y: wounded.y, amount, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind });
       break;
     }
@@ -373,6 +399,10 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     damage -= absorbed;
     shieldBroke = target.shield <= 0;
   }
+  // Count only damage that lands on remaining health, so overkill does not inflate the report.
+  const landed = Math.min(damage, Math.max(0, target.hp));
+  b.report[u.uid].dealt += landed;
+  b.report[target.uid].taken += landed;
   target.hp -= damage;
   target.flash = 2;
   const big = target.kind === 'king' || target.boss;
@@ -390,6 +420,8 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
   }
   if (target.hp <= 0) {
     b.events.push({ ...base, type: 'death', amount: 0 });
+    b.report[u.uid].kills++;
+    b.report[target.uid].killedBy = { uid: u.uid, kind: u.kind, x: u.x, y: u.y, atX: target.x, atY: target.y };
     if (target.side === 'ally' && target.kind !== 'king') b.allyLosses++;
     if (target.side === 'enemy') b.allyStats.kills++;
     if (has(b, target.side, 'avengers')) {
@@ -408,6 +440,7 @@ function royalHeal(b: Battle): void {
     if (Math.max(Math.abs(f.x - king.x), Math.abs(f.y - king.y)) > 1) continue;
     const amount = Math.min(f.maxHp - f.hp, f.maxHp * HEAL_SHARE);
     f.hp += amount;
+    b.report[king.uid].healed += amount;
     b.events.push({ type: 'heal', uid: f.uid, side: 'ally', x: f.x, y: f.y, amount, fromX: king.x, fromY: king.y, fromUid: king.uid });
   }
 }
@@ -579,6 +612,8 @@ function moveUnit(b: Battle, u: Unit): void {
       if (promotes) {
         if (has(b, u.side, 'queensGambit')) u.atkMult *= 1.5;
         applyStats(u, 'queen');
+        b.report[u.uid].promoted = true;
+        b.report[u.uid].kind = 'queen';
         resetAbilityTimer(u, 0.5);
         u.promoted = true;
         if (u.side === 'ally') b.allyStats.promotions++;
@@ -656,4 +691,23 @@ export function stepBattle(b: Battle): void {
 export function simulate(b: Battle): Battle['result'] {
   while (!b.result) stepBattle(b);
   return b.result;
+}
+
+/**
+ * How many enemy pieces could hit each cell right at the start, given the
+ * current placements (lines are blocked by any piece). Index: y * 8 + x.
+ */
+export function threatMap(setup: BattleSetup): number[] {
+  const b = createBattle(setup);
+  const grid = buildGrid(b);
+  const counts = new Array(BOARD_SIZE * BOARD_SIZE).fill(0);
+  for (const e of b.units) {
+    if (e.side !== 'enemy') continue;
+    for (let y = 0; y < BOARD_SIZE; y++) {
+      for (let x = 0; x < BOARD_SIZE; x++) {
+        if ((x !== e.x || y !== e.y) && threatens(grid, e, x, y)) counts[y * BOARD_SIZE + x]++;
+      }
+    }
+  }
+  return counts;
 }

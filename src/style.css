@@ -1177,3 +1177,20 @@ img { image-rendering: pixelated; }
 .badge-shard::after { background: #c9a6ff; clip-path: polygon(50% 0, 90% 35%, 50% 100%, 10% 35%); }
 .result-unlock.shard { color: #c9a6ff; }
 .relic-icon img { width: 34px; height: 34px; }
+
+/* ---------- Threats & battle report ---------- */
+.board.setup .cell.deploy.threat::after { background: rgba(255, 93, 133, 0.24); box-shadow: inset 0 0 0 2px rgba(255, 93, 133, 0.5); animation: none; }
+.board.setup .cell.deploy.threat-2::after { background: rgba(255, 93, 133, 0.4); }
+.report { margin: 12px 0; padding: 10px 12px; background: var(--bg-2); text-align: left; }
+.report-title { cursor: pointer; color: var(--gold); font-size: 18px; }
+.report-reason { color: var(--coral); margin: 10px 0 6px; }
+.report-mvp { color: var(--mint); margin: 6px 0; }
+.report-table { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.report-row { display: grid; grid-template-columns: 26px minmax(70px, 1fr) minmax(60px, 1.4fr) 58px; gap: 8px; align-items: center; font-size: 15px; }
+.report-row img { width: 26px; height: 26px; }
+.report-row .bar { margin: 0; }
+.report-row.fallen { opacity: 0.65; }
+.report-num { text-align: right; font-variant-numeric: tabular-nums; }
+.report-tips { margin: 8px 0 0; padding-left: 18px; color: var(--ink); line-height: 1.4; }
+.report-tips li { margin: 4px 0; }
+.result-modal { max-height: 92vh; overflow-y: auto; }

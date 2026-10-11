@@ -73,6 +73,15 @@ export class BoardView {
     this.frame.dataset.theme = String(chapter);
   }
 
+  /** Tint player cells by how many enemy pieces can hit them at the start (null hides it). */
+  setThreats(counts: number[] | null): void {
+    this.cells.forEach((c, i) => {
+      const n = counts && PLAYER_ROWS.includes(Math.floor(i / BOARD_SIZE)) ? counts[i] : 0;
+      c.classList.toggle('threat', n > 0);
+      c.classList.toggle('threat-2', n > 1);
+    });
+  }
+
   setMode(setup: boolean, placing: boolean): void {
     this.root.classList.toggle('setup', setup);
     this.root.classList.toggle('placing', setup && placing);

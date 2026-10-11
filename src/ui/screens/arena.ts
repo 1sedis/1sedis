@@ -1,5 +1,6 @@
-import { createBattle, stepBattle, type Battle, type BattleEvent, type Unit } from '../../game/battle';
-import { autoFormation } from '../../game/autoformation';
+import { createBattle, stepBattle, threatMap, type Battle, type BattleEvent, type Unit } from '../../game/battle';
+import { bestFormation } from '../../game/autoformation';
+import { buildReport, pieceName } from '../../game/report';
 import {
   CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, firstReward, getLevel, isAbyss, levelIncome, nextLevelId,
   replayReward,
@@ -48,6 +49,9 @@ export class ArenaScreen implements Screen {
   private trayTitle = el('span');
   private prepTools = el('div', 'tray-tools');
   private autoBtn!: HTMLButtonElement;
+  private threatBtn = el('button', 'toggle');
+  private showThreats = true;
+  private threatSig = '';
   private infoPanel = el('div', 'side-stack');
   private battlePanel = el('div', 'side-stack');
   private limitText = el('b');
@@ -114,9 +118,10 @@ export class ArenaScreen implements Screen {
     }
     const autoBtn = el('button', 'btn btn-small', 'Авто');
     this.autoBtn = autoBtn;
-    autoBtn.title = 'Расставить армию автоматически';
+    autoBtn.title = 'Проверить 16 расстановок в симуляции и поставить лучшую';
     autoBtn.addEventListener('click', () => {
-      autoFormation(this.ctx.state, this.limit());
+      bestFormation(this.ctx.state, this.levelId, this.limit());
+      toast('Подобрана лучшая из 16 расстановок');
       this.selection = null;
     });
     const clearBtn = el('button', 'btn btn-small btn-ghost', 'Очистить');
@@ -124,7 +129,12 @@ export class ArenaScreen implements Screen {
       clearFormation(this.ctx.state);
       this.selection = null;
     });
-    this.prepTools.append(autoBtn, clearBtn);
+    this.threatBtn.title = 'Подсветить клетки, которые простреливает враг';
+    this.threatBtn.addEventListener('click', () => {
+      this.showThreats = !this.showThreats;
+      this.threatSig = '';
+    });
+    this.prepTools.append(autoBtn, clearBtn, this.threatBtn);
     trayPanel.append(trayHead, this.tray, this.prepTools);
     trayPanel.addEventListener('click', (e) => {
       if (!(e.target as HTMLElement).closest('button')) this.returnSelected();
@@ -377,6 +387,7 @@ export class ArenaScreen implements Screen {
     ];
     for (const [ok, text] of items) list.append(el('li', ok ? 'done' : 'fail', `${ok ? '✓' : '✗'} ${text}`));
     content.append(list);
+    if (this.battle) content.append(this.reportView(o.win));
 
     if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', 'Новая реликвия! Выберите одну из трёх.'));
     if (o.win) {
@@ -483,7 +494,15 @@ export class ArenaScreen implements Screen {
       item.btn.classList.toggle('empty', avail <= 0);
     }
 
-    if (prep) this.tips();
+    if (prep) {
+      this.updateThreats();
+      this.tips();
+    } else if (this.threatSig) {
+      this.threatSig = '';
+      this.board.setThreats(null);
+    }
+    setText(this.threatBtn, `Угрозы: ${this.showThreats ? 'вкл' : 'выкл'}`);
+    this.threatBtn.classList.toggle('on', this.showThreats);
 
     if (this.battle) {
       for (const side of ['ally', 'enemy'] as const) {
@@ -494,6 +513,14 @@ export class ArenaScreen implements Screen {
       }
       setText(this.battleTime, `Время боя: ${(this.battle.tick / 10).toFixed(1)} с · потери: ${this.battle.allyLosses}`);
     }
+  }
+
+  /** Recompute the threat overlay only when the formation or level changes. */
+  private updateThreats(): void {
+    const sig = `${this.showThreats}|${this.levelId}|${this.ctx.state.formation.map((f) => `${f.kind}${f.x}${f.y}`).join()}`;
+    if (sig === this.threatSig) return;
+    this.threatSig = sig;
+    this.board.setThreats(this.showThreats ? threatMap(battleSetup(this.ctx.state, this.levelId)) : null);
   }
 
   private tips(): void {
@@ -507,8 +534,45 @@ export class ArenaScreen implements Screen {
         'Расстановка готова, жмите «В бой». Бой можно ускорить кнопками ×2 и ×4.')
       || (this.levelId !== '1-1' && ctx.tip('t_move', this.autoBtn,
         'Нажмите на свою фигуру, а потом на клетку, чтобы её переставить. «Авто» расставит армию сама.'))
+      || (this.board.root.querySelector('.cell.threat') && ctx.tip('t_threats', this.threatBtn,
+        'Красные клетки простреливают вражеские стрелки. Не ставьте туда короля и закрывайте линии пешками.'))
       || ctx.tip('t_reserve', freeReserve,
         'В резерве есть свободная фигура. Выберите её и нажмите на клетку в трёх нижних рядах.'));
+  }
+
+  /** After-battle breakdown: loss reason, MVP, damage per piece and tips. */
+  private reportView(win: boolean): HTMLElement {
+    const r = buildReport(this.battle!);
+    const box = el('details', 'report');
+    box.open = !win;
+    box.append(el('summary', 'report-title', 'Разбор боя'));
+    if (r.lossReason) box.append(el('p', 'report-reason', r.lossReason));
+    if (r.mvp) {
+      box.append(el('p', 'report-mvp',
+        `Лучшая фигура: ${pieceName(r.mvp)} — ${fmt(Math.round(r.mvp.dealt))} урона, сражено ${r.mvp.kills}`));
+    }
+    const max = Math.max(1, ...r.allies.map((a) => a.dealt));
+    const table = el('div', 'report-table');
+    for (const a of r.allies.slice(0, 10)) {
+      const row = el('div', `report-row${a.killedBy ? ' fallen' : ''}`);
+      const img = el('img');
+      img.src = spriteUrl(a.kind, 'ally', abilityTier(this.ctx.state.levels[a.promoted ? 'pawn' : a.kind]) as Tier);
+      img.alt = '';
+      const track = el('div', 'bar');
+      const fill = el('div', 'bar-fill');
+      fill.style.width = `${(a.dealt / max) * 100}%`;
+      track.append(fill);
+      row.append(img, el('span', 'report-name', pieceName(a)), track,
+        el('span', 'report-num', `${fmt(Math.round(a.dealt))}${a.killedBy ? ' ✝' : ''}`));
+      table.append(row);
+    }
+    box.append(table);
+    if (r.tips.length) {
+      const tips = el('ul', 'report-tips');
+      for (const t of r.tips) tips.append(el('li', '', t));
+      box.append(tips);
+    }
+    return box;
   }
 
   private collectUnits(): UnitView[] {
