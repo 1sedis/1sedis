@@ -15,7 +15,6 @@ export interface UnitView {
   maxHp: number;
   boss?: boolean;
   selected?: boolean;
-  flash?: boolean;
   dead?: boolean;
 }
 
@@ -60,6 +59,9 @@ export class BoardView {
       let u = this.units.get(v.key);
       if (!u) {
         const node = el('div', `unit ${v.team}`);
+        node.addEventListener('animationend', (e) => {
+          if (e.target === node) node.classList.remove('hit');
+        });
         const img = el('img', 'unit-sprite');
         img.alt = '';
         const hp = el('div', 'hp');
@@ -81,7 +83,6 @@ export class BoardView {
       u.node.classList.toggle('boss', !!v.boss);
       u.node.classList.toggle('king', v.kind === 'king');
       u.node.classList.toggle('selected', !!v.selected);
-      u.node.classList.toggle('flash', !!v.flash);
       u.node.classList.toggle('dead', !!v.dead);
       u.node.classList.toggle('full-hp', v.hp >= v.maxHp);
       const pct = `${Math.max(0, v.hp / v.maxHp) * 100}%`;
@@ -93,6 +94,15 @@ export class BoardView {
         this.units.delete(key);
       }
     }
+  }
+
+  /** Briefly flash a unit white. The CSS animation always ends on its own. */
+  flash(key: string): void {
+    const node = this.units.get(key)?.node;
+    if (!node) return;
+    node.classList.remove('hit');
+    void node.offsetWidth;
+    node.classList.add('hit');
   }
 
   showBanner(text: string | null, win = false): void {

@@ -198,7 +198,8 @@ img { image-rendering: pixelated; }
 }
 .unit.enemy .unit-sprite { animation-delay: -0.5s; }
 
-.unit.flash .unit-sprite { filter: brightness(0) invert(1); }
+.unit.hit { animation: hit-flash 0.16s steps(1); }
+@keyframes hit-flash { 0% { filter: brightness(0) invert(1); } 100% { filter: none; } }
 .unit.dead { opacity: 0; transform-origin: center; }
 
 .unit.selected::before {

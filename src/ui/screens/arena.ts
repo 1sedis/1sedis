@@ -375,7 +375,7 @@ export class ArenaScreen implements Screen {
         if (this.battle.result) this.finish();
         steps++;
       }
-      if (!live || !this.ctx.settings.effects || events.length > 60) events = [];
+      if (!live) events = [];
     }
     this.render(events, speed);
   }
@@ -386,7 +386,8 @@ export class ArenaScreen implements Screen {
     this.board.setMode(prep, this.selection !== null);
     this.board.setStep(180 / speed);
     this.board.render(this.collectUnits());
-    if (events.length) this.board.fx(events);
+    for (const e of events) if (e.type === 'hit') this.board.flash(`b${e.uid}`);
+    if (events.length && this.ctx.settings.effects && events.length <= 60) this.board.fx(events);
 
     setText(this.fightBtn, prep ? '▶ В бой' : '■ Отступить');
     this.fightBtn.classList.toggle('btn-danger', !prep);
@@ -443,7 +444,7 @@ export class ArenaScreen implements Screen {
   private unitView(u: Unit): UnitView {
     return {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
-      boss: u.boss, flash: u.flash > 0, dead: u.hp <= 0,
+      boss: u.boss, dead: u.hp <= 0,
     };
   }
 }
