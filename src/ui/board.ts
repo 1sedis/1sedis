@@ -3,7 +3,7 @@ import type { PieceKind } from '../game/pieces';
 import { PLAYER_ROWS } from '../game/state';
 import { el, setText } from './dom';
 import { fmt } from './format';
-import { spriteUrl, type Team } from './sprites';
+import { spriteUrl, type Team, type Tier } from './sprites';
 
 export interface UnitView {
   key: string;
@@ -15,6 +15,8 @@ export interface UnitView {
   maxHp: number;
   /** Shield as a share of max HP (0 when none). */
   shield?: number;
+  /** Visual tier from the piece level. */
+  tier?: Tier;
   boss?: boolean;
   selected?: boolean;
   dead?: boolean;
@@ -28,7 +30,7 @@ export class BoardView {
   private unitLayer: HTMLElement;
   private fxLayer: HTMLElement;
   private banner: HTMLElement;
-  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team }>();
+  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team; tier: Tier }>();
 
   constructor(onCell: (x: number, y: number) => void) {
     this.root = el('div', 'board');
@@ -103,15 +105,18 @@ export class BoardView {
         node.append(body, hp);
         node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
         this.unitLayer.append(node);
-        u = { node, body, img, fill, shield, kind: v.kind, team: v.team };
-        img.src = spriteUrl(v.kind, v.team);
+        u = { node, body, img, fill, shield, kind: v.kind, team: v.team, tier: v.tier ?? 0 };
+        img.src = spriteUrl(v.kind, v.team, u.tier);
         this.units.set(v.key, u);
       }
-      if (u.kind !== v.kind) {
-        // Promotion swaps the sprite.
+      if (u.kind !== v.kind || u.tier !== (v.tier ?? 0)) {
+        // Promotion or a new level swaps the sprite.
         u.kind = v.kind;
-        u.img.src = spriteUrl(v.kind, v.team);
+        u.tier = v.tier ?? 0;
+        u.img.src = spriteUrl(v.kind, v.team, u.tier);
       }
+      u.node.classList.toggle('tier-1', u.tier === 1);
+      u.node.classList.toggle('tier-2', u.tier === 2);
       u.node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
       u.node.classList.toggle('boss', !!v.boss);
       u.node.classList.toggle('king', v.kind === 'king');

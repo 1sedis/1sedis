@@ -117,27 +117,51 @@ const MAPS: Record<PieceKind, string[]> = {
 };
 
 export type Team = 'ally' | 'enemy';
+/** Visual tier: 0 basic, 1 from level 5 (steel / crimson), 2 from level 10 (gold / obsidian). */
+export type Tier = 0 | 1 | 2;
 
-const PALETTES: Record<Team, Record<string, string>> = {
-  ally: { o: '#1a1433', e: '#1a1433', f: '#fff1dc', h: '#ffffff', s: '#f0b49c', g: '#3ee6c1', w: '#d8fff6' },
-  enemy: { o: '#1a1433', e: '#1a1433', f: '#9b6bff', h: '#d4bfff', s: '#5a35c4', g: '#ff4f7b', w: '#ffd3de' },
+const OUTLINE = { o: '#1a1433', e: '#1a1433' };
+
+const PALETTES: Record<Team, Record<string, string>[]> = {
+  ally: [
+    { ...OUTLINE, f: '#fff1dc', h: '#ffffff', s: '#f0b49c', g: '#3ee6c1', w: '#d8fff6', b: '#3ee6c1' },
+    { ...OUTLINE, f: '#e3ecff', h: '#ffffff', s: '#8fa7d9', g: '#3ee6c1', w: '#d8fff6', b: '#3ee6c1' },
+    { ...OUTLINE, f: '#ffe39a', h: '#fff8dc', s: '#e0a53c', g: '#ff5d85', w: '#ffe1ea', b: '#ff5d85' },
+  ],
+  enemy: [
+    { ...OUTLINE, f: '#9b6bff', h: '#d4bfff', s: '#5a35c4', g: '#ff4f7b', w: '#ffd3de', b: '#ff4f7b' },
+    { ...OUTLINE, f: '#c2457a', h: '#f39ac0', s: '#7a1f4a', g: '#ffcf4a', w: '#fff1b8', b: '#ffcf4a' },
+    { ...OUTLINE, f: '#3b2d63', h: '#8a76d1', s: '#1e1638', g: '#ff4f7b', w: '#ffd3de', b: '#ff4f7b' },
+  ],
 };
+
+/** Row painted as a coloured band from tier 1, and the base row trimmed at tier 2. */
+const BAND_ROW: Record<PieceKind, number> = { king: 9, queen: 9, rook: 9, bishop: 9, knight: 10, pawn: 10 };
+const BASE_ROW: Record<PieceKind, number> = { king: 14, queen: 13, rook: 12, bishop: 14, knight: 14, pawn: 14 };
+
+/** The pixel map for a piece at a tier: higher tiers add a band and a trimmed base. */
+export function tierMap(kind: PieceKind, tier: Tier): string[] {
+  return MAPS[kind].map((row, y) => {
+    const band = (tier >= 1 && y === BAND_ROW[kind]) || (tier >= 2 && y === BASE_ROW[kind]);
+    return band ? row.replace(/[fh]/g, 'b') : row;
+  });
+}
 
 const SIZE = 16;
 const cache = new Map<string, string>();
 
 /** Returns a data-URL PNG of the piece, scaled up crisply. */
-export function spriteUrl(kind: PieceKind, team: Team): string {
-  const key = `${kind}:${team}`;
+export function spriteUrl(kind: PieceKind, team: Team, tier: Tier = 0): string {
+  const key = `${kind}:${team}:${tier}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const palette = PALETTES[team];
+  const palette = PALETTES[team][tier];
   const scale = 6;
   const canvas = document.createElement('canvas');
   canvas.width = SIZE * scale;
   canvas.height = SIZE * scale;
   const ctx = canvas.getContext('2d')!;
-  MAPS[kind].forEach((row, y) => {
+  tierMap(kind, tier).forEach((row, y) => {
     [...row].forEach((ch, x) => {
       const color = palette[ch];
       if (!color) return;

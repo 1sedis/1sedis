@@ -9,7 +9,7 @@ import type { Ctx, Screen } from '../context';
 import { el, pulse, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { audio } from '../audio';
-import { spriteUrl } from '../sprites';
+import { spriteUrl, type Tier } from '../sprites';
 
 const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
 
@@ -19,6 +19,7 @@ interface ArmyRow {
   meta: HTMLElement;
   stats: HTMLElement;
   ability: HTMLElement;
+  icon: HTMLImageElement;
   recruitBtn: HTMLButtonElement;
   upgradeBtn: HTMLButtonElement;
 }
@@ -81,8 +82,13 @@ export class CampScreen implements Screen {
         const tier = abilityTier(this.ctx.state.levels[kind]);
         if (tier > before) {
           audio.play('levelup');
+          pulse(icon);
+          icon.classList.add('evolve');
+          setTimeout(() => icon.classList.remove('evolve'), 900);
           const ab = ABILITIES[kind];
-          toast(tier === 1 ? `${PIECES[kind].name} выучил приём «${ab.name}»!` : `«${ab.name}» усилен!`, 'good');
+          toast(tier === 1
+            ? `${PIECES[kind].name} в стальной броне и выучил приём «${ab.name}»!`
+            : `${PIECES[kind].name} в золотой броне, «${ab.name}» усилен!`, 'good');
         } else audio.play('levelup');
         this.ctx.save();
       }
@@ -90,7 +96,7 @@ export class CampScreen implements Screen {
     if (kind === 'king') recruitBtn.hidden = true;
     actions.append(recruitBtn, upgradeBtn);
     root.append(icon, body, actions);
-    this.armyRows.push({ kind, root, meta, stats, ability, recruitBtn, upgradeBtn });
+    this.armyRows.push({ kind, root, meta, stats, ability, icon, recruitBtn, upgradeBtn });
     return root;
   }
 
@@ -129,9 +135,13 @@ export class CampScreen implements Screen {
       setText(row.stats, unlocked
         ? `❤ ${fmt(def.hp * m)}   ⚔ ${fmt(def.atk * m)}${def.range ? `   ◎ ${def.range}` : ''}`
         : `Откроется после боя ${UNLOCKED_BY[row.kind]} «${getLevel(UNLOCKED_BY[row.kind]!).name}»`);
-      setText(row.meta, unlocked ? `Уровень ${lvl} · в армии ${s.army[row.kind]}` : '');
+      const armor = ['обычная броня, стальная с ур. 5', 'стальная броня, золотая с ур. 10', 'золотая броня'][abilityTier(lvl)];
+      setText(row.meta, unlocked ? `Уровень ${lvl} · ${armor} · в армии ${s.army[row.kind]}` : '');
       const ab = ABILITIES[row.kind];
       const tier = abilityTier(lvl);
+      const src = spriteUrl(row.kind, 'ally', tier as Tier);
+      if (row.icon.src !== src) row.icon.src = src;
+      row.icon.classList.toggle('tier-2', tier === 2);
       const [lv1, lv2] = ABILITY_LEVELS;
       setText(row.ability, tier === 0
         ? `★ «${ab.name}» с ур. ${lv1}: ${ab.tiers[0]}`

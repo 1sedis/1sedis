@@ -1166,3 +1166,14 @@ img { image-rendering: pixelated; }
   .volume { width: 90px; }
   .setting-row { flex-wrap: wrap; }
 }
+
+/* ---------- Piece tiers ---------- */
+.unit.ally.tier-2 .unit-sprite { filter: drop-shadow(0 0 5px rgba(255, 207, 74, 0.75)); }
+.unit.enemy.tier-2 .unit-sprite { filter: drop-shadow(0 0 5px rgba(255, 79, 123, 0.75)); }
+.unit.tier-2.king .unit-sprite { filter: drop-shadow(0 0 8px rgba(255, 207, 74, 0.9)); }
+.row-icon.tier-2 { filter: drop-shadow(0 0 5px rgba(255, 207, 74, 0.75)); }
+.row-icon.evolve { animation: evolve 0.9s steps(6); }
+@keyframes evolve {
+  0%, 30%, 60% { filter: brightness(0) invert(1); transform: scale(1.25); }
+  15%, 45%, 100% { filter: none; transform: scale(1); }
+}

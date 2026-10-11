@@ -16,7 +16,7 @@ import type { Ctx, Screen } from '../context';
 import { el, openModal, setText, stars, toast } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
-import { spriteUrl } from '../sprites';
+import { spriteUrl, type Tier } from '../sprites';
 
 const TICK_MS = 100;
 /** More pending ticks than this means we are catching up: skip effects. */
@@ -42,7 +42,7 @@ export class ArenaScreen implements Screen {
   private fightBtn = el('button', 'btn btn-primary');
   private speedBtns: { b: HTMLButtonElement; sp: Settings['speed'] }[] = [];
   private tray = el('div', 'tray');
-  private trayItems = new Map<PieceKind, { btn: HTMLButtonElement; count: HTMLElement }>();
+  private trayItems = new Map<PieceKind, { btn: HTMLButtonElement; count: HTMLElement; img: HTMLImageElement }>();
   private trayTitle = el('span');
   private prepTools = el('div', 'tray-tools');
   private autoBtn!: HTMLButtonElement;
@@ -101,7 +101,7 @@ export class ArenaScreen implements Screen {
         this.onTray(kind);
       });
       this.tray.append(btn);
-      this.trayItems.set(kind, { btn, count });
+      this.trayItems.set(kind, { btn, count, img });
     }
     const autoBtn = el('button', 'btn btn-small', 'Авто');
     this.autoBtn = autoBtn;
@@ -429,6 +429,8 @@ export class ArenaScreen implements Screen {
     setText(this.trayTitle, prep ? `На доске ${fieldedCount(s)}/${limit} + король` : 'Идёт бой');
     for (const [kind, item] of this.trayItems) {
       const avail = available(s, kind);
+      const src = spriteUrl(kind, 'ally', abilityTier(s.levels[kind]) as Tier);
+      if (item.img.src !== src) item.img.src = src;
       setText(item.count, `×${avail}`);
       item.btn.hidden = s.army[kind] === 0;
       item.btn.disabled = !prep;
@@ -475,12 +477,15 @@ export class ArenaScreen implements Screen {
       }
       const from = this.selection?.from;
       return {
-        key, team: 'ally', kind: f.kind, x: f.x, y: f.y, hp: 1, maxHp: 1,
+        key, team: 'ally', kind: f.kind, x: f.x, y: f.y, hp: 1, maxHp: 1, tier: abilityTier(s.levels[f.kind]) as Tier,
         selected: !!from && from.x === f.x && from.y === f.y,
       };
     });
     enemyPlacements(getLevel(this.levelId)).forEach((p, i) => {
-      views.push({ key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss });
+      views.push({
+        key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss,
+        tier: abilityTier(p.level) as Tier,
+      });
     });
     return views;
   }
@@ -488,7 +493,7 @@ export class ArenaScreen implements Screen {
   private unitView(u: Unit): UnitView {
     return {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
-      shield: u.shield / u.maxHp,
+      shield: u.shield / u.maxHp, tier: abilityTier(u.level) as Tier,
       boss: u.boss, dead: u.hp <= 0,
     };
   }
