@@ -83,12 +83,16 @@ export function skipScenes(): void {
   for (const stage of active) stage.skip();
 }
 
+/** Pieces beyond the top edge of the board loom out of the dark: the further away, the fainter. */
+const presence = (y: number) => (y >= 0 ? 1 : Math.max(0.15, 1 + y * 0.3));
+
 export class Stage {
   private layer = el('div', 'scene-layer');
   private actors = new Map<string, Actor>();
   private skipped = false;
   private tap: (() => void) | null = null;
   private pending: Promise<unknown>[] = [];
+  private skipBtn: HTMLElement;
 
   constructor(private board: BoardView, cast: UnitView[] = []) {
     this.layer.addEventListener('click', () => this.tap?.());
@@ -98,6 +102,7 @@ export class Stage {
       this.skip();
     });
     this.layer.append(skip);
+    this.skipBtn = skip;
     const aliases: [string, (v: UnitView) => boolean][] = [
       ['bk', (v) => v.team === 'enemy' && v.kind === 'king' && v.skin !== 'hand'],
       ['wk', (v) => v.team === 'ally' && v.kind === 'king' && !v.skin],
@@ -124,6 +129,14 @@ export class Stage {
   async run(steps: Step[]): Promise<void> {
     this.board.root.classList.add('in-scene');
     this.board.root.append(this.layer);
+    // On its own screen the skip button sits in the corner of the screen, clear of the board.
+    const overlay = this.board.frame.closest('.stage-overlay');
+    if (overlay) {
+      overlay.append(this.skipBtn);
+      overlay.addEventListener('click', (e) => {
+        if (!this.layer.contains(e.target as Node)) this.tap?.();
+      });
+    }
     active.add(this);
     try {
       for (const step of steps) {
@@ -136,6 +149,7 @@ export class Stage {
     } finally {
       active.delete(this);
       this.layer.remove();
+      this.skipBtn.remove();
       this.board.root.classList.remove('in-scene');
       document.body.classList.remove('glitch');
       for (const extra of this.extras) extra.remove();
@@ -237,10 +251,11 @@ export class Stage {
       case 'move': {
         if (!a) return;
         const ms = s.ms ?? 450;
-        a.node.style.transition = `transform ${ms}ms cubic-bezier(0.3, 0.7, 0.2, 1)`;
+        a.node.style.transition = `transform ${ms}ms cubic-bezier(0.3, 0.7, 0.2, 1), opacity ${ms}ms`;
         a.x = s.x;
         a.y = s.y;
         a.node.style.transform = `translate(${s.x * 100}%, ${s.y * 100}%)`;
+        if (a.node.style.opacity !== '0') a.node.style.opacity = String(presence(s.y));
         audio.play('select');
         return this.wait(ms);
       }
@@ -277,7 +292,8 @@ export class Stage {
         const bar = el('div', 'scene-caption');
         const text = el('div');
         bar.append(text);
-        this.layer.append(bar);
+        // On its own screen the caption stays put under the board while the camera moves.
+        (this.board.frame.closest('.stage-overlay') ?? this.layer).append(bar);
         await this.type(text, s.text, 'soft');
         await this.waitTap(this.readTime(s.text));
         bar.remove();
@@ -394,7 +410,7 @@ export class Stage {
         const list = [...new Set(this.actors.values())].filter((x) => x.team === s.team && !s.except?.includes(x.id));
         list.forEach((x, i) => {
           x.node.style.transition = `opacity 300ms ${s.show ? i * 70 : 0}ms`;
-          x.node.style.opacity = s.show ? '1' : '0';
+          x.node.style.opacity = s.show ? String(presence(x.y)) : '0';
         });
         return this.wait(s.show ? 300 + list.length * 70 : 0);
       }
@@ -461,6 +477,12 @@ export class Stage {
       case 'shadow': {
         const shade = el('div', 'scene-shadow');
         this.layer.prepend(shade);
+        // On its own screen the darkness covers the whole screen, not a patch above the board.
+        const overlay = this.board.frame.closest('.stage-overlay');
+        if (overlay) {
+          shade.classList.add('on-board');
+          overlay.prepend(el('div', 'scene-fog'));
+        }
         audio.play('doom');
         return this.wait(1800);
       }
@@ -505,7 +527,7 @@ export class Stage {
         f.style.transition = `transform ${ms}ms cubic-bezier(0.4, 0, 0.2, 1)`;
         // A gentle zoom: a big scaled board is a heavy layer on phones.
         // On a phone the board already fills the width: barely zoom, or it leaves the screen.
-        const scale = Math.min(s.scale, window.innerWidth < 600 ? 1.08 : 1.3);
+        const scale = Math.min(s.scale, window.innerWidth < 600 ? 1.08 : 1.2);
         // Zoom around the chosen square: shift it towards the middle of the board.
         const dx = s.x === undefined ? 0 : (3.5 - s.x) * 12.5 * (scale - 1) / scale;
         const dy = s.y === undefined ? 0 : (3.5 - s.y) * 12.5 * (scale - 1) / scale;

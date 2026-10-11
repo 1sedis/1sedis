@@ -1905,10 +1905,17 @@ body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles { animation:
 @keyframes dark-in { from { opacity: 0; scale: 0.3; } }
 .scene-giant-hand { position: absolute; left: 24%; top: -66%; width: 52%; z-index: 3; image-rendering: pixelated; pointer-events: none;
   filter: drop-shadow(0 0 22px rgba(199, 125, 255, 0.85)) drop-shadow(0 18px 0 rgba(0, 0, 0, 0.35)); }
-.stage-overlay { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: min(26vh, 240px) 16px 16px;
+.stage-overlay { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: min(22vh, 200px) 16px calc(9vh + 104px);
   background: radial-gradient(ellipse at 50% 40%, #1d1433f2, #07050df7 75%); animation: fade-in 0.3s ease-out; }
-.stage-overlay .board-frame { max-width: 100%; }
-.stage-overlay .board { width: min(calc(100vw - 96px), 58vh, 560px); }
+.stage-overlay .board-frame { max-width: 100%; position: relative; z-index: 1; }
+/* On its own screen captions sit under the board instead of covering the bottom ranks. */
+.stage-overlay > .scene-caption { position: fixed; left: 50%; right: auto; bottom: calc(9vh + 16px); z-index: 2; translate: -50% 0; width: min(calc(100vw - 32px), 520px); }
+.stage-overlay .scene-skip { position: fixed; top: calc(9vh + 12px); right: 16px; z-index: 172; }
+.stage-overlay .scene-shadow.on-board { inset: 0; height: auto; background: linear-gradient(rgba(5, 2, 12, 0.5), rgba(5, 2, 12, 0.12) 75%); }
+.scene-fog { position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(#030108f5, #05020cd9 45%, #05020c99); animation: fog-in 1.8s ease-in forwards; }
+@keyframes fog-in { from { opacity: 0; } }
+.stage-overlay .board { width: min(calc(100vw - 96px), 50vh, 560px); }
 @keyframes fade-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .actor-sprite, .scene-bubble, .scene-title { animation: none; } }
 
