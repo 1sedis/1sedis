@@ -198,9 +198,17 @@ export class BoardView {
    * Cheap reactions that run even with effects turned off: white hit flash,
    * attacker lunge and board shake. CSS animations always end on their own.
    */
-  react(events: BattleEvent[], keyOf: (uid: number) => string): void {
+  react(events: BattleEvent[], keyOf: (uid: number) => string, effects = true): void {
     let shake = 0;
     for (const e of events) {
+      if (effects && e.type === 'death') {
+        const u = this.units.get(keyOf(e.uid));
+        if (u) this.shatter(e.x, e.y, u.img.src);
+      }
+      if (effects && e.type === 'hit' && e.amount >= 1) {
+        const spark = el('div', `fx-spark${e.crit ? ' crit' : ''}`);
+        this.place(spark, e.x, e.y);
+      }
       if (e.type === 'hit') {
         restart(this.units.get(keyOf(e.uid))?.node, 'hit');
         const dx = e.x - e.fromX;
@@ -316,15 +324,40 @@ export class BoardView {
   }
 
   private bolt(e: BattleEvent): void {
-    const b = el('div', `fx-bolt ${e.side === 'ally' ? 'enemy' : 'ally'} from-${e.fromKind ?? 'pawn'}`);
-    // The bolt box is one cell in size, so translate % moves it cell by cell.
-    b.style.left = `${e.fromX * 12.5}%`;
-    b.style.top = `${e.fromY * 12.5}%`;
-    b.style.setProperty('--tx', `${(e.x - e.fromX) * 100}%`);
-    b.style.setProperty('--ty', `${(e.y - e.fromY) * 100}%`);
-    b.addEventListener('animationend', () => b.remove());
-    this.fxLayer.append(b);
+    // The head plus two fading ghosts behind it make a short trail.
+    for (let i = 0; i < 3; i++) {
+      const b = el('div', `fx-bolt ${e.side === 'ally' ? 'enemy' : 'ally'} from-${e.fromKind ?? 'pawn'}${i ? ' ghost' : ''}`);
+      // The bolt box is one cell in size, so translate % moves it cell by cell.
+      b.style.left = `${e.fromX * 12.5}%`;
+      b.style.top = `${e.fromY * 12.5}%`;
+      b.style.setProperty('--tx', `${(e.x - e.fromX) * 100}%`);
+      b.style.setProperty('--ty', `${(e.y - e.fromY) * 100}%`);
+      if (i) {
+        b.style.animationDelay = `${i * 30}ms`;
+        b.style.opacity = String(0.55 / i);
+      }
+      b.addEventListener('animationend', () => b.remove());
+      this.fxLayer.append(b);
+    }
   }
+
+  /** A dead piece breaks into four pieces of its own sprite that fly apart. */
+  private shatter(x: number, y: number, src: string): void {
+    const dirs = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    dirs.forEach(([dx, dy], i) => {
+      const s = el('div', 'fx-shard');
+      s.style.backgroundImage = `url(${src})`;
+      s.style.backgroundPosition = `${dx < 0 ? 0 : 100}% ${dy < 0 ? 0 : 100}%`;
+      s.style.setProperty('--sx', `${dx * (24 + i * 4)}px`);
+      s.style.setProperty('--sy', `${dy * 22 - 14}px`);
+      s.style.setProperty('--rot', `${dx * 90}deg`);
+      s.style.left = `${(x + 0.5 + dx * 0.18) * 12.5}%`;
+      s.style.top = `${(y + 0.45 + dy * 0.18) * 12.5}%`;
+      s.addEventListener('animationend', () => s.remove());
+      this.fxLayer.append(s);
+    });
+  }
+
 }
 
 /** Restart a one-shot CSS animation class. */

@@ -126,6 +126,7 @@ export class MapScreen implements Screen {
     }
     const chapter = CHAPTERS[this.chapter - 1];
     this.root.dataset.theme = String(chapter.id);
+    document.body.dataset.chapter = String(chapter.id);
     const boss = chapter.levels[chapter.levels.length - 1];
     this.chapterBoss.src = spriteUrl(enemyPlacements(boss).find((p) => p.boss)?.kind ?? 'king', 'enemy');
     this.chapterBoss.title = boss.boss ?? '';

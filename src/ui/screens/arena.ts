@@ -257,6 +257,7 @@ export class ArenaScreen implements Screen {
       : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
     this.board.setTheme(chapter.id);
     this.root.dataset.theme = String(chapter.id);
+    document.body.dataset.chapter = String(chapter.id);
     this.board.setTerrain(levelTerrain(this.levelId));
     const kinds = terrainKinds(this.levelId);
     this.terrainRow.replaceChildren(...kinds.map((t) => {
@@ -634,7 +635,7 @@ export class ArenaScreen implements Screen {
     if (events.length) {
       this.bossEvents(events);
       this.firstAbility(events);
-      this.board.react(events, (uid) => `b${uid}`);
+      this.board.react(events, (uid) => `b${uid}`, this.ctx.settings.effects && events.length <= 60);
       playBattleSounds(events);
     }
     if (events.length && this.ctx.settings.effects && events.length <= 60) this.board.fx(events);

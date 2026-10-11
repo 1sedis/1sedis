@@ -40,10 +40,25 @@ export function openRelicPicker(ctx: Ctx, onDone?: () => void): void {
   );
   const cards = el('div', 'relic-cards');
   let close = () => {};
-  for (const id of offer) {
+  offer.forEach((id, i) => {
     const def = RELICS[id];
-    const card = el('button', 'relic-card');
-    card.append(relicIcon(id), el('span', 'relic-name', def.name), el('span', 'relic-desc', def.description));
+    const card = el('button', 'relic-card face-down');
+    card.disabled = true;
+    const back = el('span', 'relic-back');
+    back.append(el('span', 'relic-back-mark', '?'));
+    card.append(relicIcon(id), el('span', 'relic-name', def.name), el('span', 'relic-desc', def.description), back);
+    // Cards lie face down, then flip one by one.
+    setTimeout(() => {
+      card.classList.add('flipping');
+      audio.play('star');
+      setTimeout(() => {
+        card.classList.remove('face-down');
+        card.disabled = false;
+      }, 140);
+    }, 450 + i * 320);
+    card.addEventListener('animationend', (e) => {
+      if (e.animationName === 'relic-flip') card.classList.remove('flipping');
+    });
     card.addEventListener('click', () => {
       if (!chooseRelic(ctx.state, id)) return;
       ctx.save();
@@ -55,7 +70,7 @@ export function openRelicPicker(ctx: Ctx, onDone?: () => void): void {
       else onDone?.();
     });
     cards.append(card);
-  }
+  });
   const later = el('button', 'btn btn-ghost', 'Выбрать позже');
   later.addEventListener('click', () => {
     close();
