@@ -1,6 +1,3 @@
-@import '@fontsource/tiny5/400.css';
-@import '@fontsource/golos-text/400.css';
-@import '@fontsource/golos-text/600.css';
 
 /* ---------- Tokens ---------- */
 :root {
@@ -25,6 +22,7 @@
   --pixel: 'Tiny5', ui-monospace, monospace;
   --text: 'Golos Text', system-ui, sans-serif;
   font-family: var(--text);
+  color-scheme: dark;
   color: var(--ink);
   background: var(--bg);
 }

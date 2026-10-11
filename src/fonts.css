@@ -1,0 +1,5 @@
+/* Self-hosted fonts for the GitHub Pages build. The claude.ai artifact build
+   loads the same families from Google Fonts instead. */
+@import '@fontsource/tiny5/400.css';
+@import '@fontsource/golos-text/400.css';
+@import '@fontsource/golos-text/600.css';
