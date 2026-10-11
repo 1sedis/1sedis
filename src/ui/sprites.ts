@@ -131,7 +131,8 @@ const PALETTES: Record<Team, Record<string, string>[]> = {
   enemy: [
     { ...OUTLINE, f: '#9b6bff', h: '#d4bfff', s: '#5a35c4', g: '#ff4f7b', w: '#ffd3de', b: '#ff4f7b' },
     { ...OUTLINE, f: '#c2457a', h: '#f39ac0', s: '#7a1f4a', g: '#ffcf4a', w: '#fff1b8', b: '#ffcf4a' },
-    { ...OUTLINE, f: '#3b2d63', h: '#8a76d1', s: '#1e1638', g: '#ff4f7b', w: '#ffd3de', b: '#ff4f7b' },
+    // Obsidian pieces get a crimson outline so they never melt into a dark board.
+    { o: '#c7305f', e: '#c7305f', f: '#3b2d63', h: '#8a76d1', s: '#1e1638', g: '#ff4f7b', w: '#ffd3de', b: '#ff4f7b' },
   ],
 };
 

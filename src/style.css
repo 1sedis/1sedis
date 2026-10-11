@@ -1422,3 +1422,10 @@ button.ability-chip:hover { opacity: 1; }
 .level-node.locked .level-tile { background: #1a1530e6; filter: brightness(.85); }
 @media (width <= 560px) { .map-king { right: -14px; top: -18px; } }
 .map-king { width: 34px; height: 34px; right: -26px; top: -28px; }
+
+/* Team rings under pieces: allies mint, enemies coral */
+.unit-body::before { height: 12%; bottom: 8%; left: 14%; right: 14%; }
+.unit.ally .unit-body::before { background: #3ee6c18c; box-shadow: none; }
+.unit.enemy .unit-body::before { background: #ff4d6d8c; }
+.unit.boss .unit-body::before { background: #ffcf4ab3; }
+.unit.dead .unit-body::before { opacity: 0; }
