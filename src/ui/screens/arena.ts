@@ -18,7 +18,7 @@ import { audio } from '../audio';
 import { BoardView, type UnitView } from '../board';
 import { openRelicPicker, relicStrip } from '../relics';
 import type { Ctx, Screen } from '../context';
-import { el, openModal, setText, stars, toast } from '../dom';
+import { el, infoBtn, openModal, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
 import { spriteUrl, type Tier } from '../sprites';
@@ -61,7 +61,7 @@ export class ArenaScreen implements Screen {
   private conditions = el('ul', 'conditions');
   private rewardText = el('div', 'info-line');
   private hintText = el('p', 'hint-text');
-  private relicCard = el('div', 'card');
+  private relicCard = el('div', 'task-relics');
   private relicSlot = el('div');
   private kingBars: Record<'ally' | 'enemy', { fill: HTMLElement; text: HTMLElement }>;
   private battleTime = el('div', 'battle-time');
@@ -145,17 +145,15 @@ export class ArenaScreen implements Screen {
 
     // Side: level info during prep, kings during battle.
     const side = el('aside', 'arena-side');
-    const infoCard = el('div', 'card');
-    const limitLine = el('div', 'info-line');
-    limitLine.append('Фигуры в бою: ', this.limitText, ' + король');
-    infoCard.append(el('div', 'panel-title', 'Задача'), this.enemyText, limitLine, this.conditions, this.rewardText);
-    const hintCard = el('div', 'card hint-card');
-    hintCard.append(el('div', 'panel-title', 'Совет'), this.hintText);
-    const helpCard = el('div', 'card help-card');
-    helpCard.append(el('div', 'panel-title', 'Как расставлять'),
-      el('p', 'hint', 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.'));
-    this.relicCard.append(el('div', 'panel-title', 'Ваши реликвии'), this.relicSlot);
-    this.infoPanel.append(infoCard, hintCard, this.relicCard, helpCard);
+    const infoCard = el('div', 'card task-card');
+    const taskHead = el('div', 'panel-head');
+    taskHead.append(el('span', 'panel-title', 'Задача'), infoBtn('Как играть',
+      'Сразите вражеского короля. Если падёт ваш — бой проигран.\n'
+      + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
+      + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));
+    this.hintText.classList.add('task-hint');
+    infoCard.append(taskHead, this.enemyText, this.conditions, this.rewardText, this.hintText, this.relicCard);
+    this.infoPanel.append(infoCard);
 
     const kingsCard = el('div', 'card');
     kingsCard.append(el('div', 'panel-title', 'Короли'));
@@ -177,9 +175,7 @@ export class ArenaScreen implements Screen {
     };
     this.kingBars = { ally: bar('Ваш король', 'ally'), enemy: bar('Чёрный король', 'enemy') };
     kingsCard.append(this.battleTime);
-    const tipCard = el('div', 'card');
-    tipCard.append(el('div', 'panel-title', 'Победа'), el('p', 'hint', 'Сразите вражеского короля. Если падёт ваш — бой проигран.'));
-    this.battlePanel.append(kingsCard, tipCard);
+    this.battlePanel.append(kingsCard);
     side.append(this.infoPanel, this.battlePanel);
 
     const grid = el('div', 'arena-grid');
@@ -227,30 +223,30 @@ export class ArenaScreen implements Screen {
       : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
     this.board.setTheme(chapter.id);
     const enemies = this.enemies();
-    setText(this.enemyText, `Враги: ${enemies.length} фигур, уровень ${enemies[0]?.level ?? level.level}${level.boss ? ` · босс: ${level.boss}` : ''}`);
+    setText(this.enemyText, `Враги: ${enemies.length} · ур. ${enemies[0]?.level ?? level.level}${level.boss ? ` · ${level.boss}` : ''}`);
     const best = s.stars[level.id] ?? 0;
     this.conditions.innerHTML = '';
     this.conditions.hidden = abyss;
     this.autoBtn2.hidden = !abyss;
     if (abyss) {
       const floor = abyssFloor(this.levelId);
-      setText(this.rewardText, `Победа: +${fmt(Math.round(abyssReward(floor)))} золота, +${shardsForFloor(floor)} ◆ осколков и спуск на этаж ниже`);
+      setText(this.rewardText, `Награда: +${fmt(Math.round(abyssReward(floor)))} золота · +${shardsForFloor(floor)} ◆`);
       setText(this.hintText, level.hint);
       this.relicCard.hidden = s.relics.length === 0;
       this.relicSlot.replaceChildren(relicStrip(s.relics));
       return;
     }
     for (const [i, text] of [
-      'Победить',
-      'Король сохранил не меньше 50% здоровья',
-      `Потерять не больше ${level.maxLosses} фигур`,
+      'Победа',
+      'Король ≥ 50%',
+      `Потери ≤ ${level.maxLosses}`,
     ].entries()) {
       const li = el('li', best > i ? 'done' : '', `★ ${text}`);
       this.conditions.append(li);
     }
     setText(this.rewardText, isCleared(s, level.id)
-      ? `Лучший результат ${stars(best)} · повтор: +${fmt(replayReward(level.id))} золота`
-      : `Награда: +${fmt(firstReward(level.id))} золота и +${levelIncome(level.id)}/мин в казну`);
+      ? `Повтор: +${fmt(replayReward(level.id))} золота`
+      : `Награда: +${fmt(firstReward(level.id))} золота · +${levelIncome(level.id)}/мин`);
     setText(this.hintText, level.hint);
     this.relicCard.hidden = s.relics.length === 0;
     this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -383,9 +379,9 @@ export class ArenaScreen implements Screen {
     content.append(starRow);
     const list = el('ul', 'conditions');
     const items: [boolean, string][] = [
-      [o.conditions.win, 'Победить'],
-      [o.conditions.king, 'Король не ниже 50% здоровья'],
-      [o.conditions.losses, `Потери не больше ${level.maxLosses} (у вас ${this.battle?.allyLosses ?? 0})`],
+      [o.conditions.win, 'Победа'],
+      [o.conditions.king, 'Король ≥ 50%'],
+      [o.conditions.losses, `Потери ${this.battle?.allyLosses ?? 0} из ${level.maxLosses}`],
     ];
     for (const [ok, text] of items) list.append(el('li', ok ? 'done' : 'fail', `${ok ? '✓' : '✗'} ${text}`));
     content.append(list);
@@ -407,7 +403,6 @@ export class ArenaScreen implements Screen {
         content.append(el('div', 'result-reward small',
           `+${fmt(o.reward)} золота за ${Math.round(o.damageShare * 100)}% урона врагу`));
       }
-      content.append(el('p', 'hint-text', level.hint));
     }
 
     const actions = el('div', 'modal-actions result-actions');

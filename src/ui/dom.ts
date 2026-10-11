@@ -77,3 +77,24 @@ export function confirmDialog(title: string, text: string, yesLabel = 'Да'): P
 export function stars(n: number, max = 3): string {
   return '★'.repeat(n) + '☆'.repeat(Math.max(0, max - n));
 }
+
+/** A small "?" button that shows an explanation in a dialog, keeping panels free of long text. */
+export function infoBtn(title: string, text: string | (() => string)): HTMLButtonElement {
+  const b = el('button', 'info-btn', '?');
+  b.type = 'button';
+  b.title = title;
+  b.setAttribute('aria-label', `Подробнее: ${title}`);
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const content = el('div', 'info-dialog');
+    const ok = el('button', 'btn btn-primary', 'Понятно');
+    const actions = el('div', 'modal-actions');
+    actions.append(ok);
+    const body = el('div', 'info-text');
+    for (const line of (typeof text === 'string' ? text : text()).split('\n')) body.append(el('p', '', line));
+    content.append(el('h2', '', title), body, actions);
+    const close = openModal(content);
+    ok.addEventListener('click', close);
+  });
+  return b;
+}

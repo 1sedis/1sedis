@@ -1207,3 +1207,39 @@ img { image-rendering: pixelated; }
 .advice-title { color: var(--ink); font-size: 18px; }
 .advice-sub { color: var(--muted); font-size: 15px; }
 .advice-wide { flex-basis: 100%; }
+
+/* "?" buttons that hide explanations */
+.info-btn {
+  width: 26px; height: 26px; flex: none; padding: 0; border: 0; cursor: pointer;
+  background: var(--card-2); color: var(--muted); font-size: 16px; line-height: 26px;
+  box-shadow: 0 0 0 2px var(--line);
+}
+.info-btn:hover { color: var(--ink); box-shadow: 0 0 0 2px var(--violet); }
+.info-text p { margin: 0 0 10px; color: var(--muted); line-height: 1.45; }
+.panel-head { align-items: center; gap: 8px; }
+.panel-head .panel-title { margin-right: auto; }
+
+/* Compact army rows */
+.row-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row-name .info-btn { margin-left: 4px; }
+.ability-chip {
+  display: inline-block; padding: 1px 8px; font-size: 14px; white-space: nowrap;
+  background: var(--bg); color: var(--muted); box-shadow: 0 0 0 2px var(--line);
+}
+.ability-chip.learned { color: #8fd3ff; box-shadow: 0 0 0 2px #2f6f9a; }
+.army-row .row-meta { margin-top: 6px; }
+.army-row .row-name .row-level { display: inline; margin: 0; font-size: 16px; }
+
+/* Single compact task card in the arena */
+.task-card { display: flex; flex-direction: column; gap: 8px; }
+.task-card .panel-head { margin-bottom: 0; }
+.task-card .conditions { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; }
+.task-card .info-line { margin: 0; }
+.task-hint { margin: 2px 0 0; padding-left: 10px; color: var(--muted); font-size: 15px; line-height: 1.4; box-shadow: inset 3px 0 0 var(--violet); }
+.task-relics:not([hidden]) { padding-top: 4px; }
+.task-relics .relic-strip { padding: 4px 0; }
+.treasury-info { margin-top: 2px; }
+.abyss-img { right: 54px; top: 10px; width: 36px; height: 36px; }
+@media (min-width: 561px) { .army-row .row-actions { flex-direction: row; } }
+.camp-altar .row-name, .camp-buildings .row-name { flex-wrap: wrap; }
+.result .conditions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; }

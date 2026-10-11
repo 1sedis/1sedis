@@ -7,12 +7,17 @@ import {
   upgradeCost, upgradePiece, type BuildingId,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
-import { el, pulse, setText, toast } from '../dom';
+import { el, infoBtn, pulse, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { audio } from '../audio';
 import { spriteUrl, type Tier } from '../sprites';
 
 const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen'];
+const SHORT_ALTAR: Record<AltarId, string> = {
+  darkSteel: '+4% к атаке', deepHide: '+4% к здоровью', mantle: '+20% здоровья короля',
+  voidGold: '+10% к золоту', veterans: '+1 ур. фигур в новой партии', echo: '+1 реликвия в новой партии',
+};
+const SHORT_BUILDING: Record<BuildingId, string> = { treasury: '+25% дохода казны', hq: '+1 фигура в бою', forge: '+6% к силе армии' };
 
 interface ArmyRow {
   kind: PieceKind;
@@ -40,21 +45,29 @@ export class CampScreen implements Screen {
     const back = el('button', 'btn btn-ghost', '← Карта');
     back.addEventListener('click', () => this.ctx.go('map'));
     const titles = el('div', 'arena-titles');
-    titles.append(el('h1', 'arena-title', 'Улучшения'), el('div', 'arena-sub', 'Нанимайте фигуры и повышайте их уровень: он действует на все фигуры этого типа'));
+    titles.append(el('h1', 'arena-title', 'Улучшения'));
     top.append(back, titles);
 
     const army = el('div', 'card camp-army');
-    army.append(el('div', 'panel-title', 'Армия'));
+    const armyHead = el('div', 'panel-head');
+    armyHead.append(el('span', 'panel-title', 'Армия'), infoBtn('Армия',
+      'Нанимайте фигуры и повышайте уровень типа: он действует на все фигуры этого типа, +18% к силе за уровень.\n'
+      + `На ${ABILITY_LEVELS[0]}-м уровне фигура получает приём и стальную броню, на ${ABILITY_LEVELS[1]}-м приём усиливается, броня становится золотой.`));
+    army.append(armyHead);
     for (const kind of ARMY_ORDER) army.append(this.buildArmyRow(kind));
 
     const buildings = el('div', 'card camp-buildings');
-    buildings.append(el('div', 'panel-title', 'Постройки'));
+    const bHead = el('div', 'panel-head');
+    bHead.append(el('span', 'panel-title', 'Постройки'), infoBtn('Постройки',
+      BUILDING_ORDER.map((id) => `${BUILDINGS[id].name}: ${BUILDINGS[id].description}.`).join('\n')));
+    buildings.append(bHead);
     for (const id of BUILDING_ORDER) buildings.append(this.buildBuildingRow(id));
 
     const altarHead = el('div', 'panel-head');
-    altarHead.append(el('span', 'panel-title', 'Алтарь бездны'), this.shardCount);
-    this.altarCard.append(altarHead,
-      el('p', 'hint', 'Осколки добываются только в Бездне. Улучшения алтаря остаются навсегда, даже после новой партии.'));
+    altarHead.append(el('span', 'panel-title', 'Алтарь бездны'), this.shardCount, infoBtn('Алтарь бездны',
+      'Осколки ◆ добываются только в Бездне.\nУлучшения алтаря остаются навсегда, даже после новой партии.\n'
+      + ALTAR_ORDER.map((id) => `${ALTAR[id].name}: ${ALTAR[id].description}.`).join('\n')));
+    this.altarCard.append(altarHead);
     for (const id of ALTAR_ORDER) this.altarCard.append(this.buildAltarRow(id));
     const sideCol = el('div', 'camp-side');
     sideCol.append(buildings, this.altarCard);
@@ -72,11 +85,12 @@ export class CampScreen implements Screen {
     icon.alt = '';
     const body = el('div', 'row-body');
     const name = el('div', 'row-name', def.name);
-    name.append(el('span', 'row-role', ` · ${def.role}`));
-    const meta = el('div', 'row-level');
+    const meta = el('span', 'row-level');
+    name.append(' ', meta, infoBtn(def.name, () => this.pieceInfo(kind)));
     const stats = el('div', 'row-meta');
-    const ability = el('div', 'row-ability');
-    body.append(name, el('div', 'row-desc', def.description), stats, ability, meta);
+    const ability = el('span', 'ability-chip');
+    stats.append(ability);
+    body.append(name, stats);
     const actions = el('div', 'row-actions');
     const recruitBtn = el('button', 'btn btn-buy');
     recruitBtn.addEventListener('click', () => {
@@ -119,7 +133,7 @@ export class CampScreen implements Screen {
     const level = el('span', 'row-level');
     const name = el('div', 'row-name', def.name);
     name.append(' ', level);
-    body.append(name, el('div', 'row-desc', def.description));
+    body.append(name, el('div', 'row-desc', SHORT_BUILDING[id]));
     const btn = el('button', 'btn btn-buy');
     btn.addEventListener('click', () => {
       if (buyBuilding(this.ctx.state, id)) {
@@ -140,7 +154,7 @@ export class CampScreen implements Screen {
     const level = el('span', 'row-level');
     const name = el('div', 'row-name', def.name);
     name.append(' ', level);
-    body.append(name, el('div', 'row-desc', def.description));
+    body.append(name, el('div', 'row-desc', SHORT_ALTAR[id]));
     const btn = el('button', 'btn btn-shard');
     btn.addEventListener('click', () => {
       if (buyAltar(this.ctx.state, id)) {
@@ -154,6 +168,20 @@ export class CampScreen implements Screen {
     return root;
   }
 
+  /** Full description behind the "?" of a piece row. */
+  private pieceInfo(kind: PieceKind): string {
+    const def = PIECES[kind];
+    const ab = ABILITIES[kind];
+    const [lv1, lv2] = ABILITY_LEVELS;
+    const unlock = UNLOCKED_BY[kind];
+    return [
+      `${def.role}. ${def.description}`,
+      `★ «${ab.name}» с ур. ${lv1}: ${ab.tiers[0]}`,
+      `★★ С ур. ${lv2}: ${ab.tiers[1]}`,
+      ...(isUnlocked(this.ctx.state, kind) || !unlock ? [] : [`🔒 Откроется после боя ${unlock} «${getLevel(unlock).name}».`]),
+    ].join('\n');
+  }
+
   show(): void {}
 
   frame(): void {
@@ -165,24 +193,21 @@ export class CampScreen implements Screen {
       row.root.classList.toggle('locked', !unlocked);
       const lvl = s.levels[row.kind];
       const m = levelMultiplier(lvl) * forge;
-      setText(row.stats, unlocked
-        ? `❤ ${fmt(def.hp * m)}   ⚔ ${fmt(def.atk * m)}${def.range ? `   ◎ ${def.range}` : ''}`
-        : `Откроется после боя ${UNLOCKED_BY[row.kind]} «${getLevel(UNLOCKED_BY[row.kind]!).name}»`);
-      const armor = ['обычная броня, стальная с ур. 5', 'стальная броня, золотая с ур. 10', 'золотая броня'][abilityTier(lvl)];
-      setText(row.meta, unlocked ? `Уровень ${lvl} · ${armor} · в армии ${s.army[row.kind]}` : '');
-      const ab = ABILITIES[row.kind];
       const tier = abilityTier(lvl);
+      const stats = unlocked
+        ? `❤ ${fmt(def.hp * m)}  ⚔ ${fmt(def.atk * m)}${def.range ? `  ◎ ${def.range}` : ''}  `
+        : `🔒 после ${UNLOCKED_BY[row.kind]}  `;
+      if (row.stats.firstChild?.nodeType !== Node.TEXT_NODE) row.stats.prepend('');
+      if (row.stats.firstChild!.textContent !== stats) row.stats.firstChild!.textContent = stats;
+      setText(row.meta, unlocked ? `ур. ${lvl}${row.kind === 'king' ? '' : ` · ×${s.army[row.kind]}`}` : '');
+      const ab = ABILITIES[row.kind];
+      setText(row.ability, `${tier === 2 ? '★★' : '★'} ${ab.name}`);
+      row.ability.title = tier === 0 ? `С ур. ${ABILITY_LEVELS[0]}: ${ab.tiers[0]}` : ab.tiers[tier - 1];
+      row.ability.classList.toggle('learned', tier > 0);
+      row.ability.hidden = !unlocked;
       const src = spriteUrl(row.kind, 'ally', tier as Tier);
       if (row.icon.src !== src) row.icon.src = src;
       row.icon.classList.toggle('tier-2', tier === 2);
-      const [lv1, lv2] = ABILITY_LEVELS;
-      setText(row.ability, tier === 0
-        ? `★ «${ab.name}» с ур. ${lv1}: ${ab.tiers[0]}`
-        : tier === 1
-          ? `★ «${ab.name}»: ${ab.tiers[0]} С ур. ${lv2}: ${ab.tiers[1]}`
-          : `★★ «${ab.name}»: ${ab.tiers[0]} ${ab.tiers[1]}`);
-      row.ability.classList.toggle('learned', tier > 0);
-      row.ability.hidden = !unlocked;
 
       const maxedQueen = row.kind === 'queen' && s.army.queen >= 1;
       const rCost = recruitCost(s, row.kind);
