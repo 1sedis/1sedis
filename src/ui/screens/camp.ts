@@ -1,8 +1,9 @@
 import { UNLOCKED_BY, getLevel } from '../../game/levels';
 import { ABILITIES, ABILITY_LEVELS, abilityTier } from '../../game/abilities';
+import { ALTAR, ALTAR_ORDER, type AltarId } from '../../game/altar';
 import { PIECES, levelMultiplier, type PieceKind } from '../../game/pieces';
 import {
-  BUILDINGS, BUILDING_ORDER, buildingCost, buyBuilding, forgeMultiplier, isUnlocked, recruit, recruitCost,
+  BUILDINGS, BUILDING_ORDER, altarCost, buildingCost, buyAltar, buyBuilding, isAbyssOpen, forgeMultiplier, isUnlocked, recruit, recruitCost,
   upgradeCost, upgradePiece, type BuildingId,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
@@ -30,6 +31,9 @@ export class CampScreen implements Screen {
   readonly root = el('section', 'camp-screen');
   private armyRows: ArmyRow[] = [];
   private buildingRows: BuildingRow[] = [];
+  private altarCard = el('div', 'card camp-altar');
+  private shardCount = el('span', 'shard-count');
+  private altarRows: { id: AltarId; level: HTMLElement; btn: HTMLButtonElement }[] = [];
 
   constructor(private ctx: Ctx) {
     const top = el('div', 'arena-top');
@@ -47,8 +51,16 @@ export class CampScreen implements Screen {
     buildings.append(el('div', 'panel-title', 'Постройки'));
     for (const id of BUILDING_ORDER) buildings.append(this.buildBuildingRow(id));
 
+    const altarHead = el('div', 'panel-head');
+    altarHead.append(el('span', 'panel-title', 'Алтарь бездны'), this.shardCount);
+    this.altarCard.append(altarHead,
+      el('p', 'hint', 'Осколки добываются только в Бездне. Улучшения алтаря остаются навсегда, даже после новой партии.'));
+    for (const id of ALTAR_ORDER) this.altarCard.append(this.buildAltarRow(id));
+    const sideCol = el('div', 'camp-side');
+    sideCol.append(buildings, this.altarCard);
+
     const grid = el('div', 'camp-grid');
-    grid.append(army, buildings);
+    grid.append(army, sideCol);
     this.root.append(top, grid);
   }
 
@@ -121,6 +133,27 @@ export class CampScreen implements Screen {
     return root;
   }
 
+  private buildAltarRow(id: AltarId): HTMLElement {
+    const def = ALTAR[id];
+    const root = el('div', 'row');
+    const body = el('div', 'row-body');
+    const level = el('span', 'row-level');
+    const name = el('div', 'row-name', def.name);
+    name.append(' ', level);
+    body.append(name, el('div', 'row-desc', def.description));
+    const btn = el('button', 'btn btn-shard');
+    btn.addEventListener('click', () => {
+      if (buyAltar(this.ctx.state, id)) {
+        pulse(btn);
+        audio.play('relic');
+        this.ctx.save();
+      }
+    });
+    root.append(el('div', 'row-badge badge-shard'), body, btn);
+    this.altarRows.push({ id, level, btn });
+    return root;
+  }
+
   show(): void {}
 
   frame(): void {
@@ -166,6 +199,17 @@ export class CampScreen implements Screen {
       'Уровень усиливает все фигуры этого типа. На 5-м уровне фигура выучит особый приём.')
       || (isUnlocked(s, 'knight') && s.army.knight === 0 && this.ctx.tip('t_knight', knightRow?.recruitBtn,
         'Конь открыт! Наймите его: он прыгает через строй и охотится на стрелков и короля.')));
+    this.altarCard.hidden = !isAbyssOpen(s) && s.shards === 0 && ALTAR_ORDER.every((id) => s.altar[id] === 0);
+    setText(this.shardCount, `◆ ${fmt(s.shards)}`);
+    for (const row of this.altarRows) {
+      const def = ALTAR[row.id];
+      const lvl = s.altar[row.id];
+      const maxed = lvl >= def.maxLevel;
+      setText(row.level, `${lvl}/${def.maxLevel}`);
+      const cost = altarCost(s, row.id);
+      setText(row.btn, maxed ? 'Макс.' : `◆ ${fmt(cost)}`);
+      row.btn.disabled = maxed || s.shards < cost;
+    }
     for (const row of this.buildingRows) {
       const def = BUILDINGS[row.id];
       const lvl = s.buildings[row.id];

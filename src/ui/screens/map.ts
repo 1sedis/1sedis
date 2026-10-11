@@ -204,7 +204,7 @@ export class MapScreen implements Screen {
     this.relicBtn.hidden = s.relicPicks <= 0;
     const abyssOpen = isAbyssOpen(s);
     setText(this.abyssInfo, abyssOpen
-      ? `Бесконечные этажи с растущими врагами. Этаж ${s.abyss.floor} · рекорд ${s.abyss.best}. Каждые 10 этажей — страж и реликвия.`
+      ? `Этаж ${s.abyss.floor} · рекорд ${s.abyss.best} · ◆ ${fmt(s.shards)} осколков. Осколки дают вечные улучшения в Алтаре бездны; каждые 10 этажей — страж и реликвия.`
       : `Откроется после победы над боссом «${getLevel(ABYSS_UNLOCK).boss}» (${ABYSS_UNLOCK}).`);
     this.abyssBtn.hidden = !abyssOpen;
     this.abyssCard.classList.toggle('locked', !abyssOpen);

@@ -31,6 +31,8 @@ export interface BattleSetup {
   /** Extra multipliers for the player's army (buildings etc.). */
   allyHpMult?: number;
   allyAtkMult?: number;
+  /** Extra health multiplier for the player's king. */
+  allyKingHpMult?: number;
   /** Relics owned by the player; they only affect allies. */
   relics?: RelicId[];
 }
@@ -149,7 +151,10 @@ export function createBattle(setup: BattleSetup): Battle {
   const march = relics.has('forcedMarch') ? 0.6 : 1;
   let uid = 1;
   const units: Unit[] = [];
-  for (const p of setup.allies) units.push(makeUnit(uid++, 'ally', p, hp, atk, march, true));
+  for (const p of setup.allies) {
+    const kingHp = p.kind === 'king' ? setup.allyKingHpMult ?? 1 : 1;
+    units.push(makeUnit(uid++, 'ally', p, hp * kingHp, atk, march, true));
+  }
   for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1, 1, true));
   return { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
     allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 } };

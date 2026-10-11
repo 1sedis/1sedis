@@ -5,6 +5,7 @@ import {
   replayReward,
 } from '../../game/levels';
 import { ABILITIES, abilityTier } from '../../game/abilities';
+import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
   available, battleSetup, clearFormation, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
@@ -220,7 +221,8 @@ export class ArenaScreen implements Screen {
     this.conditions.hidden = abyss;
     this.autoBtn2.hidden = !abyss;
     if (abyss) {
-      setText(this.rewardText, `Победа: +${fmt(Math.round(abyssReward(abyssFloor(this.levelId))))} золота и спуск на этаж ниже`);
+      const floor = abyssFloor(this.levelId);
+      setText(this.rewardText, `Победа: +${fmt(Math.round(abyssReward(floor)))} золота, +${shardsForFloor(floor)} ◆ осколков и спуск на этаж ниже`);
       setText(this.hintText, level.hint);
       this.relicCard.hidden = s.relics.length === 0;
       this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -340,7 +342,7 @@ export class ArenaScreen implements Screen {
     audio.play(outcome.win ? 'win' : 'lose');
     // Auto-descent: skip the dialog and go straight to the next floor.
     if (outcome.win && isAbyss(this.levelId) && this.autoDescend && outcome.relicsEarned === 0) {
-      toast(`Этаж ${abyssFloor(this.levelId)} пройден: +${fmt(outcome.reward)} золота`, 'good');
+      toast(`Этаж ${abyssFloor(this.levelId)}: +${fmt(outcome.reward)} золота, +${outcome.shards} ◆`, 'good');
       this.autoTimer = window.setTimeout(() => {
         this.autoTimer = null;
         if (!this.root.isConnected || this.root.closest('[hidden]') || this.phase !== 'result') return;
@@ -379,6 +381,7 @@ export class ArenaScreen implements Screen {
     if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', 'Новая реликвия! Выберите одну из трёх.'));
     if (o.win) {
       content.append(el('div', 'result-reward', `+${fmt(o.reward)} золота`));
+      if (o.shards > 0) content.append(el('div', 'result-unlock shard', `+${o.shards} ◆ осколков бездны — потратьте их в Алтаре бездны`));
       if (o.firstClear) {
         content.append(el('div', 'result-unlock', `Земля захвачена: +${levelIncome(this.levelId)} золота/мин в казну`));
         const unlocked = (Object.keys(UNLOCKED_BY) as PieceKind[]).find((k) => UNLOCKED_BY[k] === this.levelId);

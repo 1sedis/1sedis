@@ -3,18 +3,15 @@ import { chooseRelic, relicOffer } from '../game/state';
 import { audio } from './audio';
 import type { Ctx } from './context';
 import { el, openModal, toast } from './dom';
-import { spriteUrl } from './sprites';
+import { relicIconUrl } from './relicIcons';
 
-/** Small square icon for a relic: the related piece, or a coin for economy relics. */
+/** Small framed pixel icon for a relic. */
 export function relicIcon(id: RelicId): HTMLElement {
-  const def = RELICS[id];
-  const box = el('span', `relic-icon${def.icon === 'gold' ? ' gold' : ''}`);
-  if (def.icon !== 'gold') {
-    const img = el('img');
-    img.src = spriteUrl(def.icon, 'ally');
-    img.alt = '';
-    box.append(img);
-  }
+  const box = el('span', 'relic-icon');
+  const img = el('img');
+  img.src = relicIconUrl(id);
+  img.alt = '';
+  box.append(img);
   return box;
 }
 

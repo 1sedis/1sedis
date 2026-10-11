@@ -882,23 +882,6 @@ img { image-rendering: pixelated; }
   box-shadow: 0 0 0 2px var(--violet);
 }
 .relic-icon img { width: 32px; height: 32px; }
-.relic-icon::after {
-  content: '';
-  position: absolute;
-  right: -3px;
-  top: -3px;
-  width: 8px;
-  height: 8px;
-  background: var(--coral);
-  box-shadow: 0 0 0 2px var(--bg);
-}
-.relic-icon.gold::before {
-  content: '';
-  width: 20px;
-  height: 20px;
-  background: var(--gold);
-  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
-}
 .relic-strip { display: flex; flex-wrap: wrap; gap: 12px; padding: 4px; }
 .relics-card .btn { width: calc(100% - 8px); margin-top: 12px; }
 
@@ -1185,3 +1168,12 @@ img { image-rendering: pixelated; }
 .abyss-img { position: absolute; right: 16px; top: 12px; width: 44px; height: 44px; filter: drop-shadow(0 0 8px rgba(255, 79, 123, 0.7)); animation: bob 1.2s steps(2) infinite; }
 .abyss-card.locked .abyss-img { filter: brightness(0.4); animation: none; }
 .prestige-card { --frame: var(--gold-deep); }
+
+/* ---------- Abyss shards & altar ---------- */
+.camp-side { display: flex; flex-direction: column; gap: 28px; }
+.camp-altar { display: flex; flex-direction: column; gap: 14px; background: linear-gradient(180deg, var(--card), #150f2c); --frame: #4b2f86; }
+.shard-count { color: #c9a6ff; font-size: 20px; }
+.btn-shard { --face: #8a5cf0; --frame: #3a2075; --depth: #261550; color: #fff; min-width: 92px; }
+.badge-shard::after { background: #c9a6ff; clip-path: polygon(50% 0, 90% 35%, 50% 100%, 10% 35%); }
+.result-unlock.shard { color: #c9a6ff; }
+.relic-icon img { width: 34px; height: 34px; }

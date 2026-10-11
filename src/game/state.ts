@@ -5,6 +5,7 @@ import {
 } from './levels';
 import { PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
+import { ALTAR, emptyAltar, shardsForFloor, type AltarId } from './altar';
 import { RELICS, STARS_PER_RELIC, rollOffer, type RelicId } from './relics';
 
 /** Rows the player may deploy on (bottom three rows). */
@@ -67,6 +68,9 @@ export interface GameState {
   prestige: number;
   /** Next abyss floor to fight and the deepest floor ever cleared. */
   abyss: { floor: number; best: number };
+  /** Abyss shards and Altar of the Abyss perk levels; both survive a new game. */
+  shards: number;
+  altar: Record<AltarId, number>;
   stats: {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
@@ -103,6 +107,8 @@ export function newGame(now = Date.now()): GameState {
     crowns: 0,
     prestige: 0,
     abyss: { floor: 1, best: 0 },
+    shards: 0,
+    altar: emptyAltar(),
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
       flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
@@ -173,9 +179,22 @@ export function crownStatMultiplier(s: GameState): number {
   return 1 + 0.02 * s.crowns;
 }
 
-/** Gold from battles and the treasury: +4% per crown, +50% per prestige. */
+/** Gold from battles and the treasury: +4% per crown, +50% per prestige, +10% per "Золото бездны". */
 export function goldMultiplier(s: GameState): number {
-  return (1 + 0.04 * s.crowns) * (1 + 0.5 * s.prestige);
+  return (1 + 0.04 * s.crowns) * (1 + 0.5 * s.prestige) * (1 + 0.1 * s.altar.voidGold);
+}
+
+export function altarCost(s: GameState, id: AltarId): number {
+  const def = ALTAR[id];
+  return Math.round(def.baseCost * def.growth ** s.altar[id]);
+}
+
+export function buyAltar(s: GameState, id: AltarId): boolean {
+  const cost = altarCost(s, id);
+  if (s.altar[id] >= ALTAR[id].maxLevel || s.shards < cost) return false;
+  s.shards -= cost;
+  s.altar[id]++;
+  return true;
 }
 
 /** Enemy levels added by the current prestige. */
@@ -342,7 +361,13 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
   const m = forgeMultiplier(s) * crownStatMultiplier(s);
   const bonus = prestigeEnemyBonus(s);
   const enemies = enemyPlacements(getLevel(levelId)).map((p) => ({ ...p, level: p.level + bonus }));
-  return { allies, enemies, allyHpMult: m, allyAtkMult: m, relics: [...s.relics] };
+  return {
+    allies, enemies,
+    allyHpMult: m * (1 + 0.04 * s.altar.deepHide),
+    allyAtkMult: m * (1 + 0.04 * s.altar.darkSteel),
+    allyKingHpMult: 1 + 0.2 * s.altar.mantle,
+    relics: [...s.relics],
+  };
 }
 
 // ---------- Results ----------
@@ -357,6 +382,8 @@ export interface BattleOutcome {
   conditions: { win: boolean; king: boolean; losses: boolean };
   /** Relic picks earned by this battle. */
   relicsEarned: number;
+  /** Abyss shards earned by this battle. */
+  shards: number;
 }
 
 export function recordResult(s: GameState, levelId: string, b: Battle): BattleOutcome {
@@ -388,7 +415,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   s.relicPicks += relicsEarned;
   s.gold += reward;
   countBattle(s, b, win, reward);
-  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned };
+  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0 };
 }
 
 function countBattle(s: GameState, b: Battle, win: boolean, reward: number): void {
@@ -408,7 +435,10 @@ function recordAbyss(s: GameState, levelId: string, b: Battle, stars: number, co
   const win = b.result === 'win';
   let reward = 0;
   let relicsEarned = 0;
+  let shards = 0;
   if (win) {
+    shards = shardsForFloor(floor);
+    s.shards += shards;
     reward = abyssReward(floor) * (hasRelic(s, 'plunder') ? 1.3 : 1);
     reward = Math.round(reward * goldMultiplier(s));
     s.abyss.floor = floor + 1;
@@ -418,7 +448,7 @@ function recordAbyss(s: GameState, levelId: string, b: Battle, stars: number, co
     s.gold += reward;
   }
   countBattle(s, b, win, reward);
-  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned };
+  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards };
 }
 
 // ---------- Prestige ----------
@@ -446,6 +476,11 @@ export function prestige(s: GameState, now = Date.now()): number {
   fresh.tutorial = s.tutorial;
   fresh.stats = s.stats;
   fresh.abyss = { floor: 1, best: s.abyss.best };
+  fresh.shards = s.shards;
+  fresh.altar = s.altar;
+  // Altar perks that shape the new run.
+  for (const kind of Object.keys(fresh.levels) as PieceKind[]) fresh.levels[kind] = 1 + s.altar.veterans;
+  fresh.relicPicks = s.altar.echo;
   Object.assign(s, fresh);
   return gained;
 }
@@ -525,6 +560,7 @@ export function loadGame(now = Date.now()): { state: GameState; offlineGold: num
           buildings: { ...state.buildings, ...data.buildings },
           stats: { ...state.stats, ...data.stats },
           abyss: { ...state.abyss, ...data.abyss },
+          altar: { ...state.altar, ...data.altar },
         } as GameState;
       }
     }
