@@ -1990,13 +1990,13 @@ body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles { animation:
 .cinema-bars::after { bottom: 0; }
 .cinema-bars.on::before, .cinema-bars.on::after { height: 9vh; }
 .scene-thunder { position: fixed; inset: 0; z-index: 166; pointer-events: none; background: radial-gradient(ellipse at 50% 0%, #fff, #c9d8ff 40%, #6a6aff00 80%); opacity: 0; }
-.scene-embers { position: fixed; inset: 0; z-index: 164; pointer-events: none; opacity: 0; transition: opacity 1s;
-  background-image: radial-gradient(circle, #ff7a3d 0 2px, transparent 3px), radial-gradient(circle, #ffcf4a 0 1.5px, transparent 2.5px),
-    radial-gradient(circle, #ff4f7b 0 1.5px, transparent 2.5px);
-  background-size: 140px 180px, 90px 130px, 210px 240px; background-position: 0 0, 40px 60px, 100px 20px;
-  animation: ember-fall 6s linear infinite; }
+.scene-embers { position: fixed; inset: 0; z-index: 164; pointer-events: none; opacity: 0; transition: opacity 1s; overflow: hidden; }
 .scene-embers.on { opacity: 1; }
-@keyframes ember-fall { to { background-position: 30px 180px, 60px 190px, 130px 260px; } }
+.scene-embers span { position: absolute; top: 0; width: 4px; height: 4px; background: #ff7a3d; box-shadow: 0 0 6px #ff4f1d;
+  will-change: transform; animation: ember-fall linear infinite; }
+.scene-embers span:nth-child(3n) { background: #ffcf4a; }
+.scene-embers span:nth-child(4n) { background: #ff4f7b; }
+@keyframes ember-fall { from { transform: translate3d(0, -20px, 0); } to { transform: translate3d(40px, 105vh, 0); } }
 .scene-spark { position: absolute; width: 12.5%; height: 12.5%; translate: -50% -50%; z-index: 4; pointer-events: none;
   background: radial-gradient(circle, #fff 0 10%, #ffcf4a 25%, #ff7a3d 45%, transparent 70%); animation: spark-burst 0.35s ease-out forwards; }
 @keyframes spark-burst { from { scale: 0.3; opacity: 1; } to { scale: 2.2; opacity: 0; } }
@@ -2008,8 +2008,15 @@ body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles { animation:
 .scene-big-title-sub { margin-top: 18px; font-size: clamp(16px, 3.5vw, 24px); color: #e6dcff; opacity: 0; animation: sub-in 0.6s 0.6s ease-out forwards; }
 @keyframes sub-in { to { opacity: 1; } }
 @keyframes title-slam { from { scale: 3.5; opacity: 0; filter: blur(4px); } 70% { scale: 0.92; opacity: 1; filter: none; } }
-@media (prefers-reduced-motion: reduce) { .scene-embers, .scene-big-title-main { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .scene-embers span, .scene-big-title-main { animation: none; } }
 
 /* While a scene plays on its own board, the page underneath stops drawing. */
 body.staging #app { visibility: hidden; }
 .stage-overlay .actor-sprite { animation: none; }
+
+/* Phones: no filters on pieces in scenes (Safari renders each one offscreen and runs out of memory). */
+@media (pointer: coarse) {
+  .actor .actor-sprite, .actor.boss .actor-sprite, .actor.king.enemy .actor-sprite, .actor.roaring .actor-sprite { filter: none; }
+  .actor.glowing .actor-sprite { filter: brightness(1.4); }
+  .scene-embers span { box-shadow: none; }
+}

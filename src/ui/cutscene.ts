@@ -525,8 +525,17 @@ export class Stage {
       }
       case 'embers': {
         let field = this.extras.find((e) => e.classList.contains('scene-embers'));
-        // One layer of tiled embers drifting down: cheap enough for phones.
-        if (s.on && !field) field = this.extra('scene-embers');
+        // A dozen embers moved by the GPU alone (transform only): nothing gets repainted per frame.
+        if (s.on && !field) {
+          field = this.extra('scene-embers');
+          for (let i = 0; i < 12; i++) {
+            const e = el('span');
+            e.style.left = `${(i * 41 + 7) % 100}%`;
+            e.style.animationDelay = `${-(i % 6) * 0.9}s`;
+            e.style.animationDuration = `${5 + (i % 4)}s`;
+            field.append(e);
+          }
+        }
         field?.classList.toggle('on', s.on);
         return;
       }
