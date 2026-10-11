@@ -1,4 +1,5 @@
 import { KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
+import { ABILITIES, abilityTier } from './abilities';
 import type { RelicId } from './relics';
 
 export const BOARD_SIZE = 8;
@@ -58,12 +59,25 @@ export interface Unit {
   pawnMoveMult: number;
   /** Extra attack multiplier gained during the battle. */
   buff: number;
+  /** Ability tier: 0 none, 1 learned, 2 empowered. */
+  tier: 0 | 1 | 2;
+  /** Ticks until the active ability is ready. */
+  abilityTimer: number;
+  strikes: number;
+  /** Damage absorbed before HP (pawn shield). */
+  shield: number;
+  maxShield: number;
+  /** Battle-cry buff: active until this tick, with this multiplier. */
+  rallyUntil: number;
+  rallyMult: number;
   /** Has struck at least once. */
   struck: boolean;
 }
 
 export interface BattleEvent {
-  type: 'hit' | 'death' | 'promote' | 'heal' | 'save';
+  type: 'hit' | 'death' | 'promote' | 'heal' | 'save' | 'ability' | 'shieldBreak';
+  /** Ability name for 'ability' events. */
+  label?: string;
   uid: number;
   side: Side;
   x: number;
@@ -105,7 +119,7 @@ function applyStats(u: Unit, kind: PieceKind): void {
   u.moveCd = Math.round(def.moveCd * (kind === 'pawn' ? u.pawnMoveMult : 1));
 }
 
-function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult: number, pawnMoveMult = 1): Unit {
+function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult: number, pawnMoveMult = 1, abilities = false): Unit {
   const boss = !!p.boss;
   const u: Unit = {
     uid, side, kind: p.kind, level: p.level, boss, promoted: false,
@@ -113,9 +127,14 @@ function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult
     hpMult: hpMult * (boss ? BOSS_HP : 1),
     atkMult: atkMult * (boss ? BOSS_ATK : 1),
     pawnMoveMult, buff: 1, struck: false,
+    tier: abilities ? abilityTier(p.level) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
   };
   applyStats(u, p.kind);
   u.hp = u.maxHp;
+  resetAbilityTimer(u, 0.5);
+  if (u.kind === 'pawn' && u.tier > 0) {
+    u.shield = u.maxShield = u.maxHp * (u.tier === 2 ? 0.6 : 0.3);
+  }
   // Stagger the first actions a little so mirrored armies do not act in lockstep.
   u.wait = uid % 3;
   return u;
@@ -128,8 +147,8 @@ export function createBattle(setup: BattleSetup): Battle {
   const march = relics.has('forcedMarch') ? 0.6 : 1;
   let uid = 1;
   const units: Unit[] = [];
-  for (const p of setup.allies) units.push(makeUnit(uid++, 'ally', p, hp, atk, march));
-  for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1));
+  for (const p of setup.allies) units.push(makeUnit(uid++, 'ally', p, hp, atk, march, true));
+  for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1, 1, true));
   return { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false };
 }
 
@@ -210,14 +229,104 @@ function pickTarget(u: Unit, targets: Unit[]): Unit {
   return [...targets].sort((a, c) => priority(a) - priority(c) || a.hp - c.hp || a.uid - c.uid)[0];
 }
 
-function strike(b: Battle, u: Unit, target: Unit): void {
+function resetAbilityTimer(u: Unit, share = 1): void {
+  u.abilityTimer = Math.round(ABILITIES[u.kind].cooldown * share);
+}
+
+/** Attack power of a unit right now, with aura, buffs and battle cry. */
+function baseDamage(b: Battle, u: Unit): number {
   let damage = u.atk * auraBonus(b, u) * u.buff;
+  if (b.tick < u.rallyUntil) damage *= u.rallyMult;
   if (has(b, u.side, 'warCry') && b.tick <= 60) damage *= 1.35;
+  return damage;
+}
+
+function chebyshev(a: { x: number; y: number }, x: number, y: number): number {
+  return Math.max(Math.abs(a.x - x), Math.abs(a.y - y));
+}
+
+function abilityEvent(b: Battle, u: Unit): void {
+  b.events.push({
+    type: 'ability', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0,
+    fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, label: ABILITIES[u.kind].name,
+  });
+}
+
+/** Cast the unit's active ability if it is ready and useful. Returns true when cast. */
+function tryCast(b: Battle, u: Unit): boolean {
+  if (u.tier === 0 || u.abilityTimer > 0 || ABILITIES[u.kind].cooldown === 0) return false;
+  const strong = u.tier === 2;
+  const friends = alive(b, u.side);
+  const foes = alive(b, u.side === 'ally' ? 'enemy' : 'ally');
+  switch (u.kind) {
+    case 'king': {
+      const targets = friends.filter((f) => f !== u && (strong || chebyshev(u, f.x, f.y) <= 2));
+      if (!targets.length) return false;
+      abilityEvent(b, u);
+      for (const f of targets) {
+        f.rallyUntil = b.tick + 30;
+        f.rallyMult = strong ? 1.4 : 1.25;
+      }
+      break;
+    }
+    case 'bishop': {
+      const wounded = friends
+        .filter((f) => chebyshev(u, f.x, f.y) <= 3 && f.hp < f.maxHp * 0.9)
+        .sort((a, c) => a.hp / a.maxHp - c.hp / c.maxHp)[0];
+      if (!wounded) return false;
+      abilityEvent(b, u);
+      const amount = Math.min(wounded.maxHp - wounded.hp, wounded.maxHp * (strong ? 0.35 : 0.2));
+      wounded.hp += amount;
+      b.events.push({ type: 'heal', uid: wounded.uid, side: wounded.side, x: wounded.x, y: wounded.y, amount, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind });
+      break;
+    }
+    case 'rook': {
+      // The file or rank with the most enemies, shooting through everything.
+      let line: Unit[] = [];
+      for (const [dx, dy] of lineDirections('rook')) {
+        const hits = foes.filter((f) => {
+          const ox = f.x - u.x;
+          const oy = f.y - u.y;
+          return (dx ? Math.sign(ox) === dx && oy === 0 : Math.sign(oy) === dy && ox === 0);
+        });
+        if (hits.length > line.length) line = hits;
+      }
+      if (!line.length) return false;
+      abilityEvent(b, u);
+      const damage = baseDamage(b, u) * (strong ? 1.3 : 0.8);
+      for (const f of line) dealDamage(b, u, f, damage, false);
+      break;
+    }
+    case 'queen': {
+      const near = foes.filter((f) => chebyshev(u, f.x, f.y) <= 2);
+      if (!near.length) return false;
+      abilityEvent(b, u);
+      const damage = baseDamage(b, u) * (strong ? 1 : 0.6);
+      for (const f of near) dealDamage(b, u, f, damage, false);
+      break;
+    }
+    default:
+      return false;
+  }
+  resetAbilityTimer(u);
+  u.wait = u.attackCd;
+  return true;
+}
+
+function strike(b: Battle, u: Unit, target: Unit): void {
+  let damage = baseDamage(b, u);
+  u.strikes++;
+  const charge = u.kind === 'knight' && u.tier > 0 && u.strikes % 3 === 0;
+  if (charge) {
+    damage *= 2;
+    abilityEvent(b, u);
+  }
   const big = target.kind === 'king' || target.boss;
   if (u.kind === 'rook' && big && has(b, u.side, 'heavyShot')) damage *= 1.5;
   const crit = isCrit(b, u);
   if (crit) damage *= CRIT_MULT;
   dealDamage(b, u, target, damage, crit);
+  if (charge && u.tier === 2 && target.hp > 0) target.wait += 15;
   if (u.kind === 'knight' && !u.struck && has(b, u.side, 'stunJump') && target.hp > 0) target.wait += 20;
   if (u.kind === 'bishop' && has(b, u.side, 'piercing')) pierce(b, u, target, damage * 0.6);
   u.struck = true;
@@ -245,11 +354,19 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
       && unitAt(b, target.x + dx, target.y)?.side === target.side);
     if (buddy) damage *= 0.7;
   }
+  let shieldBroke = false;
+  if (target.shield > 0) {
+    const absorbed = Math.min(target.shield, damage);
+    target.shield -= absorbed;
+    damage -= absorbed;
+    shieldBroke = target.shield <= 0;
+  }
   target.hp -= damage;
   target.flash = 2;
   const big = target.kind === 'king' || target.boss;
   const base = { uid: target.uid, side: target.side, x: target.x, y: target.y, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, big };
   b.events.push({ ...base, type: 'hit', amount: damage, crit });
+  if (shieldBroke) b.events.push({ ...base, type: 'shieldBreak', amount: 0 });
   if (u.kind === 'queen' && has(b, u.side, 'bloodQueen')) u.hp = Math.min(u.maxHp, u.hp + damage * 0.25);
   if (target.hp <= 0 && target.kind === 'king' && has(b, target.side, 'secondLife') && !b.kingSaved) {
     b.kingSaved = true;
@@ -388,6 +505,7 @@ function moveUnit(b: Battle, u: Unit): void {
       if (promotes) {
         if (has(b, u.side, 'queensGambit')) u.atkMult *= 1.5;
         applyStats(u, 'queen');
+        resetAbilityTimer(u, 0.5);
         u.promoted = true;
         b.events.push({ type: 'promote', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid });
       }
@@ -436,11 +554,12 @@ export function stepBattle(b: Battle): void {
   for (const u of b.units) {
     if (u.flash > 0) u.flash--;
     if (u.hp <= 0) continue;
+    if (u.abilityTimer > 0) u.abilityTimer--;
     if (u.wait > 0) {
       u.wait--;
       continue;
     }
-    act(b, u);
+    if (!tryCast(b, u)) act(b, u);
     if (sideDefeated(b, 'ally') || sideDefeated(b, 'enemy')) break;
   }
   if (b.relics.has('royalHealer') && b.tick % HEAL_EVERY === 0) royalHeal(b);

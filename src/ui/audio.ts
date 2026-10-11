@@ -2,7 +2,7 @@
 
 export type Sfx =
   | 'hit' | 'shot' | 'crit' | 'death' | 'promote' | 'heal' | 'save'
-  | 'win' | 'lose' | 'click' | 'buy' | 'relic' | 'coins';
+  | 'win' | 'lose' | 'click' | 'buy' | 'relic' | 'coins' | 'ability';
 
 const A4 = 440;
 const freq = (semitonesFromA4: number) => A4 * 2 ** (semitonesFromA4 / 12);
@@ -150,6 +150,10 @@ class AudioEngine {
         break;
       case 'coins':
         this.arp([22, 27, 22, 27, 34], t, 0.04, 'square', 0.06);
+        break;
+      case 'ability':
+        this.tone(330, t, 0.18, 'sawtooth', 0.06, out, 1320);
+        this.tone(660, t + 0.05, 0.12, 'square', 0.06, out, 990);
         break;
       case 'relic':
         this.arp([3, 10, 15, 22, 27, 34], t, 0.05, 'triangle', 0.14);

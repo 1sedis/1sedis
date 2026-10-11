@@ -13,6 +13,8 @@ export interface UnitView {
   y: number;
   hp: number;
   maxHp: number;
+  /** Shield as a share of max HP (0 when none). */
+  shield?: number;
   boss?: boolean;
   selected?: boolean;
   dead?: boolean;
@@ -26,7 +28,7 @@ export class BoardView {
   private unitLayer: HTMLElement;
   private fxLayer: HTMLElement;
   private banner: HTMLElement;
-  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; kind: PieceKind }>();
+  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind }>();
 
   constructor(onCell: (x: number, y: number) => void) {
     this.root = el('div', 'board');
@@ -90,11 +92,12 @@ export class BoardView {
         body.append(img);
         const hp = el('div', 'hp');
         const fill = el('div', 'hp-fill');
-        hp.append(fill);
+        const shield = el('div', 'hp-shield');
+        hp.append(fill, shield);
         node.append(body, hp);
         node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
         this.unitLayer.append(node);
-        u = { node, body, img, fill, kind: v.kind };
+        u = { node, body, img, fill, shield, kind: v.kind };
         img.src = spriteUrl(v.kind, v.team);
         this.units.set(v.key, u);
       }
@@ -111,6 +114,8 @@ export class BoardView {
       u.node.classList.toggle('full-hp', v.hp >= v.maxHp);
       const pct = `${Math.max(0, v.hp / v.maxHp) * 100}%`;
       if (u.fill.style.width !== pct) u.fill.style.width = pct;
+      const sh = `${Math.min(1, v.shield ?? 0) * 100}%`;
+      if (u.shield.style.width !== sh) u.shield.style.width = sh;
     }
     for (const [key, u] of this.units) {
       if (!seen.has(key)) {
@@ -162,9 +167,13 @@ export class BoardView {
   fx(events: BattleEvent[]): void {
     for (const e of events) {
       if (e.type === 'hit') {
-        const text = fmt(Math.round(e.amount)) + (e.crit ? '!' : '');
+        const text = e.amount < 1 ? 'блок' : fmt(Math.round(e.amount)) + (e.crit ? '!' : '');
         this.place(el('div', `fx-dmg ${e.side}${e.crit ? ' crit' : ''}`, text), e.x, e.y);
         if (Math.max(Math.abs(e.x - e.fromX), Math.abs(e.y - e.fromY)) > 1) this.bolt(e);
+      } else if (e.type === 'ability') {
+        this.place(el('div', 'fx-ability', `${e.label}!`), e.x, e.y);
+      } else if (e.type === 'shieldBreak') {
+        this.burst(e, 6);
       } else if (e.type === 'heal') {
         this.place(el('div', 'fx-dmg heal', `+${fmt(Math.round(e.amount))}`), e.x, e.y);
       } else if (e.type === 'save') {

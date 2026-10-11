@@ -3,6 +3,7 @@ import { autoFormation } from '../../game/autoformation';
 import {
   CHAPTERS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, levelIncome, nextLevelId, replayReward,
 } from '../../game/levels';
+import { ABILITIES, abilityTier } from '../../game/abilities';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
   available, battleSetup, clearFormation, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
@@ -241,7 +242,9 @@ export class ArenaScreen implements Screen {
     const enemy = enemyPlacements(getLevel(this.levelId)).find((p) => p.x === x && p.y === y);
     if (enemy) {
       const def = PIECES[enemy.kind];
-      toast(`${enemy.boss ? getLevel(this.levelId).boss : def.name}, ур. ${enemy.level}: ${def.description}`);
+      const tier = abilityTier(enemy.level);
+      const ability = tier ? ` Приём «${ABILITIES[enemy.kind].name}»${tier === 2 ? ' (усилен)' : ''}.` : '';
+      toast(`${enemy.boss ? getLevel(this.levelId).boss : def.name}, ур. ${enemy.level}: ${def.description}${ability}`);
     }
   }
 
@@ -461,6 +464,7 @@ export class ArenaScreen implements Screen {
   private unitView(u: Unit): UnitView {
     return {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
+      shield: u.shield / u.maxHp,
       boss: u.boss, dead: u.hp <= 0,
     };
   }
@@ -484,4 +488,5 @@ function playBattleSounds(events: BattleEvent[]): void {
   else if (types.has('hit')) audio.play('hit');
   else if (types.has('shot')) audio.play('shot');
   if (types.has('heal')) audio.play('heal');
+  if (types.has('ability')) audio.play('ability');
 }

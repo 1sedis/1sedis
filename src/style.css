@@ -1049,3 +1049,28 @@ img { image-rendering: pixelated; }
 @media (max-width: 560px) {
   .chapter-strip { display: none; }
 }
+
+/* ---------- Abilities ---------- */
+.hp { position: absolute; }
+.hp-shield {
+  position: absolute;
+  left: 0;
+  top: -3px;
+  height: 3px;
+  width: 0;
+  background: #8fd3ff;
+  box-shadow: 0 0 0 1px #0b0818;
+}
+.board.setup .unit.full-hp .hp-shield { opacity: 0; }
+.fx-ability {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: #8fd3ff;
+  font-size: clamp(13px, 2vw, 19px);
+  white-space: nowrap;
+  z-index: 3;
+  text-shadow: 0 2px 0 #000, 2px 0 0 #000, -2px 0 0 #000, 0 -2px 0 #000;
+  animation: float-up 0.9s steps(8) forwards;
+}
+.row-ability { margin-top: 4px; font-size: 15px; color: var(--muted); }
+.row-ability.learned { color: #8fd3ff; }

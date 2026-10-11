@@ -1,11 +1,12 @@
 import { UNLOCKED_BY, getLevel } from '../../game/levels';
+import { ABILITIES, ABILITY_LEVELS, abilityTier } from '../../game/abilities';
 import { PIECES, levelMultiplier, type PieceKind } from '../../game/pieces';
 import {
   BUILDINGS, BUILDING_ORDER, buildingCost, buyBuilding, forgeMultiplier, isUnlocked, recruit, recruitCost,
   upgradeCost, upgradePiece, type BuildingId,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
-import { el, pulse, setText } from '../dom';
+import { el, pulse, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { audio } from '../audio';
 import { spriteUrl } from '../sprites';
@@ -17,6 +18,7 @@ interface ArmyRow {
   root: HTMLElement;
   meta: HTMLElement;
   stats: HTMLElement;
+  ability: HTMLElement;
   recruitBtn: HTMLButtonElement;
   upgradeBtn: HTMLButtonElement;
 }
@@ -60,7 +62,8 @@ export class CampScreen implements Screen {
     name.append(el('span', 'row-role', ` · ${def.role}`));
     const meta = el('div', 'row-level');
     const stats = el('div', 'row-meta');
-    body.append(name, el('div', 'row-desc', def.description), stats, meta);
+    const ability = el('div', 'row-ability');
+    body.append(name, el('div', 'row-desc', def.description), stats, ability, meta);
     const actions = el('div', 'row-actions');
     const recruitBtn = el('button', 'btn btn-buy');
     recruitBtn.addEventListener('click', () => {
@@ -72,16 +75,22 @@ export class CampScreen implements Screen {
     });
     const upgradeBtn = el('button', 'btn btn-up');
     upgradeBtn.addEventListener('click', () => {
+      const before = abilityTier(this.ctx.state.levels[kind]);
       if (upgradePiece(this.ctx.state, kind)) {
         pulse(upgradeBtn);
-        audio.play('buy');
+        const tier = abilityTier(this.ctx.state.levels[kind]);
+        if (tier > before) {
+          audio.play('relic');
+          const ab = ABILITIES[kind];
+          toast(tier === 1 ? `${PIECES[kind].name} выучил приём «${ab.name}»!` : `«${ab.name}» усилен!`, 'good');
+        } else audio.play('buy');
         this.ctx.save();
       }
     });
     if (kind === 'king') recruitBtn.hidden = true;
     actions.append(recruitBtn, upgradeBtn);
     root.append(icon, body, actions);
-    this.armyRows.push({ kind, root, meta, stats, recruitBtn, upgradeBtn });
+    this.armyRows.push({ kind, root, meta, stats, ability, recruitBtn, upgradeBtn });
     return root;
   }
 
@@ -121,6 +130,16 @@ export class CampScreen implements Screen {
         ? `❤ ${fmt(def.hp * m)}   ⚔ ${fmt(def.atk * m)}${def.range ? `   ◎ ${def.range}` : ''}`
         : `Откроется после боя ${UNLOCKED_BY[row.kind]} «${getLevel(UNLOCKED_BY[row.kind]!).name}»`);
       setText(row.meta, unlocked ? `Уровень ${lvl} · в армии ${s.army[row.kind]}` : '');
+      const ab = ABILITIES[row.kind];
+      const tier = abilityTier(lvl);
+      const [lv1, lv2] = ABILITY_LEVELS;
+      setText(row.ability, tier === 0
+        ? `★ «${ab.name}» с ур. ${lv1}: ${ab.tiers[0]}`
+        : tier === 1
+          ? `★ «${ab.name}»: ${ab.tiers[0]} С ур. ${lv2}: ${ab.tiers[1]}`
+          : `★★ «${ab.name}»: ${ab.tiers[0]} ${ab.tiers[1]}`);
+      row.ability.classList.toggle('learned', tier > 0);
+      row.ability.hidden = !unlocked;
 
       const maxedQueen = row.kind === 'queen' && s.army.queen >= 1;
       const rCost = recruitCost(s, row.kind);
