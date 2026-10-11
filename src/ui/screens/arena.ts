@@ -116,7 +116,17 @@ export class ArenaScreen implements Screen {
     // Board column with the reserve tray.
     const boardCol = el('div', 'board-col');
     const boardWrap = el('div', 'board-wrap');
-    boardWrap.append(this.board.frame);
+    // Drifting motes around the board, styled per chapter.
+    const ambient = el('div', 'ambient');
+    for (let i = 0; i < 26; i++) {
+      const m = el('span', 'mote');
+      m.style.left = `${(i * 53) % 100}%`;
+      m.style.animationDelay = `${-(i * 1.7) % 12}s`;
+      m.style.animationDuration = `${9 + (i % 5) * 2}s`;
+      m.style.setProperty('--drift', `${((i * 37) % 60) - 30}px`);
+      ambient.append(m);
+    }
+    boardWrap.append(ambient, this.board.frame);
     const bossHead = el('div', 'boss-bar-head');
     bossHead.append(this.bossName, this.bossPhase);
     const bossTrack = el('div', 'boss-bar-track');
@@ -246,6 +256,7 @@ export class ArenaScreen implements Screen {
       ? `Этаж ${abyssFloor(this.levelId)} · рекорд ${s.abyss.best}`
       : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
     this.board.setTheme(chapter.id);
+    this.root.dataset.theme = String(chapter.id);
     this.board.setTerrain(levelTerrain(this.levelId));
     const kinds = terrainKinds(this.levelId);
     this.terrainRow.replaceChildren(...kinds.map((t) => {

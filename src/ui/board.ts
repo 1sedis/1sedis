@@ -51,6 +51,8 @@ export class BoardView {
         this.cells.push(c);
       }
     }
+    // Soft light from above over the cells, under the pieces.
+    this.root.append(el('div', 'board-light'));
     this.unitLayer = el('div', 'unit-layer');
     this.fxLayer = el('div', 'fx-layer');
     this.banner = el('div', 'banner');

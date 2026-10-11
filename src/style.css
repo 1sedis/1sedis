@@ -1442,3 +1442,54 @@ button.ability-chip:hover { opacity: 1; }
 .level-tile .icon { width: 26px; height: 26px; }
 .map-king { right: -34px; top: -34px; }
 @media (width <= 560px) { .map-king { right: -22px; top: -26px; } .level-tile .icon { width: 20px; height: 20px; } }
+
+/* ---------- Board atmosphere per chapter ---------- */
+.arena-screen { --glow: #9b6bff; --mote: #c9b8ff; }
+.arena-screen[data-theme="1"] { --glow: #8fcf5a; --mote: #f4ffb0; }
+.arena-screen[data-theme="2"] { --glow: #3fbf7f; --mote: #7fe08f; }
+.arena-screen[data-theme="3"] { --glow: #8a9ad0; --mote: #d8dcf0; }
+.arena-screen[data-theme="4"] { --glow: #ff5d6d; --mote: #ffb347; }
+.arena-screen[data-theme="5"] { --glow: #7f5bff; --mote: #b78cff; }
+.board-wrap { position: relative; isolation: isolate; padding: 12px 0; }
+.board-wrap::before {
+  content: ''; position: absolute; inset: -40px -20px; z-index: -2; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 28%, transparent), transparent 75%);
+}
+.ambient { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.mote {
+  position: absolute; bottom: -10px; width: 4px; height: 4px; background: var(--mote); opacity: 0;
+  box-shadow: 0 0 6px var(--mote); animation: mote-rise 11s linear infinite;
+}
+.mote:nth-child(3n) { width: 6px; height: 6px; }
+@keyframes mote-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  15% { opacity: .8; }
+  85% { opacity: .6; }
+  100% { transform: translate(var(--drift), -110vh); opacity: 0; }
+}
+/* Leaves fall in the forest instead of rising. */
+.arena-screen[data-theme="2"] .mote { bottom: auto; top: -10px; animation-name: mote-fall; width: 6px; height: 4px; box-shadow: none; }
+@keyframes mote-fall {
+  0% { transform: translate(0, 0) rotate(0); opacity: 0; }
+  15% { opacity: .9; }
+  100% { transform: translate(var(--drift), 110vh) rotate(360deg); opacity: 0; }
+}
+.board-light {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), transparent 45%, rgba(0, 0, 0, 0.18));
+}
+.board .unit-layer { z-index: 2; }
+@media (prefers-reduced-motion: reduce) { .mote { animation: none; display: none; } }
+.board .fx-layer { z-index: 3; }
+.board-wrap::before {
+  inset: -60px -10px;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%, color-mix(in srgb, var(--glow) 42%, transparent), transparent 80%);
+}
+.arena-screen { --glow-a: rgba(155, 107, 255, 0.34); }
+.arena-screen[data-theme="1"] { --glow-a: rgba(143, 207, 90, 0.30); }
+.arena-screen[data-theme="2"] { --glow-a: rgba(63, 191, 127, 0.30); }
+.arena-screen[data-theme="3"] { --glow-a: rgba(138, 154, 208, 0.32); }
+.arena-screen[data-theme="4"] { --glow-a: rgba(255, 93, 109, 0.30); }
+.arena-screen[data-theme="5"] { --glow-a: rgba(127, 91, 255, 0.36); }
+.board-wrap::before { background: radial-gradient(ellipse 60% 55% at 50% 50%, var(--glow-a), transparent 80%); }
+.board-wrap::before { inset: -50px -10px; background: radial-gradient(ellipse 58% 62% at 50% 50%, var(--glow-a) 0 52%, transparent 78%); }
