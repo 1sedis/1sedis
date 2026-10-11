@@ -1,92 +1,118 @@
 import { describe, expect, it } from 'vitest';
+import { createBattle, simulate } from '../src/game/battle';
+import { firstReward, replayReward } from '../src/game/levels';
 import {
-  BASE_SLOTS, applyDefeat, buyPiece, buyUpgrade, crownsForWave, grantVictory, maxSlots,
-  movePiece, newGame, pieceCost, placedPieces, prestige,
+  accrue, battleSetup, collectTreasury, fieldedCount, incomePerMinute, isLevelOpen, isUnlocked, moveSlot, newGame,
+  placeFromReserve, recordResult, recruit, recruitCost, removeSlot, sanitizeFormation, slotAt, treasuryCap,
+  upgradePiece,
 } from '../src/game/state';
 
-describe('economy', () => {
-  it('buying a piece spends gold and raises the next price', () => {
-    const s = newGame();
-    s.gold = 100;
-    const first = pieceCost(s, 'pawn');
-    expect(buyPiece(s, 'pawn')).toBe(true);
-    expect(s.gold).toBe(100 - first);
-    expect(pieceCost(s, 'pawn')).toBeGreaterThan(first);
-  });
-
-  it('refuses locked pieces and purchases without gold', () => {
-    const s = newGame();
-    s.gold = 1e9;
-    expect(buyPiece(s, 'queen')).toBe(false);
-    s.gold = 0;
-    expect(buyPiece(s, 'pawn')).toBe(false);
-  });
-
-  it('merges three identical pieces into one with an extra star', () => {
-    const s = newGame();
+describe('army', () => {
+  it('recruiting spends gold and raises the price', () => {
+    const s = newGame(0);
     s.gold = 1000;
-    buyPiece(s, 'pawn');
-    buyPiece(s, 'pawn');
-    expect(s.pieces).toHaveLength(1);
-    expect(s.pieces[0].stars).toBe(2);
-    expect(s.pieces[0].pos).not.toBeNull();
+    const cost = recruitCost(s, 'pawn');
+    expect(recruit(s, 'pawn')).toBe(true);
+    expect(s.gold).toBe(1000 - cost);
+    expect(s.army.pawn).toBe(4);
+    expect(recruitCost(s, 'pawn')).toBeGreaterThan(cost);
   });
 
-  it('upgrades respect max level', () => {
-    const s = newGame();
-    s.gold = 1e12;
-    for (let i = 0; i < 20; i++) buyUpgrade(s, 'slots');
-    expect(maxSlots(s)).toBe(BASE_SLOTS + 13);
+  it('locked pieces and the king cannot be recruited, the queen only once', () => {
+    const s = newGame(0);
+    s.gold = 1e9;
+    expect(recruit(s, 'knight')).toBe(false);
+    expect(recruit(s, 'king')).toBe(false);
+    s.stars['3-9'] = 1;
+    expect(isUnlocked(s, 'queen')).toBe(true);
+    expect(recruit(s, 'queen')).toBe(true);
+    expect(recruit(s, 'queen')).toBe(false);
+  });
+
+  it('upgrades raise the piece level', () => {
+    const s = newGame(0);
+    s.gold = 1000;
+    expect(upgradePiece(s, 'pawn')).toBe(true);
+    expect(s.levels.pawn).toBe(2);
   });
 });
 
 describe('formation', () => {
-  it('limits placed pieces to the slot count and swaps occupants', () => {
-    const s = newGame();
-    s.gold = 1e6;
-    buyPiece(s, 'knight'); // locked at wave 1
-    s.wave = 5;
-    buyPiece(s, 'knight');
-    buyPiece(s, 'bishop');
-    buyPiece(s, 'pawn'); // fourth piece: no slot left
-    expect(placedPieces(s)).toHaveLength(BASE_SLOTS);
-    const benched = s.pieces.find((p) => p.pos === null)!;
-    expect(movePiece(s, benched.id, { x: 0, y: 7 })).toBe(false);
-    const placed = placedPieces(s)[0];
-    const target = { ...placed.pos! };
-    expect(movePiece(s, benched.id, target)).toBe(true);
-    expect(placed.pos).toBeNull();
-    expect(movePiece(s, placed.id, { x: 0, y: 0 })).toBe(false);
+  it('respects the reserve and the command limit', () => {
+    const s = newGame(0);
+    expect(placeFromReserve(s, 'pawn', 0, 5, 4)).not.toBeNull(); // all 3 pawns already placed
+    s.army.pawn = 6;
+    expect(placeFromReserve(s, 'pawn', 0, 5, 4)).toBeNull();
+    expect(placeFromReserve(s, 'pawn', 1, 5, 4)).not.toBeNull(); // limit 4 reached
+    expect(placeFromReserve(s, 'pawn', 1, 2, 10)).not.toBeNull(); // enemy rows
+    expect(fieldedCount(s)).toBe(4);
+  });
+
+  it('moves with swapping and never removes the king', () => {
+    const s = newGame(0);
+    expect(moveSlot(s, 3, 7, 2, 5)).toBe(true);
+    expect(slotAt(s, 2, 5)?.kind).toBe('king');
+    expect(slotAt(s, 3, 7)?.kind).toBe('pawn');
+    expect(removeSlot(s, 2, 5)).toBe(false);
+    expect(removeSlot(s, 3, 7)).toBe(true);
+  });
+
+  it('sanitize drops extra pieces and restores the king', () => {
+    const s = newGame(0);
+    s.formation = s.formation.filter((f) => f.kind !== 'king');
+    s.army.pawn = 2;
+    sanitizeFormation(s, 4);
+    expect(s.formation.filter((f) => f.kind === 'pawn')).toHaveLength(2);
+    expect(s.formation.some((f) => f.kind === 'king')).toBe(true);
   });
 });
 
 describe('progress', () => {
-  it('victory pays out and advances, defeat steps back', () => {
-    const s = newGame();
-    const reward = grantVictory(s);
-    expect(reward).toBeGreaterThan(0);
-    expect(s.wave).toBe(2);
-    expect(s.bestWave).toBe(1);
-    applyDefeat(s);
-    applyDefeat(s);
-    expect(s.wave).toBe(1);
+  it('levels open one after another and pay less on replays', () => {
+    const s = newGame(0);
+    expect(isLevelOpen(s, '1-1')).toBe(true);
+    expect(isLevelOpen(s, '1-2')).toBe(false);
+    const b = createBattle(battleSetup(s, '1-1'));
+    simulate(b);
+    const first = recordResult(s, '1-1', b);
+    expect(first.win).toBe(true);
+    expect(first.firstClear).toBe(true);
+    expect(first.reward).toBeGreaterThanOrEqual(firstReward('1-1'));
+    expect(isLevelOpen(s, '1-2')).toBe(true);
+    const again = recordResult(s, '1-1', b);
+    expect(again.firstClear).toBe(false);
+    expect(again.reward).toBe(replayReward('1-1'));
   });
 
-  it('prestige resets the run and grants crowns', () => {
-    const s = newGame();
-    s.bestWave = 20;
-    s.gold = 5000;
-    const gain = crownsForWave(20);
-    expect(gain).toBeGreaterThan(0);
-    expect(prestige(s)).toBe(true);
-    expect(s.crowns).toBe(gain);
-    expect(s.gold).toBe(newGame().gold);
-    expect(s.stats.prestiges).toBe(1);
+  it('a loss gives no stars or gold', () => {
+    const s = newGame(0);
+    const b = createBattle(battleSetup(s, '1-1'));
+    b.result = 'loss';
+    const out = recordResult(s, '1-1', b);
+    expect(out).toMatchObject({ win: false, stars: 0, reward: 0 });
+    expect(isLevelOpen(s, '1-2')).toBe(false);
   });
 
-  it('prestige is unavailable before the threshold', () => {
-    const s = newGame();
-    s.bestWave = 10;
-    expect(prestige(s)).toBe(false);
+  it('knights unlock after level 1-4', () => {
+    const s = newGame(0);
+    expect(isUnlocked(s, 'knight')).toBe(false);
+    s.stars['1-4'] = 1;
+    expect(isUnlocked(s, 'knight')).toBe(true);
+  });
+});
+
+describe('treasury', () => {
+  it('earns per cleared level, is capped and can be collected', () => {
+    const s = newGame(0);
+    expect(accrue(s, 60_000)).toBe(0);
+    s.stars['1-1'] = 1;
+    const rate = incomePerMinute(s);
+    expect(accrue(s, 120_000)).toBeCloseTo(rate);
+    accrue(s, 1e12);
+    expect(s.treasury).toBeCloseTo(treasuryCap(s));
+    const gold = s.gold;
+    const got = collectTreasury(s);
+    expect(s.gold).toBe(gold + got);
+    expect(s.treasury).toBeLessThan(1);
   });
 });

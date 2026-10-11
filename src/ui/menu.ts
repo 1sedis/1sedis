@@ -1,4 +1,4 @@
-import { PIECE_ORDER } from '../game/pieces';
+import type { PieceKind } from '../game/pieces';
 import type { Settings } from './settings';
 import { spriteUrl } from './sprites';
 
@@ -23,9 +23,12 @@ export function buildMenu(o: MenuOptions): HTMLElement {
 
   const card = el('div', 'menu-card');
   const pieces = el('div', 'menu-pieces');
-  PIECE_ORDER.forEach((kind, i) => {
+  const lineup: [PieceKind, 'ally' | 'enemy'][] = [
+    ['pawn', 'ally'], ['knight', 'ally'], ['king', 'ally'], ['queen', 'enemy'], ['rook', 'enemy'], ['pawn', 'enemy'],
+  ];
+  lineup.forEach(([kind, team], i) => {
     const img = el('img');
-    img.src = spriteUrl(kind, i % 2 ? 'enemy' : 'ally');
+    img.src = spriteUrl(kind, team);
     img.alt = '';
     img.style.animationDelay = `${-i * 0.2}s`;
     pieces.append(img);
@@ -47,8 +50,8 @@ export function buildMenu(o: MenuOptions): HTMLElement {
   settings.addEventListener('click', o.onSettings);
   buttons.append(fresh, settings);
 
-  card.append(pieces, title, el('p', 'menu-tag', 'Шахматный автобатлер'), buttons);
-  root.append(card, el('div', 'menu-foot', 'v0.2 · прогресс сохраняется в браузере'));
+  card.append(pieces, title, el('p', 'menu-tag', 'Шахматная кампания'), buttons);
+  root.append(card, el('div', 'menu-foot', 'v0.3 · прогресс сохраняется в браузере'));
   return root;
 }
 
@@ -77,7 +80,7 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
   });
   row('Скорость боя', seg);
 
-  const toggle = (key: 'auto' | 'effects') => {
+  const toggle = (key: 'effects') => {
     const b = el('button', 'toggle');
     b.addEventListener('click', () => {
       s[key] = !s[key];
@@ -85,17 +88,13 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
     });
     return b;
   };
-  const autoBtn = toggle('auto');
   const fxBtn = toggle('effects');
-  row('Авто-бой', autoBtn);
   row('Цифры урона и частицы', fxBtn);
 
   const sync = () => {
     segBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === s.speed));
-    for (const [b, on] of [[autoBtn, s.auto], [fxBtn, s.effects]] as const) {
-      b.textContent = on ? 'Вкл' : 'Выкл';
-      b.classList.toggle('on', on);
-    }
+    fxBtn.textContent = s.effects ? 'Вкл' : 'Выкл';
+    fxBtn.classList.toggle('on', s.effects);
     onChange({ ...s });
   };
   sync();

@@ -1,13 +1,16 @@
-import { MAX_STARS, PIECE_ORDER, PIECES, type PieceKind } from './pieces';
+import { BOARD_SIZE, type Battle, type BattleSetup, type Placement } from './battle';
+import {
+  ALL_LEVELS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, levelIncome, levelIndex, replayReward,
+} from './levels';
+import { PIECES, type PieceKind } from './pieces';
 
-export const BOARD_SIZE = 8;
-/** Rows the player may deploy on (bottom two rows). */
-export const PLAYER_ROWS = [6, 7];
+/** Rows the player may deploy on (bottom three rows). */
+export const PLAYER_ROWS = [5, 6, 7];
 
-export type UpgradeId = 'atk' | 'hp' | 'speed' | 'slots' | 'gold';
+export type BuildingId = 'treasury' | 'hq' | 'forge';
 
-export interface UpgradeDef {
-  id: UpgradeId;
+export interface BuildingDef {
+  id: BuildingId;
   name: string;
   description: string;
   baseCost: number;
@@ -15,239 +18,291 @@ export interface UpgradeDef {
   maxLevel: number;
 }
 
-export const UPGRADES: Record<UpgradeId, UpgradeDef> = {
-  atk: { id: 'atk', name: 'Острые клинки', description: '×1.1 к атаке', baseCost: 30, growth: 1.45, maxLevel: Infinity },
-  hp: { id: 'hp', name: 'Закалённые доспехи', description: '×1.1 к здоровью', baseCost: 30, growth: 1.45, maxLevel: Infinity },
-  speed: { id: 'speed', name: 'Строевая подготовка', description: '−4% к перезарядке', baseCost: 80, growth: 1.9, maxLevel: 10 },
-  slots: { id: 'slots', name: 'Расширение лагеря', description: '+1 место на доске', baseCost: 40, growth: 2, maxLevel: 13 },
-  gold: { id: 'gold', name: 'Трофеи', description: '+15% к награде', baseCost: 50, growth: 1.7, maxLevel: Infinity },
+export const BUILDINGS: Record<BuildingId, BuildingDef> = {
+  treasury: { id: 'treasury', name: 'Казна', description: '+25% к доходу земель и +2 ч к запасу казны', baseCost: 150, growth: 2.1, maxLevel: 10 },
+  hq: { id: 'hq', name: 'Штаб', description: '+1 фигура в каждом бою', baseCost: 400, growth: 3.5, maxLevel: 3 },
+  forge: { id: 'forge', name: 'Кузница', description: '+6% к атаке и здоровью всей армии', baseCost: 200, growth: 1.8, maxLevel: 25 },
 };
 
-export const UPGRADE_ORDER: UpgradeId[] = ['atk', 'hp', 'speed', 'slots', 'gold'];
+export const BUILDING_ORDER: BuildingId[] = ['treasury', 'hq', 'forge'];
 
-export const BASE_SLOTS = 3;
-export const PRESTIGE_MIN_WAVE = 15;
+const UPGRADE_BASE: Record<PieceKind, number> = { king: 60, pawn: 30, knight: 80, bishop: 110, rook: 160, queen: 400 };
 
-export interface Position { x: number; y: number }
-
-export interface OwnedPiece {
-  id: number;
-  kind: PieceKind;
-  stars: number;
-  /** Position on the board, or null if the piece sits on the bench. */
-  pos: Position | null;
-}
+export interface FormationSlot { kind: PieceKind; x: number; y: number }
 
 export interface GameState {
-  version: 1;
+  version: 2;
   gold: number;
-  crowns: number;
-  /** Next wave to fight. */
-  wave: number;
-  /** Highest wave cleared in the current run. */
-  bestWave: number;
-  pieces: OwnedPiece[];
-  bought: Record<PieceKind, number>;
-  upgrades: Record<UpgradeId, number>;
-  nextId: number;
-  stats: { totalGold: number; battlesWon: number; prestiges: number; allTimeBestWave: number };
+  /** Owned pieces per kind. The king is always 1. */
+  army: Record<PieceKind, number>;
+  /** Upgrade level per kind (1 = base). */
+  levels: Record<PieceKind, number>;
+  buildings: Record<BuildingId, number>;
+  /** Best stars earned per level id. */
+  stars: Record<string, number>;
+  /** Last used formation, reused between battles. */
+  formation: FormationSlot[];
+  /** Uncollected treasury gold. */
+  treasury: number;
+  /** Wall-clock time of the last treasury accrual. */
+  lastTick: number;
+  stats: { battles: number; wins: number; goldEarned: number };
 }
 
-function emptyBought(): Record<PieceKind, number> {
-  return { pawn: 0, knight: 0, bishop: 0, rook: 0, queen: 0 };
+function perKind(value: number): Record<PieceKind, number> {
+  return { king: value, pawn: value, knight: value, bishop: value, rook: value, queen: value };
 }
 
-function emptyUpgrades(): Record<UpgradeId, number> {
-  return { atk: 0, hp: 0, speed: 0, slots: 0, gold: 0 };
-}
-
-export function newGame(): GameState {
+export function newGame(now = Date.now()): GameState {
   return {
-    version: 1,
-    gold: 10,
-    crowns: 0,
-    wave: 1,
-    bestWave: 0,
-    pieces: [{ id: 1, kind: 'pawn', stars: 1, pos: { x: 3, y: 7 } }],
-    bought: emptyBought(),
-    upgrades: emptyUpgrades(),
-    nextId: 2,
-    stats: { totalGold: 0, battlesWon: 0, prestiges: 0, allTimeBestWave: 0 },
+    version: 2,
+    gold: 60,
+    army: { ...perKind(0), king: 1, pawn: 3 },
+    levels: perKind(1),
+    buildings: { treasury: 0, hq: 0, forge: 0 },
+    stars: {},
+    formation: [
+      { kind: 'king', x: 3, y: 7 },
+      { kind: 'pawn', x: 2, y: 5 },
+      { kind: 'pawn', x: 3, y: 5 },
+      { kind: 'pawn', x: 4, y: 5 },
+    ],
+    treasury: 0,
+    lastTick: now,
+    stats: { battles: 0, wins: 0, goldEarned: 0 },
   };
 }
 
-// ---------- Multipliers ----------
+// ---------- Progress ----------
 
-export function crownMultiplier(s: GameState): number {
-  return 1 + 0.05 * s.crowns;
+export function isCleared(s: GameState, id: string): boolean {
+  return (s.stars[id] ?? 0) > 0;
 }
 
-export function atkMultiplier(s: GameState): number {
-  return 1.1 ** s.upgrades.atk * crownMultiplier(s);
+export function isLevelOpen(s: GameState, id: string): boolean {
+  const i = levelIndex(id);
+  return i === 0 || (i > 0 && isCleared(s, ALL_LEVELS[i - 1].id));
 }
 
-export function hpMultiplier(s: GameState): number {
-  return 1.1 ** s.upgrades.hp * crownMultiplier(s);
+/** First level not yet cleared (or the last level when everything is done). */
+export function currentLevelId(s: GameState): string {
+  return (ALL_LEVELS.find((l) => !isCleared(s, l.id)) ?? ALL_LEVELS[ALL_LEVELS.length - 1]).id;
 }
 
-export function cooldownMultiplier(s: GameState): number {
-  return 1 - 0.04 * s.upgrades.speed;
+export function totalStars(s: GameState): number {
+  return Object.values(s.stars).reduce((a, b) => a + b, 0);
 }
 
-export function goldMultiplier(s: GameState): number {
-  return (1 + 0.15 * s.upgrades.gold) * crownMultiplier(s);
-}
-
-export function maxSlots(s: GameState): number {
-  return BASE_SLOTS + s.upgrades.slots;
+export function isUnlocked(s: GameState, kind: PieceKind): boolean {
+  const by = UNLOCKED_BY[kind];
+  return by === null || isCleared(s, by);
 }
 
 // ---------- Economy ----------
 
-export function pieceCost(s: GameState, kind: PieceKind): number {
-  return Math.round(PIECES[kind].cost * 1.12 ** s.bought[kind]);
+export function recruitCost(s: GameState, kind: PieceKind): number {
+  return Math.round(PIECES[kind].cost * 1.2 ** s.army[kind]);
 }
 
-export function isUnlocked(s: GameState, kind: PieceKind): boolean {
-  return Math.max(s.wave, s.bestWave + 1) >= PIECES[kind].unlockWave;
+export function upgradeCost(s: GameState, kind: PieceKind): number {
+  return Math.round(UPGRADE_BASE[kind] * 1.65 ** (s.levels[kind] - 1));
 }
 
-export function upgradeCost(s: GameState, id: UpgradeId): number {
-  const def = UPGRADES[id];
-  return Math.round(def.baseCost * def.growth ** s.upgrades[id]);
+export function buildingCost(s: GameState, id: BuildingId): number {
+  const def = BUILDINGS[id];
+  return Math.round(def.baseCost * def.growth ** s.buildings[id]);
 }
 
-export function waveReward(s: GameState, wave: number): number {
-  return Math.round(15 * 1.17 ** (wave - 1) * goldMultiplier(s));
+export function commandLimit(s: GameState, levelId: string): number {
+  return chapterOf(levelId).limit + s.buildings.hq;
 }
 
-export function crownsForWave(bestWave: number): number {
-  if (bestWave < PRESTIGE_MIN_WAVE) return 0;
-  return Math.floor((bestWave - 10) ** 1.4 / 2);
+export function forgeMultiplier(s: GameState): number {
+  return 1 + 0.06 * s.buildings.forge;
 }
 
-export function placedPieces(s: GameState): OwnedPiece[] {
-  return s.pieces.filter((p) => p.pos !== null);
+export function incomePerMinute(s: GameState): number {
+  const base = ALL_LEVELS.filter((l) => isCleared(s, l.id)).reduce((sum, l) => sum + levelIncome(l.id), 0);
+  return base * (1 + 0.25 * s.buildings.treasury);
 }
 
-export function benchPieces(s: GameState): OwnedPiece[] {
-  return s.pieces.filter((p) => p.pos === null);
+export function treasuryCapHours(s: GameState): number {
+  return 6 + 2 * s.buildings.treasury;
 }
 
-export function pieceAt(s: GameState, x: number, y: number): OwnedPiece | undefined {
-  return s.pieces.find((p) => p.pos && p.pos.x === x && p.pos.y === y);
+export function treasuryCap(s: GameState): number {
+  return incomePerMinute(s) * 60 * treasuryCapHours(s);
 }
+
+/** Accrue treasury income up to `now`. Returns the gold added. */
+export function accrue(s: GameState, now = Date.now()): number {
+  const dt = Math.max(0, now - s.lastTick);
+  s.lastTick = now;
+  const before = s.treasury;
+  s.treasury = Math.min(treasuryCap(s), s.treasury + (incomePerMinute(s) * dt) / 60_000);
+  return Math.max(0, s.treasury - before);
+}
+
+export function collectTreasury(s: GameState): number {
+  const amount = Math.floor(s.treasury);
+  s.gold += amount;
+  s.treasury -= amount;
+  s.stats.goldEarned += amount;
+  return amount;
+}
+
+// ---------- Purchases (return true on success) ----------
+
+export function recruit(s: GameState, kind: PieceKind): boolean {
+  if (kind === 'king' || !isUnlocked(s, kind)) return false;
+  if (kind === 'queen' && s.army.queen >= 1) return false;
+  const cost = recruitCost(s, kind);
+  if (s.gold < cost) return false;
+  s.gold -= cost;
+  s.army[kind]++;
+  return true;
+}
+
+export function upgradePiece(s: GameState, kind: PieceKind): boolean {
+  if (!isUnlocked(s, kind)) return false;
+  const cost = upgradeCost(s, kind);
+  if (s.gold < cost) return false;
+  s.gold -= cost;
+  s.levels[kind]++;
+  return true;
+}
+
+export function buyBuilding(s: GameState, id: BuildingId): boolean {
+  const cost = buildingCost(s, id);
+  if (s.buildings[id] >= BUILDINGS[id].maxLevel || s.gold < cost) return false;
+  s.gold -= cost;
+  s.buildings[id]++;
+  return true;
+}
+
+// ---------- Formation ----------
 
 export function isPlayerCell(x: number, y: number): boolean {
   return x >= 0 && x < BOARD_SIZE && PLAYER_ROWS.includes(y);
 }
 
-// ---------- Actions (return true on success) ----------
-
-export function buyPiece(s: GameState, kind: PieceKind): boolean {
-  const cost = pieceCost(s, kind);
-  if (!isUnlocked(s, kind) || s.gold < cost) return false;
-  s.gold -= cost;
-  s.bought[kind]++;
-  const piece: OwnedPiece = { id: s.nextId++, kind, stars: 1, pos: null };
-  s.pieces.push(piece);
-  autoPlace(s, piece);
-  mergePieces(s);
-  return true;
+export function slotAt(s: GameState, x: number, y: number): FormationSlot | undefined {
+  return s.formation.find((f) => f.x === x && f.y === y);
 }
 
-/** Put a bench piece onto a free deploy cell if a slot is available. */
-function autoPlace(s: GameState, piece: OwnedPiece): void {
-  if (placedPieces(s).length >= maxSlots(s)) return;
-  // Fill the front row from the centre outwards, then the back row.
-  const cols = [3, 4, 2, 5, 1, 6, 0, 7];
-  for (const y of PLAYER_ROWS) {
-    for (const x of cols) {
-      if (!pieceAt(s, x, y)) {
-        piece.pos = { x, y };
-        return;
-      }
-    }
-  }
+export function placedCount(s: GameState, kind: PieceKind): number {
+  return s.formation.filter((f) => f.kind === kind).length;
 }
 
-/** Merge every triple of identical pieces into one with an extra star. */
-export function mergePieces(s: GameState): void {
-  let merged = true;
-  while (merged) {
-    merged = false;
-    for (const kind of PIECE_ORDER) {
-      for (let stars = 1; stars < MAX_STARS; stars++) {
-        const group = s.pieces.filter((p) => p.kind === kind && p.stars === stars);
-        if (group.length < 3) continue;
-        // Keep a placed piece if there is one, so the formation survives.
-        group.sort((a, b) => Number(b.pos !== null) - Number(a.pos !== null));
-        const [keep, ...rest] = group.slice(0, 3);
-        keep.stars++;
-        const removed = new Set(rest.map((p) => p.id));
-        s.pieces = s.pieces.filter((p) => !removed.has(p.id));
-        merged = true;
-      }
-    }
-  }
+/** Pieces in the formation that count against the command limit. */
+export function fieldedCount(s: GameState): number {
+  return s.formation.filter((f) => f.kind !== 'king').length;
 }
 
-export function buyUpgrade(s: GameState, id: UpgradeId): boolean {
-  const cost = upgradeCost(s, id);
-  if (s.upgrades[id] >= UPGRADES[id].maxLevel || s.gold < cost) return false;
-  s.gold -= cost;
-  s.upgrades[id]++;
-  return true;
+export function available(s: GameState, kind: PieceKind): number {
+  return s.army[kind] - placedCount(s, kind);
 }
 
-/** Move a piece to a cell (swapping with an occupant) or to the bench (null). */
-export function movePiece(s: GameState, id: number, to: Position | null): boolean {
-  const piece = s.pieces.find((p) => p.id === id);
-  if (!piece) return false;
-  if (to === null) {
-    piece.pos = null;
-    return true;
-  }
-  if (!isPlayerCell(to.x, to.y)) return false;
-  const occupant = pieceAt(s, to.x, to.y);
-  if (occupant === piece) return true;
+/** Place a piece from the reserve. Returns an error message or null. */
+export function placeFromReserve(s: GameState, kind: PieceKind, x: number, y: number, limit: number): string | null {
+  if (!isPlayerCell(x, y)) return 'Ставить можно только в три нижних ряда';
+  if (available(s, kind) <= 0) return 'Таких фигур больше нет в резерве';
+  const occupant = slotAt(s, x, y);
+  if (occupant?.kind === 'king') return 'Здесь стоит король';
+  if (!occupant && kind !== 'king' && fieldedCount(s) >= limit) return `Лимит фигур в этом бою: ${limit}`;
+  if (occupant) s.formation = s.formation.filter((f) => f !== occupant);
+  s.formation.push({ kind, x, y });
+  return null;
+}
+
+/** Move a placed piece to another player cell, swapping with any occupant. */
+export function moveSlot(s: GameState, fromX: number, fromY: number, x: number, y: number): boolean {
+  const slot = slotAt(s, fromX, fromY);
+  if (!slot || !isPlayerCell(x, y)) return false;
+  const occupant = slotAt(s, x, y);
   if (occupant) {
-    occupant.pos = piece.pos;
-  } else if (piece.pos === null && placedPieces(s).length >= maxSlots(s)) {
-    return false;
+    occupant.x = fromX;
+    occupant.y = fromY;
   }
-  piece.pos = { ...to };
+  slot.x = x;
+  slot.y = y;
   return true;
 }
 
-export function canPrestige(s: GameState): boolean {
-  return crownsForWave(s.bestWave) > 0;
-}
-
-export function prestige(s: GameState): boolean {
-  const gained = crownsForWave(s.bestWave);
-  if (gained <= 0) return false;
-  const fresh = newGame();
-  fresh.crowns = s.crowns + gained;
-  fresh.stats = { ...s.stats, prestiges: s.stats.prestiges + 1 };
-  Object.assign(s, fresh);
+/** Return a placed piece to the reserve. The king cannot be removed. */
+export function removeSlot(s: GameState, x: number, y: number): boolean {
+  const slot = slotAt(s, x, y);
+  if (!slot || slot.kind === 'king') return false;
+  s.formation = s.formation.filter((f) => f !== slot);
   return true;
 }
 
-export function grantVictory(s: GameState): number {
-  const reward = waveReward(s, s.wave);
+export function clearFormation(s: GameState): void {
+  s.formation = s.formation.filter((f) => f.kind === 'king');
+}
+
+/** Drop pieces the army no longer has or the limit does not allow, and make sure the king is placed. */
+export function sanitizeFormation(s: GameState, limit: number): void {
+  const counts = perKind(0);
+  let fielded = 0;
+  s.formation = s.formation.filter((f) => {
+    if (!isPlayerCell(f.x, f.y) || counts[f.kind] >= s.army[f.kind]) return false;
+    if (f.kind !== 'king') {
+      if (fielded >= limit) return false;
+      fielded++;
+    }
+    counts[f.kind]++;
+    return true;
+  });
+  if (!s.formation.some((f) => f.kind === 'king')) {
+    const spots = [[3, 7], [4, 7], [2, 7], [5, 7], [3, 6], [4, 6]];
+    const free = spots.find(([x, y]) => !slotAt(s, x, y)) ?? [0, 7];
+    s.formation.push({ kind: 'king', x: free[0], y: free[1] });
+  }
+}
+
+export function battleSetup(s: GameState, levelId: string): BattleSetup {
+  const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
+  const m = forgeMultiplier(s);
+  return { allies, enemies: enemyPlacements(getLevel(levelId)), allyHpMult: m, allyAtkMult: m };
+}
+
+// ---------- Results ----------
+
+export interface BattleOutcome {
+  win: boolean;
+  stars: number;
+  /** Stars above the previous best. */
+  newStars: number;
+  firstClear: boolean;
+  reward: number;
+  conditions: { win: boolean; king: boolean; losses: boolean };
+}
+
+export function recordResult(s: GameState, levelId: string, b: Battle): BattleOutcome {
+  const level = getLevel(levelId);
+  const win = b.result === 'win';
+  const conditions = {
+    win,
+    king: win && b.kingMinRatio >= 0.5,
+    losses: win && b.allyLosses <= level.maxLosses,
+  };
+  const stars = win ? 1 + Number(conditions.king) + Number(conditions.losses) : 0;
+  const prev = s.stars[levelId] ?? 0;
+  const firstClear = win && prev === 0;
+  const newStars = Math.max(0, stars - prev);
+  let reward = 0;
+  if (win) {
+    reward = firstClear ? firstReward(levelId) : replayReward(levelId);
+    // Bonus for every extra star earned for the first time.
+    reward += Math.max(0, newStars - (firstClear ? 1 : 0)) * Math.round(firstReward(levelId) * 0.25);
+  }
+  s.stars[levelId] = Math.max(prev, stars);
   s.gold += reward;
-  s.stats.totalGold += reward;
-  s.stats.battlesWon++;
-  s.bestWave = Math.max(s.bestWave, s.wave);
-  s.stats.allTimeBestWave = Math.max(s.stats.allTimeBestWave, s.wave);
-  s.wave++;
-  return reward;
-}
-
-/** On defeat, step back one wave so idle play keeps farming gold. */
-export function applyDefeat(s: GameState): void {
-  s.wave = Math.max(1, s.wave - 1);
+  s.stats.battles++;
+  if (win) s.stats.wins++;
+  s.stats.goldEarned += reward;
+  return { win, stars, newStars, firstClear, reward, conditions };
 }
 
 // ---------- Persistence ----------
@@ -262,31 +317,35 @@ export function saveGame(s: GameState): void {
   }
 }
 
-export function loadGame(): GameState {
+/** Load the save (or a new game) and accrue offline treasury income. */
+export function loadGame(now = Date.now()): { state: GameState; offlineGold: number } {
+  let state = newGame(now);
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
       const data = JSON.parse(raw) as Partial<GameState>;
-      if (data.version === 1) {
-        const base = newGame();
-        return {
-          ...base,
+      if (data.version === 2) {
+        state = {
+          ...state,
           ...data,
-          bought: { ...base.bought, ...data.bought },
-          upgrades: { ...base.upgrades, ...data.upgrades },
-          stats: { ...base.stats, ...data.stats },
+          army: { ...state.army, ...data.army, king: 1 },
+          levels: { ...state.levels, ...data.levels },
+          buildings: { ...state.buildings, ...data.buildings },
+          stats: { ...state.stats, ...data.stats },
         } as GameState;
       }
     }
   } catch {
-    // Corrupt save: fall through to a new game.
+    // Corrupt save: keep the new game.
   }
-  return newGame();
+  const offlineGold = accrue(state, now);
+  return { state, offlineGold };
 }
 
 export function hasSave(): boolean {
   try {
-    return localStorage.getItem(SAVE_KEY) !== null;
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw !== null && (JSON.parse(raw) as { version?: number }).version === 2;
   } catch {
     return false;
   }

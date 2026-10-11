@@ -5,6 +5,20 @@ import type { PieceKind } from '../game/pieces';
  *   o outline   f fill   h highlight   s shade   g gem   . transparent
  */
 const MAPS: Record<PieceKind, string[]> = {
+  king: [
+    '.....gg.....',
+    '....gggg....',
+    '.....gg.....',
+    '...oooooo...',
+    '..ohhfffso..',
+    '..ohffffso..',
+    '...ohffso...',
+    '....offo....',
+    '...ohffso...',
+    '..ohfffsso..',
+    '..oooooooo..',
+    '............',
+  ],
   pawn: [
     '............',
     '....oooo....',
