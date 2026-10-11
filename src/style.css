@@ -1720,3 +1720,5 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
 .hp-fill { width: 100%; transform-origin: left center; transition: transform .12s; }
 .unit-sprite { will-change: transform; }
 .king-row .bar-fill, .boss-bar-fill { transition: width .15s; }
+/* The result banner sits above pieces (layer 2), effects (3) and boss callouts (6). */
+.board .banner { z-index: 8; }
