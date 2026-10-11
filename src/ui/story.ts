@@ -3,7 +3,7 @@ import { gameNumber, type GameState } from '../game/state';
 import { el, openModal } from './dom';
 import type { BoardView, UnitView } from './board';
 import { Stage, playStageOverlay } from './cutscene';
-import { levelScene, loreScene, revealScene } from './scenes';
+import { levelScene, loreScene, openingScene, revealScene } from './scenes';
 
 /** The Black King's scene before a level, acted on the arena board, once per save. */
 export function playStory(s: GameState, levelId: string, save: () => void, board: BoardView, cast: UnitView[]): Promise<void> {
@@ -39,6 +39,11 @@ export function playLevelLore(s: GameState, levelId: string, save: () => void): 
   if (lore === null || s.tutorial.includes(key)) return Promise.resolve();
   s.tutorial.push(key);
   return playLore(s, lore, game, save);
+}
+
+/** The opening of a new save: the White Kingdom falls. */
+export function playOpening(): Promise<void> {
+  return playStageOverlay(openingScene(), 1);
 }
 
 /** The edge of the board opens: the Hand's first appearance (the Chronicle's fifth chapter). */

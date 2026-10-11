@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS } from '../src/game/achievements';
 import { createBattle, simulate } from '../src/game/battle';
 import {
-  battleSetup, checkAchievements, claimAchievement, claimableAchievements, collectTreasury, newGame, recordResult,
+  battleSetup, checkAchievements, claimAchievement, claimableAchievements, collectTreasury, newGame, placeFromReserve, recordResult,
 } from '../src/game/state';
 
 describe('achievements', () => {
@@ -14,6 +14,7 @@ describe('achievements', () => {
   it('a first win unlocks "first blood" once and pays on claim', () => {
     const s = newGame(0);
     expect(checkAchievements(s)).toEqual([]);
+    placeFromReserve(s, 'pawn', 3, 5, 4);
     const b = createBattle(battleSetup(s, '1-1'));
     simulate(b);
     recordResult(s, '1-1', b);

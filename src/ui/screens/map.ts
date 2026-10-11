@@ -16,6 +16,7 @@ import { openChronicle, playGameIntro, playReveal } from '../story';
 import { playCredits } from '../finale';
 import { handUrl } from '../handArt';
 import { DISTORTIONS, distortionsFor } from '../../game/distortions';
+import { featureOpen } from '../../game/features';
 
 const REVEAL_KEY = 'story_final_reveal';
 
@@ -42,6 +43,7 @@ export class MapScreen implements Screen {
   private relicCount = el('span');
   private relicBtn = el('button', 'btn btn-up');
   private treasuryCard!: HTMLElement;
+  private relicsCard!: HTMLElement;
   private abyssCard = el('div', 'card abyss-card');
   private abyssInfo = el('div', 'treasury-info');
   private abyssBtn = el('button', 'btn btn-primary', 'Спуститься');
@@ -90,6 +92,7 @@ export class MapScreen implements Screen {
     treasury.append(tHead, amountRow, bar, this.treasuryInfo, this.collectBtn);
 
     const relics = el('div', 'card relics-card');
+    this.relicsCard = relics;
     const rHead = el('div', 'panel-head');
     rHead.append(el('span', 'panel-title', 'Реликвии'), this.relicCount, infoBtn('Реликвии',
       'Постоянные бонусы, меняющие правила боя.\nЗа каждого босса и каждые 12 звёзд вы выбираете одну из трёх. Наведите на значок или нажмите на него, чтобы прочитать описание.'));
@@ -271,6 +274,8 @@ export class MapScreen implements Screen {
 
   frame(): void {
     const s = this.ctx.state;
+    this.treasuryCard.hidden = !featureOpen(s, 'treasury');
+    this.relicsCard.hidden = !featureOpen(s, 'relics');
     const cap = treasuryCap(s);
     const rate = incomePerMinute(s);
     const amount = Math.floor(s.treasury);

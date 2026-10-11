@@ -61,6 +61,67 @@ export function levelScene(levelId: string): Step[] | null {
   }
 }
 
+// ---------- The very first minute ----------
+
+/**
+ * Before 1-1 of a new save: the White Kingdom falls in one night and the king
+ * escapes with three pawns, exactly the army the player starts with.
+ */
+export function openingScene(): Step[] {
+  const steps: Step[] = [];
+  const back = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'] as const;
+  back.forEach((kind, x) => {
+    steps.push({ t: 'spawn', id: `w${x}`, kind, team: 'ally', x, y: 7, tier: kind === 'king' || kind === 'queen' ? 2 : 0 });
+    steps.push({ t: 'spawn', id: `b${x}`, kind, team: 'enemy', x, y: 0, tier: 2, hidden: true });
+  });
+  for (let x = 0; x < 8; x++) {
+    steps.push({ t: 'spawn', id: `wp${x}`, kind: 'pawn', team: 'ally', x, y: 6 });
+    steps.push({ t: 'spawn', id: `bp${x}`, kind: 'pawn', team: 'enemy', x, y: 1, tier: 1, hidden: true });
+  }
+  return [
+    ...steps,
+    { t: 'title', text: 'Пиксельный гамбит', sub: 'Белое королевство' },
+    { t: 'caption', text: 'Тысячу лет Белое королевство жило в мире.' },
+    { t: 'teamHop', team: 'ally' },
+    { t: 'caption', text: 'Пока с севера не пришёл Чёрный король.' },
+    { t: 'team', team: 'enemy', show: true },
+    { t: 'roar', id: 'b4' },
+    ...[1, 2, 3, 4, 5, 6].map((x): Step => ({ t: 'move', id: `bp${x}`, x, y: 4, ms: 500, par: true })),
+    { t: 'wait', ms: 600 },
+    { t: 'shake', big: true },
+    say('b4', 'Сдавайся, старик. Твоё королевство — моё.'),
+    say('w4', 'Никогда! Стража, к бою!'),
+    { t: 'move', id: 'b3', x: 3, y: 3, ms: 400 },
+    { t: 'shatter', id: 'wp3' },
+    { t: 'move', id: 'b3', x: 3, y: 6, ms: 300 },
+    { t: 'shatter', id: 'w3' },
+    { t: 'flash', color: '#ff4f7b' },
+    { t: 'move', id: 'b6', x: 5, y: 5, ms: 300, par: true },
+    { t: 'move', id: 'b1', x: 2, y: 5, ms: 300 },
+    { t: 'shatter', id: 'w0', par: true },
+    { t: 'shatter', id: 'w7', par: true },
+    { t: 'shatter', id: 'wp0', par: true },
+    { t: 'shatter', id: 'wp7' },
+    { t: 'shatter', id: 'w1', par: true },
+    { t: 'shatter', id: 'w6', par: true },
+    { t: 'shatter', id: 'w2', par: true },
+    { t: 'shatter', id: 'w5' },
+    { t: 'shatter', id: 'wp1', par: true },
+    { t: 'shatter', id: 'wp6' },
+    { t: 'shake', big: true },
+    { t: 'caption', text: 'Армия пала за одну ночь.' },
+    { t: 'move', id: 'w4', x: 3, y: 7, ms: 500, par: true },
+    { t: 'move', id: 'wp2', x: 2, y: 5, ms: 500, par: true },
+    { t: 'move', id: 'wp4', x: 4, y: 5, ms: 500, par: true },
+    { t: 'move', id: 'wp5', x: 3, y: 6, ms: 500 },
+    say('b4', 'Беги, старик. Я найду тебя на любой клетке.'),
+    { t: 'team', team: 'enemy', show: false },
+    { t: 'caption', text: 'У тебя остались король и три пешки. Этого хватит, чтобы начать.' },
+    say('w4', 'Мы вернём королевство. Клетка за клеткой.'),
+    { t: 'title', text: 'Партия 1', sub: 'Отвоюй Белое королевство' },
+  ];
+}
+
 // ---------- A new game: the Chronicle acted out ----------
 
 /** The opening cast: two small armies facing each other, the e-file left open for the kings to meet. */

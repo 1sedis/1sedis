@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createBattle, simulate, stepBattle, type Placement } from '../src/game/battle';
 import { ALL_LEVELS, enemyPlacements } from '../src/game/levels';
-import { battleSetup, newGame } from '../src/game/state';
+import { battleSetup, newGame, placeFromReserve } from '../src/game/state';
 
 const p = (kind: Placement['kind'], x: number, y: number, level = 1): Placement => ({ kind, x, y, level });
 
 describe('battle rules', () => {
-  it('the starting army wins the first level', () => {
-    expect(simulate(createBattle(battleSetup(newGame(), '1-1')))).toBe('win');
+  it('the starting army, with the reserve pawn placed, wins the first level', () => {
+    const s = newGame();
+    placeFromReserve(s, 'pawn', 3, 5, 4);
+    expect(simulate(createBattle(battleSetup(s, '1-1')))).toBe('win');
   });
 
   it('losing the king loses the battle even with pieces left', () => {

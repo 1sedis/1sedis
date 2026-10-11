@@ -7,6 +7,7 @@ import type { Branch } from './abilities';
 import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId } from './crownTree';
 import { bossFor } from './bosses';
 import { withElites, type Trait } from './elites';
+import { featureOpen } from './features';
 import { levelTerrain, levelTerrainRows, parseTerrain, walkable, withDarkness, type Terrain } from './terrain';
 import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionsFor, type DistortionId } from './distortions';
 import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
@@ -107,10 +108,10 @@ export function newGame(now = Date.now()): GameState {
     abilityBranch: perKind(0) as Record<PieceKind, Branch>,
     buildings: { treasury: 0, hq: 0, forge: 0 },
     stars: {},
+    // The third pawn waits in the reserve: placing it is the first thing the game teaches.
     formation: [
       { kind: 'king', x: 3, y: 7 },
       { kind: 'pawn', x: 2, y: 5 },
-      { kind: 'pawn', x: 3, y: 5 },
       { kind: 'pawn', x: 4, y: 5 },
     ],
     treasury: 0,
@@ -324,6 +325,8 @@ export function queenCap(s: GameState): number {
 
 /** The player's own moves per battle ("Темп" in the Crown Tree adds one). */
 export function playerMoves(s: GameState): number {
+  // The very first battle is about placing pieces; moves come with the second.
+  if (!featureOpen(s, 'moves')) return 0;
   return MOVES_PER_BATTLE + (hasNode(s, 'castling') ? 1 : 0);
 }
 

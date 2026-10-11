@@ -89,6 +89,11 @@ export class BoardView {
     this.frame.append(ranks, this.stage, el('span'), files);
   }
 
+  /** A square of the board (for tutorial tips). */
+  cellNode(x: number, y: number): HTMLElement | undefined {
+    return this.cells[y * BOARD_SIZE + x];
+  }
+
   /** The element of the first piece matching team and kind (for tutorial tips). */
   unitNode(team: Team, kind: PieceKind): HTMLElement | undefined {
     for (const u of this.units.values()) if (u.team === team && u.kind === kind) return u.node;
@@ -364,10 +369,13 @@ export class BoardView {
    * A decision over the board: a question, buttons and a draining time bar.
    * Returns a function that removes it.
    */
-  showDecision(title: string, options: { id: string; label: string; icon?: string }[], ms: number, onPick: (id: string) => void): () => void {
+  showDecision(
+    title: string, options: { id: string; label: string; icon?: string }[], ms: number, onPick: (id: string) => void, hint?: string,
+  ): () => void {
     this.decisionEl?.remove();
     const box = el('div', 'decision');
     box.append(el('div', 'decision-title', title));
+    if (hint) box.append(el('div', 'decision-hint', hint));
     const row = el('div', 'decision-options');
     for (const o of options) {
       const b = el('button', 'btn decision-btn');

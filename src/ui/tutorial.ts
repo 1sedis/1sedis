@@ -1,5 +1,6 @@
 import type { GameState } from '../game/state';
 import { el } from './dom';
+import { pointerUrl } from './pointerArt';
 
 /**
  * One-time contextual tips: a pulsing ring around a target element and a
@@ -8,6 +9,9 @@ import { el } from './dom';
  */
 export class Tutorial {
   private ring = el('div', 'tip-ring');
+  /** The glove that taps the target (and, for two-step tips, the second target after it). */
+  private pointer = el('img', 'tip-pointer');
+  private second: HTMLElement | null = null;
   private bubble = el('div', 'tip-bubble');
   private text = el('p', 'tip-text');
   private activeId: string | null = null;
@@ -22,19 +26,29 @@ export class Tutorial {
     const ok = el('button', 'btn btn-small btn-primary', 'Понятно');
     ok.addEventListener('click', () => this.dismiss());
     this.bubble.append(this.text, ok);
-    this.ring.hidden = this.bubble.hidden = true;
-    document.body.append(this.ring, this.bubble);
+    this.pointer.src = pointerUrl();
+    this.pointer.alt = '';
+    this.ring.hidden = this.bubble.hidden = this.pointer.hidden = true;
+    document.body.append(this.ring, this.bubble, this.pointer);
   }
 
-  /** Show a tip unless it was seen, another tip is open, or a dialog is up. Returns true while it is visible. */
-  tip(id: string, target: HTMLElement | null | undefined, text: string): boolean {
-    if (this.activeId === id) return true;
+  /**
+   * Show a tip unless it was seen, another tip is open, or a dialog is up. A
+   * glove taps the target; with `then`, it taps the target and then the second
+   * element, over and over (tap a piece, then a square). Returns true while visible.
+   */
+  tip(id: string, target: HTMLElement | null | undefined, text: string, then?: HTMLElement | null): boolean {
+    if (this.activeId === id) {
+      this.second = then ?? null;
+      return true;
+    }
     if (this.activeId || !target || !this.enabled() || this.getState().tutorial.includes(id)) return false;
     if (document.querySelector('.modal-overlay') || !isVisible(target)) return false;
     this.activeId = id;
     this.target = target;
+    this.second = then ?? null;
     this.text.textContent = text;
-    this.ring.hidden = this.bubble.hidden = false;
+    this.ring.hidden = this.bubble.hidden = this.pointer.hidden = false;
     target.addEventListener('pointerdown', this.onTargetPress, { once: true });
     this.position();
     return true;
@@ -52,6 +66,14 @@ export class Tutorial {
 
   private position(): void {
     const r = this.target!.getBoundingClientRect();
+    // The glove: at the target, or travelling from the target to the second element.
+    const p = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    const q = this.second && isVisible(this.second) ? this.second.getBoundingClientRect() : null;
+    this.pointer.style.setProperty('--px', `${p.x}px`);
+    this.pointer.style.setProperty('--py', `${p.y}px`);
+    this.pointer.style.setProperty('--qx', `${q ? q.left + q.width / 2 : p.x}px`);
+    this.pointer.style.setProperty('--qy', `${q ? q.top + q.height / 2 : p.y}px`);
+    this.pointer.classList.toggle('two-step', !!q);
     const pad = 6;
     Object.assign(this.ring.style, {
       left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px`,
@@ -80,7 +102,8 @@ export class Tutorial {
     this.target?.removeEventListener('pointerdown', this.onTargetPress);
     this.activeId = null;
     this.target = null;
-    this.ring.hidden = this.bubble.hidden = true;
+    this.second = null;
+    this.ring.hidden = this.bubble.hidden = this.pointer.hidden = true;
   }
 
   /** Forget the open tip without marking it seen (e.g. on screen change). */

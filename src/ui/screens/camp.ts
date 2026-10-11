@@ -8,6 +8,7 @@ import {
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
 import { el, infoBtn, pulse, setText, toast } from '../dom';
+import { featureOpen } from '../../game/features';
 import { fmt } from '../format';
 import { audio } from '../audio';
 import { spriteUrl, type Tier } from '../sprites';
@@ -34,6 +35,7 @@ export class CampScreen implements Screen {
   readonly root = el('section', 'camp-screen');
   private armyRows: ArmyRow[] = [];
   private buildingRows: BuildingRow[] = [];
+  private buildingsCard!: HTMLElement;
   private altarCard = el('div', 'card camp-altar');
   private shardCount = el('span', 'shard-count');
   private spinBtn = el('button', 'btn btn-shard spin-btn');
@@ -62,6 +64,7 @@ export class CampScreen implements Screen {
     for (const kind of ARMY_ORDER) army.append(this.buildArmyRow(kind));
 
     const buildings = el('div', 'card camp-buildings');
+    this.buildingsCard = buildings;
     const bHead = el('div', 'panel-head');
     bHead.append(el('span', 'panel-title', 'Постройки'), infoBtn('Постройки',
       BUILDING_ORDER.map((id) => `${BUILDINGS[id].name}: ${BUILDINGS[id].description}.`).join('\n')));
@@ -202,6 +205,7 @@ export class CampScreen implements Screen {
   show(): void {}
 
   frame(): void {
+    this.buildingsCard.hidden = !featureOpen(this.ctx.state, 'buildings');
     const s = this.ctx.state;
     const forge = forgeMultiplier(s);
     for (const row of this.armyRows) {

@@ -18,6 +18,8 @@ import { MapScreen } from './screens/map';
 import { loadSettings, saveSettings, type Settings } from './settings';
 import { spriteUrl } from './sprites';
 import { Tutorial } from './tutorial';
+import { playOpening } from './story';
+import { FEATURES, acknowledgeOpen, featureOpen, newlyOpened, openKey } from '../game/features';
 
 export class App implements Ctx {
   state: GameState;
@@ -44,6 +46,11 @@ export class App implements Ctx {
   constructor(private root: HTMLElement) {
     const loaded = loadGame();
     this.state = loaded.state;
+    // Saves from before the step-by-step opening already know everything they have reached.
+    if (!this.state.tutorial.includes('features_v1')) {
+      acknowledgeOpen(this.state);
+      this.state.tutorial.push('features_v1');
+    }
     this.offlineGold = loaded.offlineGold;
     this.descent = offlineDescent(this.state, loaded.offlineMs);
   }
@@ -71,8 +78,8 @@ export class App implements Ctx {
     requestAnimationFrame((t) => this.frame(t));
   }
 
-  tip(id: string, target: HTMLElement | null | undefined, text: string): boolean {
-    return this.tutorial.tip(id, target, text);
+  tip(id: string, target: HTMLElement | null | undefined, text: string, then?: HTMLElement | null): boolean {
+    return this.tutorial.tip(id, target, text, then);
   }
 
   save(): void {
@@ -186,8 +193,11 @@ export class App implements Ctx {
     }
     clearSave();
     this.state = newGame();
+    this.state.tutorial.push('features_v1');
     this.offlineGold = 0;
     this.save();
+    // The first minute: the kingdom falls, the king escapes with three pawns — then straight into 1-1.
+    if (this.settings.hints) await playOpening();
     this.go('arena', '1-1');
   }
 
@@ -214,6 +224,7 @@ export class App implements Ctx {
         const next = importSave(code);
         if (!next) return false;
         this.state = next;
+        acknowledgeOpen(this.state);
         this.offlineGold = 0;
         this.descent = null;
         this.save();
@@ -259,6 +270,7 @@ export class App implements Ctx {
         this.lastAchCheck = now;
         this.checkAchievements();
       }
+      this.announceFeatures();
       this.globalTips();
       this.tutorial.frame();
     }
@@ -275,6 +287,8 @@ export class App implements Ctx {
     this.navCamp.classList.toggle('active', this.screenId === 'camp');
     setHidden(this.navBadge, this.screenId === 'camp' || !canAffordUpgrade(s));
     this.navAch.classList.toggle('active', this.screenId === 'achievements');
+    setHidden(this.navCamp, !featureOpen(s, 'camp'));
+    setHidden(this.navAch, !featureOpen(s, 'achievements'));
     setHidden(this.achBadge, claimableAchievements(s) === 0);
     const on = this.settings.sound || this.settings.music;
     setText(this.soundBtn, on ? '♪ Звук' : '♪ Тихо');
@@ -284,11 +298,31 @@ export class App implements Ctx {
   }
 
   private checkAchievements(): void {
+    // Achievements are counted from the start but announced only once their tab is open.
+    if (!featureOpen(this.state, 'achievements')) return;
     const fresh = checkAchievements(this.state);
     if (!fresh.length) return;
     this.save();
     audio.play('achievement');
     for (const id of fresh) toast(`Достижение: «${getAchievement(id)?.name}»`, 'good');
+  }
+
+  /** A part of the game just opened: say so, and make its button glow for a while. */
+  private announceFeatures(): void {
+    const s = this.state;
+    const fresh = newlyOpened(s);
+    if (!fresh.length || document.querySelector('.modal-overlay, .stage-overlay')) return;
+    for (const f of fresh) {
+      s.tutorial.push(openKey(f));
+      toast(`Открыто: ${FEATURES[f].name}!`, 'good');
+      const button = f === 'camp' ? this.navCamp : f === 'achievements' ? this.navAch : null;
+      if (button) {
+        button.classList.add('just-opened');
+        setTimeout(() => button.classList.remove('just-opened'), 6000);
+      }
+    }
+    audio.play('relic');
+    this.save();
   }
 
   /** Tips that are not tied to one screen. */

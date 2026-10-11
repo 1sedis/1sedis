@@ -11,7 +11,7 @@ export interface Ctx {
   go(screen: ScreenId, levelId?: string): void;
   save(): void;
   /** Show a one-time tutorial tip pointing at `target`. Returns true while it is visible. */
-  tip(id: string, target: HTMLElement | null | undefined, text: string): boolean;
+  tip(id: string, target: HTMLElement | null | undefined, text: string, then?: HTMLElement | null): boolean;
 }
 
 export interface Screen {

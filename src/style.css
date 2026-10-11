@@ -1961,3 +1961,24 @@ body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles { animation:
 .decision-time > div { height: 100%; background: var(--gold); transform-origin: left; animation: decision-drain linear forwards; }
 @keyframes decision-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (width <= 560px) { .moves-tokens { height: 34px; padding: 0 6px; } .moves-label { display: none; } }
+
+/* The glove that shows where to tap */
+.tip-pointer { position: fixed; left: 0; top: 0; z-index: 120; width: 30px; height: 37px; pointer-events: none; image-rendering: pixelated;
+  translate: calc(var(--px) - 12px) calc(var(--py) - 2px); filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.5)) drop-shadow(0 0 6px #ffcf4a99);
+  animation: pointer-tap 1.1s ease-in-out infinite; }
+.tip-pointer.two-step { animation: pointer-two 2.4s ease-in-out infinite; }
+@keyframes pointer-tap {
+  0%, 100% { translate: calc(var(--px) - 12px) calc(var(--py) + 10px); }
+  45% { translate: calc(var(--px) - 12px) calc(var(--py) - 2px); scale: 0.9; }
+}
+@keyframes pointer-two {
+  0% { translate: calc(var(--px) - 12px) calc(var(--py) + 10px); }
+  12% { translate: calc(var(--px) - 12px) calc(var(--py) - 2px); scale: 0.9; }
+  22% { translate: calc(var(--px) - 12px) calc(var(--py) + 8px); scale: 1; }
+  60% { translate: calc(var(--qx) - 12px) calc(var(--qy) + 8px); }
+  72% { translate: calc(var(--qx) - 12px) calc(var(--qy) - 2px); scale: 0.9; }
+  85%, 100% { translate: calc(var(--qx) - 12px) calc(var(--qy) + 10px); scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .tip-pointer, .tip-pointer.two-step { animation: none; } }
+.nav-btn.just-opened { animation: card-open 1.2s ease-out 4; color: var(--gold); }
+.decision-hint { color: #e6dcff; font-size: 14px; line-height: 1.35; margin: -4px 0 10px; }

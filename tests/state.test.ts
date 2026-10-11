@@ -40,7 +40,8 @@ describe('army', () => {
 describe('formation', () => {
   it('respects the reserve and the command limit', () => {
     const s = newGame(0);
-    expect(placeFromReserve(s, 'pawn', 0, 5, 4)).not.toBeNull(); // all 3 pawns already placed
+    expect(placeFromReserve(s, 'pawn', 3, 5, 4)).toBeNull(); // the reserve pawn goes in
+    expect(placeFromReserve(s, 'pawn', 0, 5, 4)).not.toBeNull(); // all 3 pawns placed now
     s.army.pawn = 6;
     expect(placeFromReserve(s, 'pawn', 0, 5, 4)).toBeNull();
     expect(placeFromReserve(s, 'pawn', 1, 5, 4)).not.toBeNull(); // limit 4 reached
@@ -72,6 +73,7 @@ describe('progress', () => {
     const s = newGame(0);
     expect(isLevelOpen(s, '1-1')).toBe(true);
     expect(isLevelOpen(s, '1-2')).toBe(false);
+    placeFromReserve(s, 'pawn', 3, 5, 4);
     const b = createBattle(battleSetup(s, '1-1'));
     simulate(b);
     const first = recordResult(s, '1-1', b);
