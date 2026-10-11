@@ -1,5 +1,6 @@
 import { KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
-import { ABILITIES, abilityTier } from './abilities';
+import { synergyBonus } from './synergies';
+import { abilityOf, abilityTier, type Branch } from './abilities';
 import type { RelicId } from './relics';
 
 export const BOARD_SIZE = 8;
@@ -35,6 +36,8 @@ export interface BattleSetup {
   allyKingHpMult?: number;
   /** Relics owned by the player; they only affect allies. */
   relics?: RelicId[];
+  /** The player's chosen ability per piece type (enemies always use the first). */
+  allyBranches?: Partial<Record<PieceKind, Branch>>;
 }
 
 export interface Unit {
@@ -74,6 +77,9 @@ export interface Unit {
   rallyMult: number;
   /** Has struck at least once. */
   struck: boolean;
+  /** Curse from an enemy bishop: extra damage taken until this tick. */
+  cursedUntil: number;
+  curseMult: number;
 }
 
 export interface BattleEvent {
@@ -111,6 +117,8 @@ export interface Battle {
   allyStats: { promotions: number; kills: number; crits: number; abilities: number };
   /** Per-piece record for the after-battle report; kept even after a piece dies. */
   report: Record<number, UnitReport>;
+  /** The player's chosen abilities. */
+  branches: Partial<Record<PieceKind, Branch>>;
 }
 
 export interface UnitReport {
@@ -150,13 +158,10 @@ function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult
     atkMult: atkMult * (boss ? BOSS_ATK : 1),
     pawnMoveMult, buff: 1, struck: false,
     tier: abilities ? abilityTier(p.level) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
+    cursedUntil: 0, curseMult: 1,
   };
   applyStats(u, p.kind);
   u.hp = u.maxHp;
-  resetAbilityTimer(u, 0.5);
-  if (u.kind === 'pawn' && u.tier > 0) {
-    u.shield = u.maxShield = u.maxHp * (u.tier === 2 ? 0.6 : 0.3);
-  }
   // Stagger the first actions a little so mirrored armies do not act in lockstep.
   u.wait = uid % 3;
   return u;
@@ -169,9 +174,11 @@ export function createBattle(setup: BattleSetup): Battle {
   const march = relics.has('forcedMarch') ? 0.6 : 1;
   let uid = 1;
   const units: Unit[] = [];
+  const kinds = setup.allies.map((p) => p.kind);
   for (const p of setup.allies) {
     const kingHp = p.kind === 'king' ? setup.allyKingHpMult ?? 1 : 1;
-    units.push(makeUnit(uid++, 'ally', p, hp * kingHp, atk, march, true));
+    const syn = synergyBonus(kinds, p.kind);
+    units.push(makeUnit(uid++, 'ally', p, hp * kingHp * syn.hp, atk * syn.atk, march, true));
   }
   for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1, 1, true));
   const report: Record<number, UnitReport> = {};
@@ -181,8 +188,29 @@ export function createBattle(setup: BattleSetup): Battle {
       dealt: 0, taken: 0, healed: 0, kills: 0,
     };
   }
-  return { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
-    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report };
+  const b: Battle = { units, tick: 0, result: null, events: [], kingMinRatio: 1, allyLosses: 0, relics, kingSaved: false,
+    allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches } };
+  for (const u of units) {
+    resetAbilityTimer(b, u, 0.5);
+    if (u.kind !== 'pawn' || u.tier === 0) continue;
+    if (alt(b, u)) {
+      // Charge: a faster pawn without a shield.
+      u.pawnMoveMult *= 0.55;
+      u.moveCd = Math.round(u.moveCd * 0.55);
+    } else {
+      u.shield = u.maxShield = u.maxHp * (u.tier === 2 ? 0.6 : 0.3);
+    }
+  }
+  return b;
+}
+
+/** The unit uses its alternative ability (only the player's pieces can). */
+function alt(b: Battle, u: Unit): boolean {
+  return u.tier > 0 && u.side === 'ally' && b.branches[u.kind] === 1;
+}
+
+function ability(b: Battle, u: Unit) {
+  return abilityOf(u.kind, alt(b, u) ? 1 : 0);
 }
 
 function has(b: Battle, side: Side, relic: RelicId): boolean {
@@ -262,8 +290,8 @@ function pickTarget(u: Unit, targets: Unit[]): Unit {
   return [...targets].sort((a, c) => priority(a) - priority(c) || a.hp - c.hp || a.uid - c.uid)[0];
 }
 
-function resetAbilityTimer(u: Unit, share = 1): void {
-  u.abilityTimer = Math.round(ABILITIES[u.kind].cooldown * share);
+function resetAbilityTimer(b: Battle, u: Unit, share = 1): void {
+  u.abilityTimer = Math.round(ability(b, u).cooldown * share);
 }
 
 /** Attack power of a unit right now, with aura, buffs and battle cry. */
@@ -282,16 +310,22 @@ function abilityEvent(b: Battle, u: Unit): void {
   if (u.side === 'ally') b.allyStats.abilities++;
   b.events.push({
     type: 'ability', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0,
-    fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, label: ABILITIES[u.kind].name,
+    fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, label: ability(b, u).name,
   });
 }
 
 /** Cast the unit's active ability if it is ready and useful. Returns true when cast. */
 function tryCast(b: Battle, u: Unit): boolean {
-  if (u.tier === 0 || u.abilityTimer > 0 || ABILITIES[u.kind].cooldown === 0) return false;
+  if (u.tier === 0 || u.abilityTimer > 0 || ability(b, u).cooldown === 0) return false;
   const strong = u.tier === 2;
   const friends = alive(b, u.side);
   const foes = alive(b, u.side === 'ally' ? 'enemy' : 'ally');
+  if (alt(b, u)) {
+    if (!castAlt(b, u, strong, friends)) return false;
+    resetAbilityTimer(b, u);
+    u.wait = u.attackCd;
+    return true;
+  }
   switch (u.kind) {
     case 'king': {
       const targets = friends.filter((f) => f !== u && (strong || chebyshev(u, f.x, f.y) <= 2));
@@ -343,18 +377,70 @@ function tryCast(b: Battle, u: Unit): boolean {
     default:
       return false;
   }
-  resetAbilityTimer(u);
+  resetAbilityTimer(b, u);
   u.wait = u.attackCd;
   return true;
+}
+
+/** Active alternative abilities: the bishop's curse and the queen's tide. */
+function castAlt(b: Battle, u: Unit, strong: boolean, friends: Unit[]): boolean {
+  if (u.kind === 'bishop') {
+    const targets = reachFrom(b, u.side, u.kind, u.x, u.y).filter((t) => b.tick >= t.cursedUntil);
+    if (!targets.length) return false;
+    const target = [...targets].sort((a, c) => Number(c.kind === 'king') - Number(a.kind === 'king') || c.hp - a.hp)[0];
+    abilityEvent(b, u);
+    target.cursedUntil = b.tick + (strong ? 60 : 40);
+    target.curseMult = strong ? 1.5 : 1.3;
+    return true;
+  }
+  if (u.kind === 'queen') {
+    const near = friends.filter((f) => chebyshev(u, f.x, f.y) <= 2 && f.shield < f.maxHp * 0.05);
+    if (!near.length) return false;
+    abilityEvent(b, u);
+    for (const f of near) {
+      f.shield = f.maxShield = Math.max(f.shield, f.maxHp * (strong ? 0.3 : 0.15));
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Damage taken multiplier from passive abilities and curses. */
+function defense(b: Battle, target: Unit): number {
+  let m = 1;
+  if (alt(b, target)) {
+    if (target.kind === 'king') m *= target.tier === 2 ? 0.5 : 0.7;
+    if (target.kind === 'rook') m *= target.tier === 2 ? 0.5 : 0.65;
+  }
+  let aura = 1;
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      if (!dx && !dy) continue;
+      const f = unitAt(b, target.x + dx, target.y + dy);
+      if (!f || f.side !== target.side || f.tier !== 2 || !alt(b, f)) continue;
+      if (f.kind === 'king') aura = Math.min(aura, 0.85);
+      if (f.kind === 'rook') aura = Math.min(aura, 0.8);
+    }
+  }
+  m *= aura;
+  if (b.tick < target.cursedUntil) m *= target.curseMult;
+  return m;
 }
 
 function strike(b: Battle, u: Unit, target: Unit): void {
   let damage = baseDamage(b, u);
   u.strikes++;
-  const charge = u.kind === 'knight' && u.tier > 0 && u.strikes % 3 === 0;
+  const charge = u.kind === 'knight' && u.tier > 0 && !alt(b, u) && u.strikes % 3 === 0;
   if (charge) {
     damage *= 2;
     abilityEvent(b, u);
+  }
+  if (alt(b, u)) {
+    if (u.kind === 'knight' && (target.kind === 'king' || RANGED.has(target.kind))) damage *= u.tier === 2 ? 1.8 : 1.4;
+    if (u.kind === 'pawn' && !u.struck) {
+      damage *= u.tier === 2 ? 3 : 2;
+      abilityEvent(b, u);
+    }
   }
   const big = target.kind === 'king' || target.boss;
   if (u.kind === 'rook' && big && has(b, u.side, 'heavyShot')) damage *= 1.5;
@@ -386,7 +472,7 @@ function pierce(b: Battle, u: Unit, target: Unit, damage: number): void {
 }
 
 function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean): void {
-  let damage = raw;
+  let damage = raw * defense(b, target);
   if (target.kind === 'pawn' && has(b, target.side, 'phalanx')) {
     const buddy = [-1, 1].some((dx) => unitAt(b, target.x + dx, target.y)?.kind === 'pawn'
       && unitAt(b, target.x + dx, target.y)?.side === target.side);
@@ -614,7 +700,7 @@ function moveUnit(b: Battle, u: Unit): void {
         applyStats(u, 'queen');
         b.report[u.uid].promoted = true;
         b.report[u.uid].kind = 'queen';
-        resetAbilityTimer(u, 0.5);
+        resetAbilityTimer(b, u, 0.5);
         u.promoted = true;
         if (u.side === 'ally') b.allyStats.promotions++;
         b.events.push({ type: 'promote', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid });

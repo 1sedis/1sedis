@@ -1,6 +1,7 @@
 import { createBattle, stepBattle, threatMap, type Battle, type BattleEvent, type Unit } from '../../game/battle';
 import { adviceLabel, adviseUpgrade } from '../../game/advice';
 import { bestFormation } from '../../game/autoformation';
+import { SYNERGIES, synergyProgress } from '../../game/synergies';
 import { buildReport, pieceName } from '../../game/report';
 import {
   CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, firstReward, getLevel, isAbyss, levelIncome, nextLevelId,
@@ -51,6 +52,8 @@ export class ArenaScreen implements Screen {
   private trayItems = new Map<PieceKind, { btn: HTMLButtonElement; count: HTMLElement; img: HTMLImageElement }>();
   private trayTitle = el('span');
   private prepTools = el('div', 'tray-tools');
+  private synergyRow = el('div', 'synergy-row');
+  private synergySig = '';
   private autoBtn!: HTMLButtonElement;
   private threatBtn = el('button', 'toggle');
   private showThreats = true;
@@ -138,7 +141,7 @@ export class ArenaScreen implements Screen {
       this.threatSig = '';
     });
     this.prepTools.append(autoBtn, clearBtn, this.threatBtn);
-    trayPanel.append(trayHead, this.tray, this.prepTools);
+    trayPanel.append(trayHead, this.tray, this.synergyRow, this.prepTools);
     trayPanel.addEventListener('click', (e) => {
       if (!(e.target as HTMLElement).closest('button')) this.returnSelected();
     });
@@ -470,6 +473,28 @@ export class ArenaScreen implements Screen {
     return box;
   }
 
+  /** Composition bonuses: active ones lit, the rest dim with progress. */
+  private renderSynergies(prep: boolean): void {
+    this.synergyRow.hidden = !prep;
+    if (!prep) return;
+    const kinds = this.ctx.state.formation.map((f) => f.kind);
+    const progress = synergyProgress(kinds);
+    const sig = progress.map((p) => p.have).join(',');
+    if (sig === this.synergySig) return;
+    const wasActive = new Set([...this.synergyRow.querySelectorAll<HTMLElement>('.synergy.active')].map((n) => n.dataset.id));
+    const first = this.synergySig === '';
+    this.synergySig = sig;
+    this.synergyRow.replaceChildren(...progress.map(({ def, have, active }) => {
+      const chip = el('span', `synergy${active ? ' active' : ''}`, active ? `✦ ${def.name}` : `${def.name} ${have}/${def.need}`);
+      chip.dataset.id = def.id;
+      chip.title = def.description;
+      if (active && !first && !wasActive.has(def.id)) chip.classList.add('pop');
+      return chip;
+    }), this.synergyInfo);
+  }
+
+  private synergyInfo = infoBtn('Синергии', () => `Бонусы за состав армии на доске:\n${SYNERGIES.map((d) => `${d.name}: ${d.description}.`).join('\n')}`);
+
   /** The first time an ally uses an ability, explain where abilities come from. */
   private firstAbility(events: BattleEvent[]): void {
     const s = this.ctx.state;
@@ -477,7 +502,7 @@ export class ArenaScreen implements Screen {
     const e = events.find((ev) => ev.type === 'ability' && ev.side === 'ally');
     if (!e?.fromKind) return;
     s.tutorial.push('t_ability_seen');
-    toast(`${PIECES[e.fromKind].name}: приём «${ABILITIES[e.fromKind].name}»! Каждая фигура учит свой приём на 5-м уровне`, 'good');
+    toast(`${PIECES[e.fromKind].name}: приём «${e.label}»! На 5-м уровне фигура выбирает один из двух приёмов`, 'good');
   }
 
   // ---------- Frame ----------
@@ -527,6 +552,7 @@ export class ArenaScreen implements Screen {
     const limit = this.limit();
     setText(this.limitText, `${fieldedCount(s)}/${limit}`);
     setText(this.trayTitle, prep ? `На доске ${fieldedCount(s)}/${limit} + король` : 'Идёт бой');
+    this.renderSynergies(prep);
     for (const [kind, item] of this.trayItems) {
       const avail = available(s, kind);
       const src = spriteUrl(kind, 'ally', abilityTier(s.levels[kind]) as Tier);

@@ -3,6 +3,7 @@ import {
   ABYSS_UNLOCK, ALL_LEVELS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
   isAbyss, levelIncome, levelIndex, replayReward,
 } from './levels';
+import type { Branch } from './abilities';
 import { PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { ALTAR, emptyAltar, shardsForFloor, type AltarId } from './altar';
@@ -46,6 +47,8 @@ export interface GameState {
   stars: Record<string, number>;
   /** Last used formation, reused between battles. */
   formation: FormationSlot[];
+  /** Chosen ability per piece type: 0 = the first, 1 = the alternative. */
+  abilityBranch: Record<PieceKind, Branch>;
   /** Uncollected treasury gold. */
   treasury: number;
   /** Wall-clock time of the last treasury accrual. */
@@ -87,6 +90,7 @@ export function newGame(now = Date.now()): GameState {
     gold: 60,
     army: { ...perKind(0), king: 1, pawn: 3 },
     levels: perKind(1),
+    abilityBranch: perKind(0) as Record<PieceKind, Branch>,
     buildings: { treasury: 0, hq: 0, forge: 0 },
     stars: {},
     formation: [
@@ -367,6 +371,7 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
     allyAtkMult: m * (1 + 0.04 * s.altar.darkSteel),
     allyKingHpMult: 1 + 0.2 * s.altar.mantle,
     relics: [...s.relics],
+    allyBranches: { ...s.abilityBranch },
   };
 }
 
@@ -487,6 +492,7 @@ export function prestige(s: GameState, now = Date.now()): number {
   fresh.achievements = s.achievements;
   fresh.achievementsClaimed = s.achievementsClaimed;
   fresh.tutorial = s.tutorial;
+  fresh.abilityBranch = s.abilityBranch;
   fresh.stats = s.stats;
   fresh.abyss = { floor: 1, best: s.abyss.best };
   fresh.shards = s.shards;
@@ -569,6 +575,7 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       ...data,
       army: { ...state.army, ...data.army, king: 1 },
       levels: { ...state.levels, ...data.levels },
+      abilityBranch: { ...state.abilityBranch, ...data.abilityBranch },
       buildings: { ...state.buildings, ...data.buildings },
       stats: { ...state.stats, ...data.stats },
       abyss: { ...state.abyss, ...data.abyss },

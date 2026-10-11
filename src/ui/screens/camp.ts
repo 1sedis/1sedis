@@ -1,5 +1,5 @@
 import { UNLOCKED_BY, getLevel } from '../../game/levels';
-import { ABILITIES, ABILITY_LEVELS, abilityTier } from '../../game/abilities';
+import { ABILITY_LEVELS, abilityOf, abilityTier, type Branch } from '../../game/abilities';
 import { ALTAR, ALTAR_ORDER, type AltarId } from '../../game/altar';
 import { PIECES, levelMultiplier, type PieceKind } from '../../game/pieces';
 import {
@@ -24,7 +24,7 @@ interface ArmyRow {
   root: HTMLElement;
   meta: HTMLElement;
   stats: HTMLElement;
-  ability: HTMLElement;
+  ability: HTMLButtonElement[];
   icon: HTMLImageElement;
   recruitBtn: HTMLButtonElement;
   upgradeBtn: HTMLButtonElement;
@@ -88,9 +88,20 @@ export class CampScreen implements Screen {
     const meta = el('span', 'row-level');
     name.append(' ', meta, infoBtn(def.name, () => this.pieceInfo(kind)));
     const stats = el('div', 'row-meta');
-    const ability = el('span', 'ability-chip');
-    stats.append(ability);
-    body.append(name, stats);
+    const ability = ([0, 1] as Branch[]).map((branch) => {
+      const chip = el('button', 'ability-chip');
+      chip.addEventListener('click', () => {
+        const st = this.ctx.state;
+        if (st.abilityBranch[kind] === branch) return;
+        st.abilityBranch[kind] = branch;
+        this.ctx.save();
+        toast(`${def.name}: приём «${abilityOf(kind, branch).name}»`, 'good');
+      });
+      return chip;
+    });
+    const pick = el('div', 'ability-pick');
+    pick.append(...ability);
+    body.append(name, stats, pick);
     const actions = el('div', 'row-actions');
     const recruitBtn = el('button', 'btn btn-buy');
     recruitBtn.addEventListener('click', () => {
@@ -111,7 +122,7 @@ export class CampScreen implements Screen {
           pulse(icon);
           icon.classList.add('evolve');
           setTimeout(() => icon.classList.remove('evolve'), 900);
-          const ab = ABILITIES[kind];
+          const ab = abilityOf(kind, this.ctx.state.abilityBranch[kind]);
           toast(tier === 1
             ? `${PIECES[kind].name} в стальной броне и выучил приём «${ab.name}»!`
             : `${PIECES[kind].name} в золотой броне, «${ab.name}» усилен!`, 'good');
@@ -171,13 +182,17 @@ export class CampScreen implements Screen {
   /** Full description behind the "?" of a piece row. */
   private pieceInfo(kind: PieceKind): string {
     const def = PIECES[kind];
-    const ab = ABILITIES[kind];
     const [lv1, lv2] = ABILITY_LEVELS;
     const unlock = UNLOCKED_BY[kind];
+    const branch = (b: Branch) => {
+      const ab = abilityOf(kind, b);
+      return `${this.ctx.state.abilityBranch[kind] === b ? '▶' : '·'} «${ab.name}»: ${ab.tiers[0]} С ур. ${lv2}: ${ab.tiers[1]}`;
+    };
     return [
       `${def.role}. ${def.description}`,
-      `★ «${ab.name}» с ур. ${lv1}: ${ab.tiers[0]}`,
-      `★★ С ур. ${lv2}: ${ab.tiers[1]}`,
+      `Приём с ур. ${lv1} — выберите один из двух, менять можно в любой момент:`,
+      branch(0),
+      branch(1),
       ...(isUnlocked(this.ctx.state, kind) || !unlock ? [] : [`🔒 Откроется после боя ${unlock} «${getLevel(unlock).name}».`]),
     ].join('\n');
   }
@@ -200,11 +215,15 @@ export class CampScreen implements Screen {
       if (row.stats.firstChild?.nodeType !== Node.TEXT_NODE) row.stats.prepend('');
       if (row.stats.firstChild!.textContent !== stats) row.stats.firstChild!.textContent = stats;
       setText(row.meta, unlocked ? `ур. ${lvl}${row.kind === 'king' ? '' : ` · ×${s.army[row.kind]}`}` : '');
-      const ab = ABILITIES[row.kind];
-      setText(row.ability, `${tier === 2 ? '★★' : '★'} ${ab.name}`);
-      row.ability.title = tier === 0 ? `С ур. ${ABILITY_LEVELS[0]}: ${ab.tiers[0]}` : ab.tiers[tier - 1];
-      row.ability.classList.toggle('learned', tier > 0);
-      row.ability.hidden = !unlocked;
+      const chosen = s.abilityBranch[row.kind];
+      row.ability.forEach((chip, i) => {
+        const ab = abilityOf(row.kind, i as Branch);
+        setText(chip, `${tier === 2 ? '★★' : '★'} ${ab.name}`);
+        chip.title = `${tier === 0 ? `С ур. ${ABILITY_LEVELS[0]}: ` : ''}${ab.tiers[Math.max(0, tier - 1)]}`;
+        chip.classList.toggle('chosen', i === chosen);
+        chip.classList.toggle('learned', tier > 0 && i === chosen);
+        chip.hidden = !unlocked;
+      });
       const src = spriteUrl(row.kind, 'ally', tier as Tier);
       if (row.icon.src !== src) row.icon.src = src;
       row.icon.classList.toggle('tier-2', tier === 2);
