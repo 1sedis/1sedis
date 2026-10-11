@@ -76,6 +76,5 @@ export function buildReport(b: Battle): BattleReport {
     tips.push(`${pieceName(idle)} с ${square(idle.startX, idle.startY)} не нанёс(ла) урона. `
       + 'Поставьте эту фигуру ближе к врагу или на открытую линию.');
   }
-  if (b.result !== 'win') tips.push('Если расстановка не помогает, улучшите фигуры: каждый уровень даёт +18% к силе.');
   return { mvp, allies, lossReason, tips: tips.slice(0, 2) };
 }

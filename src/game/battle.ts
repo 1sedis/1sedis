@@ -711,3 +711,16 @@ export function threatMap(setup: BattleSetup): number[] {
   }
   return counts;
 }
+
+/** Share of the enemy army's total health removed, 0..1 (a won battle is 1). */
+export function enemyDamageShare(b: Battle): number {
+  if (b.result === 'win') return 1;
+  let max = 0;
+  let lost = 0;
+  for (const u of b.units) {
+    if (u.side !== 'enemy') continue;
+    max += u.maxHp;
+    lost += u.maxHp - Math.max(0, Math.min(u.maxHp, u.hp));
+  }
+  return max > 0 ? lost / max : 0;
+}

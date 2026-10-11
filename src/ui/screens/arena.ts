@@ -1,4 +1,5 @@
 import { createBattle, stepBattle, threatMap, type Battle, type BattleEvent, type Unit } from '../../game/battle';
+import { adviceLabel, adviseUpgrade } from '../../game/advice';
 import { bestFormation } from '../../game/autoformation';
 import { buildReport, pieceName } from '../../game/report';
 import {
@@ -10,7 +11,8 @@ import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
   available, battleSetup, clearFormation, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
-  moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, type BattleOutcome, type FormationSlot,
+  moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, upgradePiece, type BattleOutcome,
+  type FormationSlot,
 } from '../../game/state';
 import { audio } from '../audio';
 import { BoardView, type UnitView } from '../board';
@@ -401,12 +403,16 @@ export class ArenaScreen implements Screen {
         if (nextChapter) content.append(el('div', 'result-unlock', `Открыта глава ${nextChapter.id}: ${nextChapter.name}`));
       }
     } else {
+      if (o.reward > 0) {
+        content.append(el('div', 'result-reward small',
+          `+${fmt(o.reward)} золота за ${Math.round(o.damageShare * 100)}% урона врагу`));
+      }
       content.append(el('p', 'hint-text', level.hint));
-      content.append(el('p', 'hint', 'Повысьте уровень фигур в «Улучшениях», заберите золото из казны на карте или попробуйте другую расстановку.'));
     }
 
     const actions = el('div', 'modal-actions result-actions');
     const close = openModal(content, { dismissable: false, cls: 'result-modal' });
+    if (!o.win) content.append(this.adviceView(close));
     const button = (label: string, cls: string, fn: () => void) => {
       const b = el('button', `btn ${cls}`, label);
       b.addEventListener('click', () => {
@@ -435,6 +441,36 @@ export class ArenaScreen implements Screen {
       button('Ещё раз', 'btn-primary', () => this.enterPrep());
     }
     content.append(actions);
+  }
+
+  /** On a loss: the upgrade that helps most here, found by simulation, with a buy button. */
+  private adviceView(close: () => void): HTMLElement {
+    const s = this.ctx.state;
+    const box = el('div', 'advice');
+    const a = adviseUpgrade(s, this.levelId);
+    if (!a) return box;
+    box.append(el('img', 'advice-icon'));
+    (box.firstChild as HTMLImageElement).src = spriteUrl(a.kind, 'ally');
+    const body = el('div', 'advice-body');
+    body.append(el('div', 'advice-title', `Совет: ${adviceLabel(a)}`));
+    body.append(el('div', 'advice-sub', a.wins
+      ? 'С этим улучшением та же расстановка побеждает.'
+      : 'Даст больше всего силы именно в этом бою.'));
+    box.append(body);
+    const affordable = s.gold >= a.cost;
+    const buy = el('button', 'btn btn-up btn-small', affordable ? `Улучшить · ${fmt(a.cost)}` : `Нужно ${fmt(a.cost)}`);
+    buy.disabled = !affordable;
+    buy.addEventListener('click', () => {
+      if (!upgradePiece(s, a.kind)) return;
+      audio.play('levelup');
+      this.ctx.save();
+      toast(`${adviceLabel(a)}`, 'good');
+      close();
+      this.enterPrep();
+    });
+    box.append(buy);
+    if (!affordable) box.append(el('div', 'advice-sub advice-wide', 'Заберите золото из казны на карте или переиграйте пройденные бои.'));
+    return box;
   }
 
   // ---------- Frame ----------

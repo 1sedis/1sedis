@@ -1194,3 +1194,16 @@ img { image-rendering: pixelated; }
 .report-tips { margin: 8px 0 0; padding-left: 18px; color: var(--ink); line-height: 1.4; }
 .report-tips li { margin: 4px 0; }
 .result-modal { max-height: 92vh; overflow-y: auto; }
+
+/* Loss advice: the best upgrade for this battle */
+.result-reward.small { font-size: 19px; }
+.advice {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  margin: 12px 4px; padding: 10px 12px; text-align: left;
+  background: #261d4d; box-shadow: 0 0 0 3px var(--violet);
+}
+.advice-icon { width: 40px; height: 40px; flex: none; }
+.advice-body { flex: 1; min-width: 150px; }
+.advice-title { color: var(--ink); font-size: 18px; }
+.advice-sub { color: var(--muted); font-size: 15px; }
+.advice-wide { flex-basis: 100%; }

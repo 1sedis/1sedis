@@ -1,4 +1,4 @@
-import { BOARD_SIZE, type Battle, type BattleSetup, type Placement } from './battle';
+import { BOARD_SIZE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
   ABYSS_UNLOCK, ALL_LEVELS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
   isAbyss, levelIncome, levelIndex, replayReward,
@@ -384,7 +384,12 @@ export interface BattleOutcome {
   relicsEarned: number;
   /** Abyss shards earned by this battle. */
   shards: number;
+  /** Share of enemy health removed (1 on a win). */
+  damageShare: number;
 }
+
+/** A lost battle still pays: up to half of a replay reward, in proportion to the damage done. */
+export const CONSOLATION_SHARE = 0.5;
 
 export function recordResult(s: GameState, levelId: string, b: Battle): BattleOutcome {
   const level = getLevel(levelId);
@@ -395,7 +400,8 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     losses: win && b.allyLosses <= level.maxLosses,
   };
   const stars = win ? 1 + Number(conditions.king) + Number(conditions.losses) : 0;
-  if (isAbyss(levelId)) return recordAbyss(s, levelId, b, stars, conditions);
+  const damageShare = enemyDamageShare(b);
+  if (isAbyss(levelId)) return recordAbyss(s, levelId, b, stars, conditions, damageShare);
   const prev = s.stars[levelId] ?? 0;
   const firstClear = win && prev === 0;
   const newStars = Math.max(0, stars - prev);
@@ -406,6 +412,8 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     reward += Math.max(0, newStars - (firstClear ? 1 : 0)) * Math.round(firstReward(levelId) * 0.25);
     if (hasRelic(s, 'plunder')) reward *= 1.3;
     reward = Math.round(reward * goldMultiplier(s));
+  } else {
+    reward = Math.round(replayReward(levelId) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
   }
   s.stars[levelId] = Math.max(prev, stars);
   let relicsEarned = firstClear && level.boss ? 1 : 0;
@@ -415,7 +423,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   s.relicPicks += relicsEarned;
   s.gold += reward;
   countBattle(s, b, win, reward);
-  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0 };
+  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0, damageShare };
 }
 
 function countBattle(s: GameState, b: Battle, win: boolean, reward: number): void {
@@ -430,7 +438,9 @@ function countBattle(s: GameState, b: Battle, win: boolean, reward: number): voi
 }
 
 /** Abyss floors: no stars are stored; a win pays and opens the next floor, every 10th floor grants a relic. */
-function recordAbyss(s: GameState, levelId: string, b: Battle, stars: number, conditions: BattleOutcome['conditions']): BattleOutcome {
+function recordAbyss(
+  s: GameState, levelId: string, b: Battle, stars: number, conditions: BattleOutcome['conditions'], damageShare: number,
+): BattleOutcome {
   const floor = abyssFloor(levelId);
   const win = b.result === 'win';
   let reward = 0;
@@ -446,9 +456,12 @@ function recordAbyss(s: GameState, levelId: string, b: Battle, stars: number, co
     if (floor % 10 === 0) relicsEarned = 1;
     s.relicPicks += relicsEarned;
     s.gold += reward;
+  } else {
+    reward = Math.round(abyssReward(floor) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
+    s.gold += reward;
   }
   countBattle(s, b, win, reward);
-  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards };
+  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards, damageShare };
 }
 
 // ---------- Prestige ----------

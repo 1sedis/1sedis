@@ -68,7 +68,7 @@ function allCells(): [number, number][] {
 }
 
 /** Higher is better: any win beats any loss; then king health, losses and speed. */
-function score(s: GameState, levelId: string): number {
+export function formationScore(s: GameState, levelId: string): number {
   const b = createBattle(battleSetup(s, levelId));
   simulate(b);
   if (b.result === 'win') return 100_000 + b.kingMinRatio * 1000 - b.allyLosses * 100 - b.tick;
@@ -87,7 +87,7 @@ export function bestFormation(s: GameState, levelId: string, limit: number): For
       for (const knights of ['flank', 'center'] as const) {
         const t = { kingX, pawnRow, knights };
         autoFormation(s, limit, t);
-        const value = score(s, levelId);
+        const value = formationScore(s, levelId);
         if (!best || value > best.score) best = { t, score: value, formation: s.formation.map((f) => ({ ...f })) };
       }
     }
