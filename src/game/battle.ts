@@ -1056,9 +1056,7 @@ function moveUnit(b: Battle, u: Unit): void {
       const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (u.side === 'ally' && b.perks.has('earlyCrown') ? 2 : 0);
       const promotes = u.side === 'ally' ? u.y <= early : u.y >= BOARD_SIZE - 1;
       if (promotes) {
-        // The player chooses what the pawn becomes; everyone else (and simulations) takes a queen.
-        if (u.side === 'ally' && b.decisions) ask(b, { kind: 'promote', uid: u.uid, options: ['queen', 'rook', 'bishop', 'knight'], fallback: 'queen' });
-        else promote(b, u, 'queen');
+        promote(b, u, 'queen');
       }
     } else {
       u.wait = 3; // hold the line
@@ -1504,9 +1502,9 @@ export const CAPTURE_ROYAL = 0.2;
 export const CAPTURE_STUN = 20;
 const MAX_BOSS_ASKS = 4;
 
-export type DecisionKind = 'promote' | 'check' | 'boss';
+export type DecisionKind = 'check' | 'boss';
 
-/** A question the battle stops for. Options are piece kinds (promotion) or answer ids. */
+/** A question the battle stops for. */
 export interface Decision {
   kind: DecisionKind;
   uid: number;
@@ -1556,10 +1554,6 @@ export function resolveDecision(b: Battle, answer?: string): void {
   b.decision = null;
   const choice = answer && d.options.includes(answer) ? answer : d.fallback;
   const u = b.units.find((x) => x.uid === d.uid && x.hp > 0);
-  if (d.kind === 'promote') {
-    if (u) promote(b, u, choice as PieceKind);
-    return;
-  }
   if (d.kind === 'check' && u) {
     const fromX = u.x;
     const fromY = u.y;
@@ -1691,10 +1685,7 @@ export function playMove(b: Battle, uid: number, x: number, y: number): boolean 
     u.wait = Math.max(u.wait, 4);
     orderEvent(b, u, fromX, fromY, 'Ход');
     const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
-    if (u.kind === 'pawn' && u.y <= early) {
-      if (b.decisions) ask(b, { kind: 'promote', uid: u.uid, options: ['queen', 'rook', 'bishop', 'knight'], fallback: 'queen' });
-      else promote(b, u, 'queen');
-    }
+    if (u.kind === 'pawn' && u.y <= early) promote(b, u, 'queen');
     return true;
   }
   const target = unitAt(b, x, y)!;

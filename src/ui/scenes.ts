@@ -72,53 +72,83 @@ export function openingScene(): Step[] {
   const back = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'] as const;
   back.forEach((kind, x) => {
     steps.push({ t: 'spawn', id: `w${x}`, kind, team: 'ally', x, y: 7, tier: kind === 'king' || kind === 'queen' ? 2 : 0 });
-    steps.push({ t: 'spawn', id: `b${x}`, kind, team: 'enemy', x, y: 0, tier: 2, hidden: true });
+    // The black army waits beyond the top edge of the board.
+    steps.push({ t: 'spawn', id: `b${x}`, kind, team: 'enemy', x, y: -3, tier: 2, hidden: true });
   });
   for (let x = 0; x < 8; x++) {
     steps.push({ t: 'spawn', id: `wp${x}`, kind: 'pawn', team: 'ally', x, y: 6 });
-    steps.push({ t: 'spawn', id: `bp${x}`, kind: 'pawn', team: 'enemy', x, y: 1, tier: 1, hidden: true });
+    steps.push({ t: 'spawn', id: `bp${x}`, kind: 'pawn', team: 'enemy', x, y: -2, tier: 1, hidden: true });
   }
+  /** One rank of the march: every black piece in a row steps down together, the board shakes. */
+  const march = (ids: string[], y: number): Step[] => [
+    ...ids.map((id, i): Step => ({ t: 'move', id, x: Number(id.replace(/\D/g, '')), y, ms: 420, par: i < ids.length - 1 })),
+    { t: 'shake' },
+  ];
+  const pawns = [0, 1, 2, 3, 4, 5, 6, 7].map((x) => `bp${x}`);
+  const lords = [0, 1, 2, 3, 4, 5, 6, 7].map((x) => `b${x}`);
   return [
     ...steps,
-    { t: 'title', text: 'Пиксельный гамбит', sub: 'Белое королевство' },
+    { t: 'music', track: 'menu' },
+    { t: 'cinema', on: true },
+    { t: 'camera', scale: 1.35, x: 4, y: 7, ms: 10 },
     { t: 'caption', text: 'Тысячу лет Белое королевство жило в мире.' },
+    { t: 'camera', scale: 1, ms: 2200, par: true },
     { t: 'teamHop', team: 'ally' },
+    { t: 'thunder' },
+    { t: 'shadow' },
+    { t: 'music', track: 'boss' },
     { t: 'caption', text: 'Пока с севера не пришёл Чёрный король.' },
+    { t: 'embers', on: true },
     { t: 'team', team: 'enemy', show: true },
+    ...march(pawns, -1),
+    ...march(pawns, 1),
+    ...march(lords, 0),
+    { t: 'thunder' },
+    { t: 'grow', id: 'b4', scale: 1.3 },
     { t: 'roar', id: 'b4' },
-    ...[1, 2, 3, 4, 5, 6].map((x): Step => ({ t: 'move', id: `bp${x}`, x, y: 4, ms: 500, par: true })),
-    { t: 'wait', ms: 600 },
-    { t: 'shake', big: true },
     say('b4', 'Сдавайся, старик. Твоё королевство — моё.'),
-    say('w4', 'Никогда! Стража, к бою!'),
-    { t: 'move', id: 'b3', x: 3, y: 3, ms: 400 },
-    { t: 'shatter', id: 'wp3' },
-    { t: 'move', id: 'b3', x: 3, y: 6, ms: 300 },
-    { t: 'shatter', id: 'w3' },
+    say('w4', 'Никогда! Стража — к бою!'),
+    { t: 'teamHop', team: 'ally' },
+    // The battle: blow after blow, the darkness creeping behind the black army.
+    ...[2, 3, 4, 5].map((x): Step => ({ t: 'move', id: `bp${x}`, x, y: 4, ms: 350, par: true })),
+    ...[2, 3, 4, 5].map((x): Step => ({ t: 'move', id: `wp${x}`, x, y: 5, ms: 350, par: x < 5 })),
+    { t: 'clash', id: 'wp3', target: 'bp3' },
+    { t: 'clash', id: 'bp2', target: 'wp2' },
+    { t: 'clash', id: 'w1', target: 'bp4' },
+    { t: 'clash', id: 'bp5', target: 'wp5' },
+    { t: 'dark', cells: [C(1, 2), C(6, 2), C(3, 3), C(4, 2)] },
+    { t: 'clash', id: 'b3', target: 'w1', ms: 380 },
+    { t: 'clash', id: 'b3', target: 'wp3' },
+    { t: 'camera', scale: 1.5, x: 3, y: 6, ms: 500 },
+    say('w3', 'За короля!'),
+    { t: 'clash', id: 'w3', target: 'b3', ms: 200 },
+    { t: 'clash', id: 'b1', target: 'w3', ms: 200 },
     { t: 'flash', color: '#ff4f7b' },
-    { t: 'move', id: 'b6', x: 5, y: 5, ms: 300, par: true },
-    { t: 'move', id: 'b1', x: 2, y: 5, ms: 300 },
-    { t: 'shatter', id: 'w0', par: true },
-    { t: 'shatter', id: 'w7', par: true },
-    { t: 'shatter', id: 'wp0', par: true },
-    { t: 'shatter', id: 'wp7' },
-    { t: 'shatter', id: 'w1', par: true },
-    { t: 'shatter', id: 'w6', par: true },
-    { t: 'shatter', id: 'w2', par: true },
-    { t: 'shatter', id: 'w5' },
-    { t: 'shatter', id: 'wp1', par: true },
-    { t: 'shatter', id: 'wp6' },
+    { t: 'camera', scale: 1, ms: 600 },
+    { t: 'thunder' },
+    { t: 'clash', id: 'b6', target: 'w6', par: true },
+    { t: 'clash', id: 'b0', target: 'w0', par: true },
+    { t: 'clash', id: 'b7', target: 'w7' },
+    { t: 'clash', id: 'b2', target: 'w2', par: true },
+    { t: 'clash', id: 'b5', target: 'w5' },
+    { t: 'clash', id: 'bp1', target: 'wp1', par: true },
+    { t: 'clash', id: 'bp6', target: 'wp6' },
+    { t: 'dark', cells: [C(2, 4), C(5, 4), C(1, 5), C(6, 5), C(3, 5)] },
     { t: 'shake', big: true },
     { t: 'caption', text: 'Армия пала за одну ночь.' },
-    { t: 'move', id: 'w4', x: 3, y: 7, ms: 500, par: true },
-    { t: 'move', id: 'wp2', x: 2, y: 5, ms: 500, par: true },
-    { t: 'move', id: 'wp4', x: 4, y: 5, ms: 500, par: true },
-    { t: 'move', id: 'wp5', x: 3, y: 6, ms: 500 },
+    { t: 'camera', scale: 1.6, x: 4, y: 7, ms: 1400 },
     say('b4', 'Беги, старик. Я найду тебя на любой клетке.'),
+    { t: 'move', id: 'w4', x: 3, y: 7, ms: 600, par: true },
+    { t: 'move', id: 'wp0', x: 2, y: 5, ms: 600, par: true },
+    { t: 'move', id: 'wp4', x: 4, y: 5, ms: 600, par: true },
+    { t: 'move', id: 'wp7', x: 3, y: 6, ms: 600 },
+    { t: 'camera', scale: 1, ms: 900, par: true },
     { t: 'team', team: 'enemy', show: false },
+    { t: 'embers', on: false },
     { t: 'caption', text: 'У тебя остались король и три пешки. Этого хватит, чтобы начать.' },
     say('w4', 'Мы вернём королевство. Клетка за клеткой.'),
-    { t: 'title', text: 'Партия 1', sub: 'Отвоюй Белое королевство' },
+    { t: 'cinema', on: false },
+    { t: 'bigTitle', text: 'ПИКСЕЛЬНЫЙ ГАМБИТ', sub: 'Партия 1 · Отвоюй Белое королевство' },
   ];
 }
 

@@ -501,8 +501,7 @@ export class ArenaScreen implements Screen {
     const text = DECISION_TEXT[d.kind];
     const options = d.options.map((id) => ({
       id,
-      label: d.kind === 'promote' ? PIECES[id as PieceKind].name : text.options[id] ?? id,
-      icon: d.kind === 'promote' ? spriteUrl(id as PieceKind, 'ally', 2) : undefined,
+      label: text.options[id] ?? id,
     }));
     // The first time each kind of decision comes up, say what the choice means.
     const key = `t_dec_${d.kind}`;
@@ -1108,7 +1107,6 @@ export class ArenaScreen implements Screen {
 const DECISION_MS = 3000;
 
 const DECISION_TEXT: Record<Decision['kind'], { title: string; hint: string; options: Record<string, string> }> = {
-  promote: { title: 'Пешка дошла до края! В кого превратить?', hint: 'Ферзь сильнее всех. Конь прыгает в тыл, ладья и слон бьют издалека.', options: {} },
   check: {
     title: 'Шах! Король под ударом', hint: 'Падёт король — бой проигран. Уведи его, закрой фигурой или спрячь рокировкой.',
     options: { escape: 'Отступить', block: 'Закрыться', castle: 'Рокировка', none: 'Стоять' },

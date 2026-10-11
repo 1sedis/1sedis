@@ -2,7 +2,7 @@ import type { PieceKind } from '../game/pieces';
 import type { Trait } from '../game/elites';
 import { BoardView, type UnitView } from './board';
 import { el } from './dom';
-import { audio, type Sfx } from './audio';
+import { audio, type Sfx, type TrackId } from './audio';
 import { handUrl } from './handArt';
 import { spriteUrl, type Team, type Tier } from './sprites';
 import { terrainUrl } from './terrainArt';
@@ -47,6 +47,19 @@ export type Step = { par?: boolean } & (
   | { t: 'handOut' }
   | { t: 'glitch'; ms: number }
   | { t: 'sfx'; name: Sfx }
+  /** Cinema bars above and below the screen. */
+  | { t: 'cinema'; on: boolean }
+  /** Move the camera: zoom the board towards a square (x/y) or back (scale 1). */
+  | { t: 'camera'; scale: number; x?: number; y?: number; ms?: number }
+  | { t: 'music'; track: TrackId }
+  /** A lightning flash with a rumble; the screen goes dark a moment. */
+  | { t: 'thunder' }
+  /** Falling embers over the whole screen. */
+  | { t: 'embers'; on: boolean }
+  /** One piece charges another: sparks, a damage number, the target breaks. */
+  | { t: 'clash'; id: string; target: string; ms?: number }
+  /** The game's name slammed onto the screen. */
+  | { t: 'bigTitle'; text: string; sub?: string }
 );
 
 interface Actor {
@@ -125,7 +138,19 @@ export class Stage {
       this.layer.remove();
       this.board.root.classList.remove('in-scene');
       document.body.classList.remove('glitch');
+      for (const extra of this.extras) extra.remove();
+      this.board.frame.style.transform = '';
     }
+  }
+
+  /** Screen-wide elements of this scene (cinema bars, embers), removed when it ends. */
+  private extras: HTMLElement[] = [];
+
+  private extra(cls: string): HTMLElement {
+    const node = el('div', cls);
+    document.body.append(node);
+    this.extras.push(node);
+    return node;
   }
 
   private add(id: string, kind: PieceKind | 'hand', team: Team, x: number, y: number, tier: Tier = 0): Actor {
@@ -468,6 +493,80 @@ export class Stage {
       case 'sfx':
         audio.play(s.name);
         return;
+      case 'cinema': {
+        let bars = this.extras.find((e) => e.classList.contains('cinema-bars'));
+        if (!bars) bars = this.extra('cinema-bars');
+        bars.classList.toggle('on', s.on);
+        return this.wait(500);
+      }
+      case 'camera': {
+        const ms = s.ms ?? 1200;
+        const f = this.board.frame;
+        f.style.transition = `transform ${ms}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+        // Zoom around the chosen square: shift it towards the middle of the board.
+        const dx = s.x === undefined ? 0 : (3.5 - s.x) * 12.5 * (s.scale - 1) / s.scale;
+        const dy = s.y === undefined ? 0 : (3.5 - s.y) * 12.5 * (s.scale - 1) / s.scale;
+        f.style.transform = s.scale === 1 ? '' : `scale(${s.scale}) translate(${dx}%, ${dy}%)`;
+        return this.wait(ms);
+      }
+      case 'music':
+        audio.setTrack(s.track);
+        return;
+      case 'thunder': {
+        const flash = this.extra('scene-thunder');
+        audio.play('quake');
+        this.shake(true);
+        flash.animate([{ opacity: 0 }, { opacity: 0.95, offset: 0.05 }, { opacity: 0.2, offset: 0.2 }, { opacity: 0.8, offset: 0.28 }, { opacity: 0 }],
+          { duration: 900 }).onfinish = () => flash.remove();
+        return this.wait(500);
+      }
+      case 'embers': {
+        let field = this.extras.find((e) => e.classList.contains('scene-embers'));
+        if (s.on && !field) {
+          field = this.extra('scene-embers');
+          for (let i = 0; i < 40; i++) {
+            const e = el('span');
+            e.style.left = `${(i * 37) % 100}%`;
+            e.style.animationDelay = `${-(i % 10) * 0.6}s`;
+            e.style.animationDuration = `${4 + (i % 5)}s`;
+            field.append(e);
+          }
+        }
+        field?.classList.toggle('on', s.on);
+        return;
+      }
+      case 'clash': {
+        const target = this.actor(s.target);
+        if (!a || !target) return;
+        const ms = s.ms ?? 260;
+        a.node.style.transition = `transform ${ms}ms cubic-bezier(0.5, 0, 0.9, 0.6)`;
+        a.node.style.transform = `translate(${target.x * 100}%, ${target.y * 100}%)`;
+        await this.wait(ms);
+        a.x = target.x;
+        a.y = target.y;
+        const spark = el('div', 'scene-spark');
+        spark.style.left = `${(target.x + 0.5) * 12.5}%`;
+        spark.style.top = `${(target.y + 0.5) * 12.5}%`;
+        this.layer.append(spark);
+        spark.addEventListener('animationend', () => spark.remove());
+        audio.play('crit');
+        this.board.shatter(target.x, target.y, target.img.src);
+        target.node.remove();
+        this.actors.delete(s.target);
+        this.shake(false);
+        return this.wait(120);
+      }
+      case 'bigTitle': {
+        const card = this.extra('scene-big-title');
+        card.append(el('div', 'scene-big-title-main', s.text));
+        if (s.sub) card.append(el('div', 'scene-big-title-sub', s.sub));
+        audio.play('bossDown');
+        await this.wait(350);
+        this.shake(true);
+        await this.waitTap(3200);
+        card.classList.add('out');
+        return this.wait(400);
+      }
     }
   }
 

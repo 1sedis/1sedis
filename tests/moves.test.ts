@@ -82,26 +82,13 @@ describe('decisions', () => {
     decisions,
   }));
 
-  test('a pawn reaching the last rank waits for the player, and becomes what they pick', () => {
+  test('a pawn reaching the last rank becomes a queen without asking', () => {
     const b = promoting(true);
-    for (let i = 0; i < 60 && !b.decision; i++) stepBattle(b);
-    expect(b.decision?.kind).toBe('promote');
-    const tick = b.tick;
-    stepBattle(b);
-    expect(b.tick).toBe(tick); // frozen
-    resolveDecision(b, 'knight');
-    expect(ally(b, 'knight')).toBeTruthy();
-  });
-
-  test('without an answer (or without decisions) the pawn becomes a queen', () => {
-    const b = promoting(true);
-    for (let i = 0; i < 60 && !b.decision; i++) stepBattle(b);
-    resolveDecision(b);
+    for (let i = 0; i < 60; i++) {
+      stepBattle(b);
+      expect(b.decision).toBeNull();
+    }
     expect(ally(b, 'queen')).toBeTruthy();
-    const c = promoting(false);
-    for (let i = 0; i < 60; i++) stepBattle(c);
-    expect(c.decision).toBeNull();
-    expect(ally(c, 'queen')).toBeTruthy();
   });
 
   test('the first check offers a way out; castling is one of them', () => {
