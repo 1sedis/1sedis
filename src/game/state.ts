@@ -263,12 +263,12 @@ export function spinRoulette(s: GameState, count = 1, rand: () => number = Math.
 
 /**
  * Enemy levels added by the current prestige. The campaign ramps up by chapter
- * (+0.5 per game in chapter 1 up to +2 in chapter 4) so a fresh army can still
+ * (+0.5 per game in chapter 1, +1 from chapter 2 on: the distortions already make the later chapters harder) so a fresh army can still
  * win the first fields; the Abyss always gets the full +2.
  */
 export function prestigeEnemyBonus(s: GameState, levelId?: string): number {
   if (!levelId || isAbyss(levelId)) return 2 * s.prestige;
-  return Math.round(0.5 * chapterOf(levelId).id * s.prestige);
+  return Math.round(0.5 * Math.min(2, chapterOf(levelId).id) * s.prestige);
 }
 
 export function incomePerMinute(s: GameState): number {

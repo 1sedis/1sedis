@@ -39,7 +39,7 @@ export const DISTORTIONS: Record<DistortionId, DistortionDef> = {
   },
   blackKing: {
     name: 'Король на поле',
-    text: 'Вражеский король вдвое крепче и бьёт в полтора раза сильнее.',
+    text: 'Вражеский король почти вдвое крепче и бьёт на 40% сильнее.',
     speech: [
       'Довольно прятаться за пешками. В этой партии я выйду сам.',
       'Попробуй сразить меня — если твои фигуры до меня доживут.',
@@ -65,8 +65,8 @@ export function distortionsFor(game: number, chapter: number): DistortionId[] {
 /** Levels earlier enemies learn abilities under "Пробуждение". */
 export const AWAKENING_SHIFT = 3;
 /** Enemy king multipliers under "Король на поле". */
-export const BLACK_KING_HP = 2;
-export const BLACK_KING_ATK = 1.5;
+export const BLACK_KING_HP = 1.8;
+export const BLACK_KING_ATK = 1.4;
 /** Share of max health drained (allies) or restored (enemies) per second on a dark cell. */
 export const DARK_DRAIN = 0.04;
 export const DARK_HEAL = 0.02;

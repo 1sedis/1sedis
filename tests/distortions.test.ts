@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { DISTORTION_ORDER, distortionsFor } from '../src/game/distortions';
+import { BLACK_KING_HP, DISTORTION_ORDER, distortionsFor } from '../src/game/distortions';
 import { withElites } from '../src/game/elites';
 import { ALL_LEVELS, enemyPlacements, getLevel } from '../src/game/levels';
 import { levelTerrain, walkable, withDarkness } from '../src/game/terrain';
@@ -82,11 +82,11 @@ describe('distortions', () => {
     expect(battleSetup(s, '1-1').enemyAbilityShift).toBe(3);
     s.prestige = 2;
     const setup = battleSetup(s, '3-1');
-    expect(setup.enemyKingHp).toBe(2);
+    expect(setup.enemyKingHp).toBe(BLACK_KING_HP);
     const b = createBattle(setup);
     const king = b.units.find((u) => u.side === 'enemy' && u.kind === 'king' && !u.boss)!;
     const plain = createBattle({ ...setup, enemyKingHp: 1 }).units.find((u) => u.side === 'enemy' && u.kind === 'king')!;
-    expect(king.maxHp).toBeCloseTo(plain.maxHp * 2, 0);
+    expect(Math.abs(king.maxHp - plain.maxHp * BLACK_KING_HP)).toBeLessThanOrEqual(1);
     s.prestige = 1;
     expect(terrainFor(s, '1-1').includes('dark')).toBe(false);
     expect(terrainFor(s, '3-1').includes('dark')).toBe(true);
