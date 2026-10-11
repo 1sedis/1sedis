@@ -7,7 +7,8 @@ import type { Branch } from './abilities';
 import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId } from './crownTree';
 import { bossFor } from './bosses';
 import { withElites } from './elites';
-import { levelTerrain, levelTerrainRows, walkable } from './terrain';
+import { levelTerrain, levelTerrainRows, walkable, withDarkness, type Terrain } from './terrain';
+import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionFor, type DistortionId } from './distortions';
 import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { shardsForFloor } from './altar';
@@ -245,9 +246,14 @@ export function spinRoulette(s: GameState, count = 1, rand: () => number = Math.
   return Array.from({ length: count }, () => rollBuff(s.roulette, rand, legendMult(s)));
 }
 
-/** Enemy levels added by the current prestige. */
-export function prestigeEnemyBonus(s: GameState): number {
-  return 2 * s.prestige;
+/**
+ * Enemy levels added by the current prestige. The campaign ramps up by chapter
+ * (+0.5 per game in chapter 1 up to +2 in chapter 4) so a fresh army can still
+ * win the first fields; the Abyss always gets the full +2.
+ */
+export function prestigeEnemyBonus(s: GameState, levelId?: string): number {
+  if (!levelId || isAbyss(levelId)) return 2 * s.prestige;
+  return Math.round(0.5 * chapterOf(levelId).id * s.prestige);
 }
 
 export function incomePerMinute(s: GameState): number {
@@ -417,12 +423,29 @@ const BATTLE_PERKS: ReadonlySet<NodeId> = new Set<NodeId>([
   'doubleStep', 'castling', 'fork', 'check', 'earlyCrown', 'sacrifice', 'heralds', 'warlord', 'shadowReserve', 'fog',
 ]);
 
+/** The distortion bending this level's rules (campaign levels only). */
+export function levelDistortion(s: GameState, levelId: string): DistortionId | null {
+  return isAbyss(levelId) ? null : distortionFor(gameNumber(s));
+}
+
+/** Terrain rows of a level as this game sees it. */
+export function terrainRowsFor(s: GameState, levelId: string): string[] | undefined {
+  const rows = levelTerrainRows(levelId);
+  return levelDistortion(s, levelId) === 'darkness' ? withDarkness(levelId, rows) : rows;
+}
+
+export function terrainFor(s: GameState, levelId: string): Terrain[] {
+  return levelTerrain(levelId, levelDistortion(s, levelId) === 'darkness');
+}
+
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s);
   const rb = rouletteBonuses(s.roulette);
-  const bonus = prestigeEnemyBonus(s);
-  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId))).map((p) => ({ ...p, level: p.level + bonus }));
+  const bonus = prestigeEnemyBonus(s, levelId);
+  const distortion = levelDistortion(s, levelId);
+  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortion === 'guard')
+    .map((p) => ({ ...p, level: p.level + bonus }));
   if (isAbyss(levelId)) {
     const terrain = levelTerrain(levelId);
     const free = (x: number, y: number) => walkable(terrain[y * BOARD_SIZE + x])
@@ -455,9 +478,12 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
     legends: rb.legends,
     relics: [...s.relics],
     allyBranches: { ...s.abilityBranch },
-    terrain: levelTerrainRows(levelId),
+    terrain: terrainRowsFor(s, levelId),
     bossId: bossFor(levelId),
     perks: s.crownTree.filter((id) => BATTLE_PERKS.has(id)),
+    enemyAbilityShift: distortion === 'awakening' ? AWAKENING_SHIFT : 0,
+    enemyKingHp: distortion === 'blackKing' ? BLACK_KING_HP : 1,
+    enemyKingAtk: distortion === 'blackKing' ? BLACK_KING_ATK : 1,
   };
 }
 

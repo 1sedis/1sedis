@@ -7,16 +7,18 @@ const BOARD_SIZE = 8;
  *   ~  water  — nobody stands here, shots fly over
  *   f  forest — a piece here takes 30% less damage
  *   ^  hill   — a shooter here deals 25% more damage
+ *   x  dark   — "Тьма на доске": drains the player's pieces, heals enemies
  */
-export type Terrain = 'plain' | 'rock' | 'water' | 'forest' | 'hill';
+export type Terrain = 'plain' | 'rock' | 'water' | 'forest' | 'hill' | 'dark';
 
-export const TERRAIN_CHARS: Record<string, Terrain> = { '.': 'plain', '#': 'rock', '~': 'water', f: 'forest', '^': 'hill' };
+export const TERRAIN_CHARS: Record<string, Terrain> = { '.': 'plain', '#': 'rock', '~': 'water', f: 'forest', '^': 'hill', x: 'dark' };
 
 export const TERRAIN_INFO: Record<Exclude<Terrain, 'plain'>, { name: string; text: string }> = {
   rock: { name: 'Камень', text: 'Нельзя встать, блокирует выстрелы.' },
   water: { name: 'Вода', text: 'Нельзя встать, выстрелы пролетают над ней. Конь перепрыгивает.' },
   forest: { name: 'Лес', text: 'Фигура в лесу получает на 30% меньше урона.' },
   hill: { name: 'Холм', text: 'Слон, ладья или ферзь на холме бьёт на 25% сильнее.' },
+  dark: { name: 'Тьма', text: 'Ваша фигура здесь теряет 4% здоровья в секунду, вражеская — лечится.' },
 };
 
 export const FOREST_DEFENSE = 0.7;
@@ -113,8 +115,30 @@ export function levelTerrainRows(levelId: string): string[] | undefined {
   return MAPS[levelId];
 }
 
-export function levelTerrain(levelId: string): Terrain[] {
-  return parseTerrain(levelTerrainRows(levelId));
+export function levelTerrain(levelId: string, dark = false): Terrain[] {
+  return parseTerrain(dark ? withDarkness(levelId, levelTerrainRows(levelId)) : levelTerrainRows(levelId));
+}
+
+/**
+ * "Тьма на доске": two mirrored pairs of dark cells on plain squares — one in
+ * no man's land (rows 3-4) and one in the player's front row (row 5).
+ * Deterministic per level so the player can plan around them.
+ */
+export function withDarkness(levelId: string, rows: string[] | undefined): string[] {
+  const out = (rows ?? new Array(BOARD_SIZE).fill('........')).map((r) => [...r]);
+  let h = 2166136261;
+  for (const ch of levelId) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const pick = (ys: number[]) => {
+    const cells: [number, number][] = [];
+    for (const y of ys) for (let x = 0; x < 4; x++) if (out[y][x] === '.' && out[y][7 - x] === '.') cells.push([x, y]);
+    if (!cells.length) return;
+    h = Math.imul(h ^ 0x9e3779b9, 16777619) >>> 0;
+    const [x, y] = cells[h % cells.length];
+    out[y][x] = out[y][7 - x] = 'x';
+  };
+  pick([3, 4]);
+  pick([5]);
+  return out.map((r) => r.join(''));
 }
 
 /** Pieces can stand here. */
@@ -123,7 +147,7 @@ export function walkable(t: Terrain): boolean {
 }
 
 /** Kinds of terrain present on a level, for the task card and tips. */
-export function terrainKinds(levelId: string): Exclude<Terrain, 'plain'>[] {
-  const set = new Set(levelTerrain(levelId).filter((t): t is Exclude<Terrain, 'plain'> => t !== 'plain'));
+export function terrainKinds(levelId: string, dark = false): Exclude<Terrain, 'plain'>[] {
+  const set = new Set(levelTerrain(levelId, dark).filter((t): t is Exclude<Terrain, 'plain'> => t !== 'plain'));
   return [...set];
 }

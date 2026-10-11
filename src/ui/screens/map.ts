@@ -1,7 +1,7 @@
 import { ABYSS_UNLOCK, CHAPTERS, abyssId, enemyPlacements, levelIncome, type ChapterDef } from '../../game/levels';
 import { RELIC_IDS } from '../../game/relics';
 import {
-  canPrestige, crownsForPrestige, isAbyssOpen, prestige,
+  canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, prestige,
   collectTreasury, currentLevelId, incomePerMinute, isLevelOpen, treasuryCap, treasuryCapHours,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
@@ -12,6 +12,8 @@ import { openRelicPicker, relicStrip } from '../relics';
 import { spriteUrl } from '../sprites';
 import { drawChapterScene } from '../mapArt';
 import { openCrownTree } from '../crownTree';
+import { openChronicle, playGameIntro } from '../story';
+import { DISTORTIONS, distortionFor } from '../../game/distortions';
 
 // Snake layout of the nine nodes on a 3x3 grid: row 1 left→right, row 2 right→left, row 3 left→right.
 const GRID_POS = [[1, 1], [2, 1], [3, 1], [3, 2], [2, 2], [1, 2], [1, 3], [2, 3], [3, 3]];
@@ -43,6 +45,8 @@ export class MapScreen implements Screen {
   private prestigeInfo = el('div', 'treasury-info');
   private prestigeBtn = el('button', 'btn btn-up', 'Новая партия');
   private treeBtn = el('button', 'btn btn-buy tree-btn', '♛ Древо короны');
+  private chronicleBtn = el('button', 'btn btn-small chronicle-btn', 'Летопись');
+  private distortionInfo = el('div', 'distortion-info treasury-info');
 
   constructor(private ctx: Ctx) {
     const main = el('div', 'map-main card');
@@ -94,10 +98,11 @@ export class MapScreen implements Screen {
 
     const pHead = el('div', 'panel-head');
     pHead.append(el('span', 'panel-title', 'Новая партия'), infoBtn('Новая партия',
-      'После финального босса можно начать кампанию заново ради корон.\nКороны тратятся в «Древе короны» на доктрины: новые шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы древа открываются в следующих партиях.\nВраги становятся на 2 уровня сильнее, награды растут. Короны, древо, достижения, осколки и рекорд Бездны сохраняются.'));
+      'После финального босса можно начать кампанию заново ради корон.\nКороны тратятся в «Древе короны» на доктрины: новые шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы древа открываются в следующих партиях.\nВраги становятся сильнее (в первой главе чуть-чуть, к Тронному залу на 2 уровня), награды растут. Каждая партия приносит искажение — Чёрный король меняет одно правило. Короны, древо, достижения, осколки и рекорд Бездны сохраняются.'));
     this.prestigeBtn.addEventListener('click', () => void this.onPrestige());
     this.treeBtn.addEventListener('click', () => openCrownTree(this.ctx));
-    this.prestigeCard.append(pHead, this.prestigeInfo, this.prestigeBtn, this.treeBtn);
+    this.chronicleBtn.addEventListener('click', () => openChronicle(gameNumber(this.ctx.state)));
+    this.prestigeCard.append(pHead, this.prestigeInfo, this.distortionInfo, this.prestigeBtn, this.treeBtn, this.chronicleBtn);
 
     side.append(treasury, this.abyssCard, relics, this.prestigeCard);
     this.root.append(main, side);
@@ -143,7 +148,7 @@ export class MapScreen implements Screen {
     if (!canPrestige(s)) return;
     const gain = crownsForPrestige(s);
     const ok = await confirmDialog('Новая партия',
-      `Кампания, армия, уровни, постройки и реликвии начнутся заново, враги станут на 2 уровня сильнее, `
+      `Кампания, армия, уровни, постройки и реликвии начнутся заново, враги станут сильнее, Чёрный король принесёт новое искажение, `
       + `а награды вырастут. Вы получите ${gain} ♛ для Древа короны. `
       + `Короны, древо, рулетка, достижения и рекорд Бездны сохранятся.`, 'Начать');
     if (!ok) return;
@@ -152,6 +157,7 @@ export class MapScreen implements Screen {
     audio.play('achievement');
     toast(`Партия ${s.prestige + 1}: +${got} корон!`, 'good');
     this.show();
+    await playGameIntro(gameNumber(s));
   }
 
   private renderRelics(): void {
@@ -249,6 +255,10 @@ export class MapScreen implements Screen {
     this.treeBtn.hidden = s.prestige === 0 && s.crowns === 0 && s.crownTree.length === 0;
     // Not shown until there is something to say: the final boss is beaten or the tree is in play.
     this.prestigeCard.hidden = !ready && this.treeBtn.hidden;
+    const distortion = distortionFor(gameNumber(s));
+    this.distortionInfo.hidden = !distortion;
+    if (distortion) setText(this.distortionInfo, `◆ ${DISTORTIONS[distortion].name}: ${DISTORTIONS[distortion].text}`);
+    this.chronicleBtn.hidden = gameNumber(s) < 2;
     void (abyssOpen && this.ctx.tip('t_abyss', this.abyssBtn,
       'Открыта Бездна! Бесконечные этажи с наградами. Включите авто-спуск, чтобы армия спускалась сама.'));
     void (this.ctx.tip('t_relic', this.relicBtn, 'Вы заслужили реликвию! Выберите один из трёх постоянных бонусов.')

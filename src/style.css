@@ -1765,3 +1765,21 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
   .tree-grid { grid-template-columns: minmax(0, 1fr); }
   .tree-node { min-height: 100px; }
 }
+
+/* ---------- Distortions ---------- */
+.distortion-info { color: #c77dff; }
+.terrain-tile.terrain-dark { opacity: .9; animation: dark-pulse 2.4s ease-in-out infinite; }
+@keyframes dark-pulse { 50% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .terrain-tile.terrain-dark { animation: none; } }
+.story-white .story-face { filter: drop-shadow(0 0 10px #ffe9a3b3); }
+.story-white .story-name { color: var(--gold, #ffd36b); }
+.story-accent .story-name { color: #c77dff; }
+.story-accent .story-text { color: #e4c7ff; }
+.prestige-card .distortion-info { font-size: 14px; line-height: 1.35; }
+.chronicle-btn { width: 100%; margin-top: 6px; }
+.chronicle-modal { max-width: 520px; max-height: 80vh; overflow-y: auto; }
+.chronicle h2 { margin: 0 0 10px; }
+.chronicle-item { border-left: 3px solid #c77dff66; padding: 2px 0 2px 12px; margin-bottom: 14px; }
+.chronicle-item p { margin: 4px 0; line-height: 1.4; }
+.chronicle-title { color: var(--gold, #ffd36b); letter-spacing: 1px; }
+.chronicle-distortion { color: #c77dff; margin-top: 6px; font-size: 14px; }

@@ -13,6 +13,8 @@ const CONSOLATION = process.env.NOCONS ? false : true;
 
 test('campaign bot', () => {
   const s = newGame(0);
+  // GAME=N runs the campaign as the N-th game (enemy bonus and distortion), without crowns or the tree.
+  s.prestige = Number(process.env.GAME ?? 1) - 1;
   let t = 0; // seconds
   const chapterTime: Record<number, number> = {};
   const attempts: Record<string, number> = {};

@@ -68,9 +68,12 @@ describe('prestige', () => {
   it('a new game makes enemies stronger and pays more', () => {
     const s = newGame(0);
     const before = battleSetup(s, '1-1').enemies[0].level;
+    const finale = battleSetup(s, '4-1').enemies[0].level;
     s.prestige = 2;
     s.crowns = 10;
-    expect(battleSetup(s, '1-1').enemies[0].level).toBe(before + 4);
+    // The bonus ramps by chapter: +0.5 per game in the fields, +2 per game in the throne hall.
+    expect(battleSetup(s, '1-1').enemies[0].level).toBe(before + 1);
+    expect(battleSetup(s, '4-1').enemies[0].level).toBe(finale + 4);
     // Crowns are spent in the Crown Tree now; only the new-game bonus raises gold.
     expect(goldMultiplier(s)).toBeCloseTo(2);
   });

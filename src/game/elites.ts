@@ -35,8 +35,17 @@ const POOLS: Record<number, Trait[]> = {
   4: TRAIT_ORDER,
 };
 
-/** How many elites a level has. */
-function eliteCount(levelId: string): { count: number; pool: Trait[] } {
+/** Chapter 1 traits under the "Чёрная гвардия" distortion. */
+const GUARD_POOL: Trait[] = ['swift', 'thorns', 'furious'];
+
+/** How many elites a level has; "Чёрная гвардия" adds one everywhere and opens chapter 1. */
+function eliteCount(levelId: string, guard: boolean): { count: number; pool: Trait[] } {
+  const base = baseEliteCount(levelId);
+  if (!guard || levelId.startsWith('abyss-')) return base;
+  return base.count ? { ...base, count: base.count + 1 } : { count: 1, pool: GUARD_POOL };
+}
+
+function baseEliteCount(levelId: string): { count: number; pool: Trait[] } {
   if (levelId.startsWith('abyss-')) {
     const floor = Number(levelId.slice(6));
     return { count: floor < 4 ? 0 : Math.min(4, 1 + Math.floor(floor / 8)), pool: TRAIT_ORDER };
@@ -56,14 +65,18 @@ function hash(text: string): number {
 
 /**
  * Give some enemy pieces a trait. Deterministic per level, so the player can
- * plan around them. Kings, bosses and pawns stay plain.
+ * plan around them. Kings and bosses stay plain; pawns too, unless the
+ * "Чёрная гвардия" distortion is on and there is nobody else.
  */
-export function withElites(levelId: string, enemies: Placement[]): Placement[] {
-  const { count, pool } = eliteCount(levelId);
+export function withElites(levelId: string, enemies: Placement[], guard = false): Placement[] {
+  const { count, pool } = eliteCount(levelId, guard);
   if (!count) return enemies;
+  const officers = enemies.filter((p) => !p.boss && p.kind !== 'king' && p.kind !== 'pawn').length;
   const candidates = enemies
     .map((p, i) => ({ p, i }))
-    .filter(({ p }) => !p.boss && p.kind !== 'king' && p.kind !== 'pawn')
+    .filter(({ p }) => !p.boss && p.kind !== 'king' && (p.kind !== 'pawn' || (guard && officers < count)))
+    .sort((a, b) => Number(a.p.kind === 'pawn') - Number(b.p.kind === 'pawn')
+      || hash(`${levelId}:${a.i}`) - hash(`${levelId}:${b.i}`))
     .sort((a, b) => hash(`${levelId}:${a.i}`) - hash(`${levelId}:${b.i}`));
   const out = enemies.map((p) => ({ ...p }));
   candidates.slice(0, count).forEach(({ i }, n) => {

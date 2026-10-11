@@ -4,6 +4,7 @@ import type { Trait } from './elites';
 import type { LegendId } from './roulette';
 import type { NodeId } from './crownTree';
 import { synergyBonus } from './synergies';
+import { DARK_DRAIN, DARK_FLOOR, DARK_HEAL } from './distortions';
 import { FOREST_DEFENSE, HILL_BONUS, parseTerrain, walkable, type Terrain } from './terrain';
 import { abilityOf, abilityTier, type Branch } from './abilities';
 import type { RelicId } from './relics';
@@ -57,6 +58,11 @@ export interface BattleSetup {
   legends?: LegendId[];
   /** Crown Tree doctrines that change the rules of battle. */
   perks?: NodeId[];
+  /** Distortion "Пробуждение": enemies learn abilities this many levels earlier. */
+  enemyAbilityShift?: number;
+  /** Distortion "Король на поле": multipliers for the enemy king. */
+  enemyKingHp?: number;
+  enemyKingAtk?: number;
 }
 
 /** A telegraphed boss blow: cells light up, then get hit. */
@@ -210,7 +216,9 @@ function applyStats(u: Unit, kind: PieceKind): void {
   u.moveCd = Math.round(def.moveCd * (kind === 'pawn' ? u.pawnMoveMult : 1));
 }
 
-function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult: number, pawnMoveMult = 1, abilities = false): Unit {
+function makeUnit(
+  uid: number, side: Side, p: Placement, hpMult: number, atkMult: number, pawnMoveMult = 1, abilities = false, abilityShift = 0,
+): Unit {
   const boss = !!p.boss;
   const u: Unit = {
     uid, side, kind: p.kind, level: p.level, boss, promoted: false,
@@ -218,7 +226,7 @@ function makeUnit(uid: number, side: Side, p: Placement, hpMult: number, atkMult
     hpMult: hpMult * (boss ? BOSS_HP : 1),
     atkMult: atkMult * (boss ? BOSS_ATK : 1),
     pawnMoveMult, buff: 1, struck: false,
-    tier: abilities ? abilityTier(p.level) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
+    tier: abilities ? abilityTier(p.level + abilityShift) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
     cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false, reborn: false, moved: false, checkReady: 0, shade: false,
   };
   applyStats(u, p.kind);
@@ -260,7 +268,10 @@ export function createBattle(setup: BattleSetup): Battle {
       units.push(makeUnit(uid++, 'ally', { ...queen, x: spot[0], y: spot[1] }, hp * 0.5 * rk.hp, atk * 0.5 * rk.atk, march, true));
     }
   }
-  for (const p of setup.enemies) units.push(makeUnit(uid++, 'enemy', p, 1, 1, 1, true));
+  for (const p of setup.enemies) {
+    const king = p.kind === 'king';
+    units.push(makeUnit(uid++, 'enemy', p, king ? setup.enemyKingHp ?? 1 : 1, king ? setup.enemyKingAtk ?? 1 : 1, 1, true, setup.enemyAbilityShift ?? 0));
+  }
   const report: Record<number, UnitReport> = {};
   for (const u of units) {
     report[u.uid] = {
@@ -798,6 +809,28 @@ function royalHeal(b: Battle): void {
   }
 }
 
+/** "Тьма на доске": once a second dark cells drain the player's pieces and heal enemies. */
+function darkTick(b: Battle): void {
+  for (const u of b.units) {
+    if (u.hp <= 0 || b.terrain[u.y * BOARD_SIZE + u.x] !== 'dark') continue;
+    const base = { uid: u.uid, side: u.side, x: u.x, y: u.y, fromX: u.x, fromY: u.y, fromUid: u.uid };
+    if (u.side === 'ally') {
+      const amount = Math.min(u.maxHp * DARK_DRAIN, Math.max(0, u.hp - DARK_FLOOR));
+      if (amount <= 0) continue;
+      u.hp -= amount;
+      u.flash = 2;
+      b.report[u.uid].taken += amount;
+      if (u.kind === 'king') b.kingMinRatio = Math.min(b.kingMinRatio, u.hp / u.maxHp);
+      b.events.push({ ...base, type: 'hit', amount, crit: false });
+    } else if (u.hp < u.maxHp) {
+      const amount = Math.min(u.maxHp - u.hp, u.maxHp * DARK_HEAL);
+      u.hp += amount;
+      b.report[u.uid].healed += amount;
+      b.events.push({ ...base, type: 'heal', amount });
+    }
+  }
+}
+
 type Grid = (Unit | undefined)[];
 
 /** Occupancy grid of living units, optionally leaving one unit out. */
@@ -1084,6 +1117,7 @@ export function stepBattle(b: Battle): void {
     if (sideDefeated(b, 'ally') || sideDefeated(b, 'enemy')) break;
   }
   if (b.relics.has('royalHealer') && b.tick % HEAL_EVERY === 0) royalHeal(b);
+  if (b.tick % 10 === 0 && b.terrain.includes('dark')) darkTick(b);
   if (!sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) bossTick(b);
   b.units = b.units.filter((u) => u.hp > 0 || u.flash > 0);
   if (sideDefeated(b, 'ally')) b.result = 'loss';

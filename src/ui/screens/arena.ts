@@ -3,7 +3,8 @@ import { adviceLabel, adviseUpgrade } from '../../game/advice';
 import { bestFormation } from '../../game/autoformation';
 import { SYNERGIES, synergyProgress } from '../../game/synergies';
 import { BOSSES, bossFor } from '../../game/bosses';
-import { TERRAIN_INFO, levelTerrain, terrainKinds } from '../../game/terrain';
+import { TERRAIN_INFO } from '../../game/terrain';
+import { DISTORTIONS } from '../../game/distortions';
 import { terrainUrl } from '../terrainArt';
 import { traitUrl } from '../traitIcons';
 import { TRAITS, traitAdjective } from '../../game/elites';
@@ -16,7 +17,7 @@ import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
-  available, battleSetup, clearFormation, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
+  available, battleSetup, clearFormation, levelDistortion, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
   moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, upgradePiece, type BattleOutcome,
   type FormationSlot,
 } from '../../game/state';
@@ -64,6 +65,7 @@ export class ArenaScreen implements Screen {
   private bossPhase = el('span', 'boss-bar-phase');
   private bossFill = el('div', 'boss-bar-fill');
   private bossInfo = el('div', 'boss-info');
+  private distortionRow = el('div', 'boss-info distortion-info');
   /** performance.now() until which the boss intro plays and the battle waits. */
   private introUntil = 0;
   private terrainRow = el('div', 'terrain-row');
@@ -182,7 +184,7 @@ export class ArenaScreen implements Screen {
       + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
       + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));
     this.hintText.classList.add('task-hint');
-    infoCard.append(taskHead, this.enemyText, this.bossInfo, this.eliteRow, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
+    infoCard.append(taskHead, this.enemyText, this.distortionRow, this.bossInfo, this.eliteRow, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
 
     const kingsCard = el('div', 'card');
@@ -258,8 +260,15 @@ export class ArenaScreen implements Screen {
     this.board.setTheme(chapter.id);
     this.root.dataset.theme = String(chapter.id);
     document.body.dataset.chapter = String(chapter.id);
-    this.board.setTerrain(levelTerrain(this.levelId));
-    const kinds = terrainKinds(this.levelId);
+    const terrain = terrainFor(s, this.levelId);
+    this.board.setTerrain(terrain);
+    const kinds = [...new Set(terrain)].filter((t) => t !== 'plain');
+    const distortion = levelDistortion(s, this.levelId);
+    this.distortionRow.hidden = !distortion;
+    if (distortion) {
+      const d = DISTORTIONS[distortion];
+      this.distortionRow.replaceChildren(el('span', '', `◆ ${d.name}`), infoBtn(`Искажение: ${d.name}`, d.text));
+    }
     this.terrainRow.replaceChildren(...kinds.map((t) => {
       const chip = el('span', 'terrain-chip');
       const img = el('img');
@@ -351,13 +360,13 @@ export class ArenaScreen implements Screen {
     const enemy = this.enemies().find((p) => p.x === x && p.y === y);
     if (enemy) {
       const def = PIECES[enemy.kind];
-      const tier = abilityTier(enemy.level);
+      const tier = abilityTier(enemy.level + (battleSetup(this.ctx.state, this.levelId).enemyAbilityShift ?? 0));
       const ability = tier ? ` Приём «${ABILITIES[enemy.kind].name}»${tier === 2 ? ' (усилен)' : ''}.` : '';
       const elite = enemy.trait ? ` ${traitAdjective(enemy.trait, enemy.kind)}: ${TRAITS[enemy.trait].text}.` : '';
       toast(`${enemy.boss ? getLevel(this.levelId).boss : def.name}, ур. ${enemy.level}.${elite} ${def.description}${ability}`);
       return;
     }
-    const t = levelTerrain(this.levelId)[y * 8 + x];
+    const t = terrainFor(this.ctx.state, this.levelId)[y * 8 + x];
     if (t !== 'plain') toast(`${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`);
   }
 

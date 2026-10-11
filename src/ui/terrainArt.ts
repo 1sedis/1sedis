@@ -74,6 +74,24 @@ const MAPS: Record<Exclude<Terrain, 'plain'>, string[]> = {
     'oooooooooooooooo',
     '................',
   ],
+  dark: [
+    'aaaaabaaaaaaaaba',
+    'abaaaaaaabaaaaaa',
+    'aaaaaaccaaaaaaaa',
+    'aaaaacbbcaaaabaa',
+    'aabaacbhbcaaaaaa',
+    'aaaaaacbhcaaaaaa',
+    'aaaaaaacbbccaaaa',
+    'aaaaaaaacbhbcaaa',
+    'aaaccaaaacbbcaaa',
+    'aacbbcaaaaccaaba',
+    'aacbhbccaaaaaaaa',
+    'aaaccbhbcaaaaaaa',
+    'abaaacbbcaaaabaa',
+    'aaaaaacaaaaaaaaa',
+    'aaaaaaaaaaabaaaa',
+    'aaabaaaaaaaaaaaa',
+  ],
 };
 
 const PALETTE: Record<Exclude<Terrain, 'plain'>, Record<string, string>> = {
@@ -81,6 +99,7 @@ const PALETTE: Record<Exclude<Terrain, 'plain'>, Record<string, string>> = {
   forest: { o: '#10241c', h: '#7fe08f', a: '#3fae62', b: '#26804a', c: '#7a4a2a' },
   water: { a: '#2f6fb0', b: '#25598f', h: '#9fd6ff' },
   hill: { o: '#2a2416', h: '#d9d07a', a: '#9fae4c', b: '#77873a', c: '#57642a' },
+  dark: { a: '#1c0f2e', b: '#5a2a8a', c: '#2e1450', h: '#c77dff' },
 };
 
 const cache = new Map<string, string>();
