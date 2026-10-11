@@ -204,8 +204,45 @@ export function abyssReward(floor: number): number {
   return Math.round(70 * 1.13 ** floor);
 }
 
+// ---------- The finale: «Рука над доской» ----------
+
+const FINALE_PREFIX = 'final-';
+
+export const FINALE_CHAPTER: ChapterDef = { id: 6, name: 'Край доски', subtitle: 'Рука над доской', limit: 12, levels: [] };
+
+/**
+ * Three phases fought in a row. Enemy levels are set from the player's army
+ * (see `finaleSetup` in state.ts), so `level` here is only a placeholder.
+ */
+export const FINALE_LEVELS: LevelDef[] = [
+  L('final-1', 'Последняя партия', 1, 6, ['rnbqKbnr', 'pppppppp', '........'],
+    'Полная армия Чёрного короля и все искажения сразу. Король сам выходит на поле — доберитесь до него.', 'Чёрный король'),
+  L('final-2', 'Зеркало', 1, 6, ['........', '........', '........'],
+    'Рука перевернула доску: против вас ваша же армия. Чёрный король теперь на вашей стороне.', 'Тень полководца'),
+  L('final-3', 'Рука над доской', 1, 8, ['...K....', '..n..n..', 'pppppppp'],
+    'Рука не двигается, но бьёт ладонью, щёлкает фигуры и переставляет их. Окружите её.', 'Рука над доской'),
+];
+
+export function isFinale(id: string): boolean {
+  return id.startsWith(FINALE_PREFIX);
+}
+
+/** Phase number 1..3 of a finale level. */
+export function finalePhase(id: string): number {
+  return Number(id.slice(FINALE_PREFIX.length));
+}
+
+export function finaleId(phase: number): string {
+  return `${FINALE_PREFIX}${phase}`;
+}
+
 export function getLevel(id: string): LevelDef {
   if (isAbyss(id)) return abyssLevel(abyssFloor(id));
+  if (isFinale(id)) {
+    const level = FINALE_LEVELS[finalePhase(id) - 1];
+    if (!level) throw new Error(`Unknown level ${id}`);
+    return level;
+  }
   const level = ALL_LEVELS.find((l) => l.id === id);
   if (!level) throw new Error(`Unknown level ${id}`);
   return level;
@@ -213,11 +250,13 @@ export function getLevel(id: string): LevelDef {
 
 export function chapterOf(id: string): ChapterDef {
   if (isAbyss(id)) return ABYSS_CHAPTER;
+  if (isFinale(id)) return FINALE_CHAPTER;
   return CHAPTERS.find((c) => c.levels.some((l) => l.id === id))!;
 }
 
 export function nextLevelId(id: string): string | null {
   if (isAbyss(id)) return abyssId(abyssFloor(id) + 1);
+  if (isFinale(id)) return finalePhase(id) < FINALE_LEVELS.length ? finaleId(finalePhase(id) + 1) : null;
   return ALL_LEVELS[levelIndex(id) + 1]?.id ?? null;
 }
 

@@ -1,5 +1,5 @@
 /** Boss mechanics: one signature skill on a timer, and a rage phase below half health. */
-export type BossId = 'captain' | 'rider' | 'fortress' | 'queen' | 'guardian';
+export type BossId = 'captain' | 'rider' | 'fortress' | 'queen' | 'guardian' | 'blackKing' | 'hand';
 
 export interface BossDef {
   id: BossId;
@@ -40,9 +40,21 @@ export const BOSSES: Record<BossId, BossDef> = {
     rage: 'Голод бездны', rageText: '+30% к атаке, сотрясения чаще',
     cooldown: 100, rageCooldown: 70,
   },
+  blackKing: {
+    id: 'blackKing', skill: 'Искажение', skillText: 'по очереди: тьма на доске, пробуждение приёмов, новая элита, королевская кровь',
+    rage: 'Все искажения', rageText: 'всё сразу, +30% к атаке, искажения чаще',
+    cooldown: 90, rageCooldown: 60,
+  },
+  hand: {
+    id: 'hand', skill: 'Ход рукой', skillText: 'ладонь бьёт квадрат 3×3, щелчок сбивает сильнейшую фигуру, рука переставляет ваши фигуры, призывает тени',
+    rage: 'Переворот доски', rageText: 'доска переворачивается, тьма расползается, время не ускорить',
+    cooldown: 75, rageCooldown: 55,
+  },
 };
 
-const BY_LEVEL: Record<string, BossId> = { '1-9': 'captain', '2-9': 'rider', '3-9': 'fortress', '4-9': 'queen' };
+const BY_LEVEL: Record<string, BossId> = {
+  '1-9': 'captain', '2-9': 'rider', '3-9': 'fortress', '4-9': 'queen', 'final-1': 'blackKing', 'final-3': 'hand',
+};
 
 /** The boss mechanic of a level, if any (every 10th Abyss floor has the guardian). */
 export function bossFor(levelId: string): BossId | undefined {

@@ -173,6 +173,7 @@ export class App implements Ctx {
       onContinue: () => this.go('map'),
       onNewGame: () => this.newGame(),
       onSettings: () => this.openSettings(),
+      peace: this.state.finale.beaten,
     });
     this.menuEl.replaceWith(menu);
     this.menuEl = menu;

@@ -4,11 +4,12 @@ import { spriteUrl } from './sprites';
 import { el } from './dom';
 
 /** Two little armies walking across the checkered floor behind the menu. */
-function marchingArmies(): HTMLElement {
+function marchingArmies(peace: boolean): HTMLElement {
   const layer = el('div', 'menu-march');
+  // After the finale both armies walk the same way: the war is over.
   const rows: { team: 'ally' | 'enemy'; kinds: PieceKind[]; dir: 'right' | 'left' }[] = [
     { team: 'ally', kinds: ['pawn', 'pawn', 'knight', 'king', 'bishop', 'rook', 'pawn'], dir: 'right' },
-    { team: 'enemy', kinds: ['pawn', 'rook', 'queen', 'knight', 'pawn', 'bishop', 'pawn'], dir: 'left' },
+    { team: 'enemy', kinds: ['pawn', 'rook', peace ? 'king' : 'queen', 'knight', 'pawn', 'bishop', 'pawn'], dir: peace ? 'right' : 'left' },
   ];
   rows.forEach((row, r) => {
     const line = el('div', `march-line march-${row.dir}`);
@@ -31,11 +32,14 @@ export interface MenuOptions {
   onContinue: () => void;
   onNewGame: () => void;
   onSettings: () => void;
+  /** The Hand is beaten: the menu tells a different story. */
+  peace?: boolean;
 }
 
 export function buildMenu(o: MenuOptions): HTMLElement {
   const root = el('div', 'menu');
-  root.append(el('div', 'menu-floor'), marchingArmies(), el('div', 'menu-stars'));
+  root.append(el('div', 'menu-floor'), marchingArmies(!!o.peace), el('div', 'menu-stars'));
+  root.classList.toggle('peace', !!o.peace);
 
   const card = el('div', 'menu-card');
   const pieces = el('div', 'menu-pieces');
@@ -66,7 +70,7 @@ export function buildMenu(o: MenuOptions): HTMLElement {
   settings.addEventListener('click', o.onSettings);
   buttons.append(fresh, settings);
 
-  card.append(pieces, title, el('p', 'menu-tag', 'Шахматная кампания'), buttons);
+  card.append(pieces, title, el('p', 'menu-tag', o.peace ? 'Доска больше не переворачивается' : 'Шахматная кампания'), buttons);
   root.append(card, el('div', 'menu-foot', 'v0.3 · прогресс сохраняется в браузере'));
   return root;
 }

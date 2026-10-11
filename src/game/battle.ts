@@ -63,6 +63,11 @@ export interface BattleSetup {
   /** Distortion "Король на поле": multipliers for the enemy king. */
   enemyKingHp?: number;
   enemyKingAtk?: number;
+  /** Health and attack multipliers for every enemy piece (the finale's mirror copies the player's). */
+  enemyHpMult?: number;
+  enemyAtkMult?: number;
+  /** Finale "Зеркало": the Hand keeps moving the player's strongest piece into the enemy lines. */
+  handMeddle?: boolean;
 }
 
 /** A telegraphed boss blow: cells light up, then get hit. */
@@ -130,7 +135,11 @@ export interface Unit {
 
 export interface BattleEvent {
   type: 'hit' | 'death' | 'promote' | 'heal' | 'save' | 'ability' | 'shieldBreak'
-    | 'boss' | 'rage' | 'warn' | 'blast' | 'summon' | 'terrain';
+    | 'boss' | 'rage' | 'warn' | 'blast' | 'summon' | 'terrain'
+    /** The Hand over the board moved a piece (from fromX/fromY to x/y). */
+    | 'hand'
+    /** The Hand turned the board over: every piece mirrored left to right. */
+    | 'flip';
   /** Cells for 'warn', 'blast' and 'terrain' events (index y * 8 + x). */
   cells?: number[];
   /** Ability name for 'ability' events. */
@@ -183,6 +192,10 @@ export interface Battle {
   castled: boolean;
   /** Fallen pieces already returned by "Теневой резерв". */
   shadows: number;
+  /** Which skill of a cycling boss comes next. */
+  bossCycle: number;
+  /** Finale: the Hand moves pieces from outside the board; ticks until it does. */
+  handTimer: number;
   allyCrit: number;
   allyOpening: number;
 }
@@ -270,7 +283,9 @@ export function createBattle(setup: BattleSetup): Battle {
   }
   for (const p of setup.enemies) {
     const king = p.kind === 'king';
-    units.push(makeUnit(uid++, 'enemy', p, king ? setup.enemyKingHp ?? 1 : 1, king ? setup.enemyKingAtk ?? 1 : 1, 1, true, setup.enemyAbilityShift ?? 0));
+    const hpm = (king ? setup.enemyKingHp ?? 1 : 1) * (setup.enemyHpMult ?? 1);
+    const atkm = (king ? setup.enemyKingAtk ?? 1 : 1) * (setup.enemyAtkMult ?? 1);
+    units.push(makeUnit(uid++, 'enemy', p, hpm, atkm, 1, true, setup.enemyAbilityShift ?? 0));
   }
   const report: Record<number, UnitReport> = {};
   for (const u of units) {
@@ -283,6 +298,7 @@ export function createBattle(setup: BattleSetup): Battle {
     allyStats: { promotions: 0, kills: 0, crits: 0, abilities: 0 }, report, branches: { ...setup.allyBranches }, terrain: [...parseTerrain(setup.terrain)],
     bossPhase: 1, bossTimer: 0, summons: 0, warnings: [],
     legends: new Set(setup.legends ?? []), perks: new Set(setup.perks ?? []), castled: false, shadows: 0,
+    bossCycle: 0, handTimer: setup.handMeddle ? HAND_FIRST : 0,
     allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1 };
   // "Туман войны": the enemy is blind for the first 3 seconds.
   if (b.perks.has('fog')) for (const u of units) if (u.side === 'enemy') u.wait += 30;
@@ -1067,6 +1083,13 @@ function moveUnit(b: Battle, u: Unit): void {
 }
 
 function act(b: Battle, u: Unit): void {
+  // The Hand never moves: it strikes whoever comes close and works through its skills.
+  if (u.uid === b.bossUid && b.bossId === 'hand') {
+    const near = reachFrom(b, u.side, u.kind, u.x, u.y);
+    if (near.length) strike(b, u, pickTarget(u, near));
+    else u.wait = 3;
+    return;
+  }
   if (u.kind === 'king' && u.side === 'ally' && b.perks.has('castling') && !b.castled && kingThreatened(b, u)) {
     const rook = alive(b, 'ally').filter((f) => f.kind === 'rook' || f.kind === 'chancellor')
       .sort((a, c) => chebyshev(u, a.x, a.y) - chebyshev(u, c.x, c.y))[0];
@@ -1119,6 +1142,10 @@ export function stepBattle(b: Battle): void {
   if (b.relics.has('royalHealer') && b.tick % HEAL_EVERY === 0) royalHeal(b);
   if (b.tick % 10 === 0 && b.terrain.includes('dark')) darkTick(b);
   if (!sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) bossTick(b);
+  if (b.handTimer > 0 && --b.handTimer === 0 && !sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) {
+    meddle(b);
+    b.handTimer = HAND_EVERY;
+  }
   b.units = b.units.filter((u) => u.hp > 0 || u.flash > 0);
   if (sideDefeated(b, 'ally')) b.result = 'loss';
   else if (sideDefeated(b, 'enemy')) b.result = 'win';
@@ -1126,6 +1153,95 @@ export function stepBattle(b: Battle): void {
 }
 
 // ---------- Bosses ----------
+
+/** Finale "Зеркало": first move of the Hand and the pause between moves (ticks). */
+const HAND_FIRST = 60;
+const HAND_EVERY = 90;
+
+/** A deterministic pseudo-random number for boss choices. */
+function roll(b: Battle, salt: number, n: number): number {
+  let h = Math.imul(b.tick ^ Math.imul(salt, 0x9e3779b9), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) % Math.max(1, n);
+}
+
+function freeCells(b: Battle, rows: number[]): [number, number][] {
+  const out: [number, number][] = [];
+  for (const y of rows) for (let x = 0; x < BOARD_SIZE; x++) if (standable(b.terrain, x, y) && !unitAt(b, x, y)) out.push([x, y]);
+  return out;
+}
+
+/** The Hand lifts a piece and puts it down elsewhere. */
+function handMove(b: Battle, u: Unit, x: number, y: number, by: Unit | undefined): void {
+  const from = { fromX: u.x, fromY: u.y };
+  u.x = x;
+  u.y = y;
+  u.wait = Math.max(u.wait, 6);
+  b.events.push({ type: 'hand', uid: u.uid, side: u.side, x, y, amount: 0, ...from, fromUid: by?.uid ?? u.uid });
+}
+
+/** "Зеркало": the Hand drops the player's strongest piece into the enemy lines. */
+function meddle(b: Battle): void {
+  const piece = alive(b, 'ally').filter((u) => u.kind !== 'king' && !u.boss).sort((a, c) => c.atk - a.atk || a.uid - c.uid)[0];
+  const cells = freeCells(b, [2, 3]);
+  if (!piece || !cells.length) return;
+  const [x, y] = cells[roll(b, piece.uid, cells.length)];
+  handMove(b, piece, x, y, undefined);
+}
+
+/** Turn dark a few plain cells of the middle and the player's rows. */
+function spreadDark(b: Battle, boss: Unit, count: number): void {
+  const plain: number[] = [];
+  for (let i = 3 * BOARD_SIZE; i < BOARD_SIZE * BOARD_SIZE; i++) if (b.terrain[i] === 'plain') plain.push(i);
+  const cells: number[] = [];
+  for (let n = 0; n < count && plain.length; n++) cells.push(...plain.splice(roll(b, n + 7, plain.length), 1));
+  for (const i of cells) b.terrain[i] = 'dark';
+  if (cells.length) {
+    b.events.push({ type: 'terrain', uid: boss.uid, side: boss.side, x: boss.x, y: boss.y, amount: 0, fromX: boss.x, fromY: boss.y, fromUid: boss.uid, cells });
+  }
+}
+
+const TRAIT_POOL: Trait[] = ['armored', 'furious', 'vampire', 'thorns', 'swift'];
+
+/** One distortion of the Black King; returns its name. */
+function distort(b: Battle, boss: Unit, which: number): string {
+  switch (which % 4) {
+    case 0:
+      spreadDark(b, boss, 2);
+      return 'Тьма';
+    case 1:
+      for (const u of alive(b, boss.side)) if (u.tier > 0) u.abilityTimer = 0;
+      return 'Пробуждение';
+    case 2: {
+      const plain = alive(b, boss.side).filter((u) => !u.trait && !u.boss && u.kind !== 'king');
+      const u = plain[roll(b, 3, plain.length)];
+      if (u) {
+        u.trait = TRAIT_POOL[roll(b, 5, TRAIT_POOL.length)];
+        b.report[u.uid].trait = u.trait;
+        if (u.trait === 'swift') {
+          u.moveCd = Math.max(1, Math.round(u.moveCd * 0.5));
+          u.attackCd = Math.max(1, Math.round(u.attackCd * 0.8));
+        }
+      }
+      return 'Чёрная гвардия';
+    }
+    default: {
+      const amount = Math.min(boss.maxHp - boss.hp, boss.maxHp * 0.12);
+      boss.hp += amount;
+      b.events.push({ type: 'heal', uid: boss.uid, side: boss.side, x: boss.x, y: boss.y, amount, fromX: boss.x, fromY: boss.y, fromUid: boss.uid });
+      return 'Королевская кровь';
+    }
+  }
+}
+
+/** "Переворот доски": every piece and every cell is mirrored left to right. */
+function flipBoard(b: Battle, boss: Unit): void {
+  for (const u of b.units) u.x = BOARD_SIZE - 1 - u.x;
+  const t = [...b.terrain];
+  for (let i = 0; i < t.length; i++) b.terrain[i] = t[Math.floor(i / BOARD_SIZE) * BOARD_SIZE + BOARD_SIZE - 1 - (i % BOARD_SIZE)];
+  b.warnings = [];
+  b.events.push({ type: 'flip', uid: boss.uid, side: boss.side, x: boss.x, y: boss.y, amount: 0, fromX: boss.x, fromY: boss.y, fromUid: boss.uid });
+}
 
 function bossTick(b: Battle): void {
   resolveWarnings(b);
@@ -1166,6 +1282,17 @@ function enrage(b: Battle, boss: Unit): void {
     case 'queen':
       summon(b, boss);
       summon(b, boss);
+      break;
+    case 'blackKing':
+      for (let i = 0; i < 4; i++) distort(b, boss, i);
+      boss.atkMult *= 1.3;
+      applyStats(boss, boss.kind);
+      break;
+    case 'hand':
+      flipBoard(b, boss);
+      spreadDark(b, boss, 3);
+      boss.atkMult *= 1.3;
+      applyStats(boss, boss.kind);
       break;
     default:
       break;
@@ -1247,6 +1374,44 @@ function castBoss(b: Battle, boss: Unit): boolean {
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside(centre.x + dx, centre.y + dy)) cells.push(idx(centre.x + dx, centre.y + dy));
       warn(b, boss, cells, damage * 1.2);
       break;
+    }
+    case 'blackKing': {
+      bossEvent(b, boss, 'boss', distort(b, boss, b.bossCycle++));
+      return true;
+    }
+    case 'hand': {
+      const step = b.bossCycle++ % 4;
+      if (step === 0) {
+        // "Ладонь": a 3×3 slam on the thickest crowd.
+        const crowd = (u: Unit) => foes.filter((f) => chebyshev(u, f.x, f.y) <= 1).length;
+        const centre = [...foes].sort((a, c) => crowd(c) - crowd(a) || a.uid - c.uid)[0];
+        const cells: number[] = [];
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside(centre.x + dx, centre.y + dy)) cells.push(idx(centre.x + dx, centre.y + dy));
+        warn(b, boss, cells, damage * 2);
+        bossEvent(b, boss, 'boss', 'Ладонь');
+      } else if (step === 1) {
+        // "Щелчок": the strongest piece is flicked hard.
+        const t = foes.filter((f) => f.kind !== 'king').sort((a, c) => c.atk - a.atk || a.uid - c.uid)[0] ?? foes[0];
+        // Hard enough to break the strongest piece: most of its health, whatever the levels.
+        warn(b, boss, [idx(t.x, t.y)], Math.max(damage * 2.5, t.maxHp * 0.7));
+        bossEvent(b, boss, 'boss', 'Щелчок');
+      } else if (step === 2) {
+        // "Перестановка": up to three pieces are put down somewhere else.
+        const pieces = foes.filter((f) => f.kind !== 'king');
+        for (let n = 0; n < 3 && pieces.length; n++) {
+          const u = pieces.splice(roll(b, n + 11, pieces.length), 1)[0];
+          const cells = freeCells(b, [3, 4, 5, 6, 7]);
+          if (!cells.length) break;
+          const [x, y] = cells[roll(b, u.uid, cells.length)];
+          handMove(b, u, x, y, boss);
+        }
+        bossEvent(b, boss, 'boss', 'Перестановка');
+      } else {
+        if (b.summons < 8) summon(b, boss);
+        if (b.summons < 8) summon(b, boss);
+        bossEvent(b, boss, 'boss', 'Тени партий');
+      }
+      return true;
     }
     default:
       return false;

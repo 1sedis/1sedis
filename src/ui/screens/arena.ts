@@ -10,8 +10,8 @@ import { traitUrl } from '../traitIcons';
 import { TRAITS, traitAdjective } from '../../game/elites';
 import { buildReport, pieceName } from '../../game/report';
 import {
-  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, firstReward, getLevel, isAbyss, levelIncome, nextLevelId,
-  replayReward,
+  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, firstReward, getLevel, isAbyss, isFinale, levelIncome,
+  nextLevelId, replayReward,
 } from '../../game/levels';
 import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
@@ -25,11 +25,14 @@ import { audio } from '../audio';
 import { BoardView, type UnitView } from '../board';
 import { openRelicPicker, relicStrip } from '../relics';
 import { playStory } from '../story';
+import { playEnding, playFinaleScene } from '../finale';
+import { handUrl } from '../handArt';
 import { openCodex } from '../codex';
 import type { Ctx, Screen } from '../context';
 import { el, infoBtn, openModal, setDisabled, setHidden, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
+import { FINALE_CROWNS } from '../../game/state';
 import { spriteUrl, type Tier } from '../sprites';
 
 const TICK_MS = 100;
@@ -82,7 +85,7 @@ export class ArenaScreen implements Screen {
   private hintText = el('p', 'hint-text');
   private relicCard = el('div', 'task-relics');
   private relicSlot = el('div');
-  private kingBars: Record<'ally' | 'enemy', { fill: HTMLElement; text: HTMLElement }>;
+  private kingBars: Record<'ally' | 'enemy', { fill: HTMLElement; text: HTMLElement; name: HTMLElement }>;
   private battleTime = el('div', 'battle-time');
   private autoBtn2 = el('button', 'toggle');
   private autoDescend = false;
@@ -196,14 +199,15 @@ export class ArenaScreen implements Screen {
       const body = el('div', 'king-body');
       const head = el('div', 'king-head');
       const text = el('span');
-      head.append(el('span', '', label), text);
+      const name = el('span', '', label);
+      head.append(name, text);
       const track = el('div', 'bar');
       const fill = el('div', 'bar-fill');
       track.append(fill);
       body.append(head, track);
       row.append(img, body);
       kingsCard.append(row);
-      return { fill, text };
+      return { fill, text, name };
     };
     this.kingBars = { ally: bar('Ваш король', 'ally'), enemy: bar('Чёрный король', 'enemy') };
     kingsCard.append(this.battleTime);
@@ -226,7 +230,8 @@ export class ArenaScreen implements Screen {
       return;
     }
     this.enterPrep();
-    void playStory(this.ctx.state, this.levelId, () => this.ctx.save());
+    if (isFinale(this.levelId)) void playFinaleScene(this.ctx.state, finalePhase(this.levelId), () => this.ctx.save());
+    else void playStory(this.ctx.state, this.levelId, () => this.ctx.save());
   }
 
   private enterPrep(): void {
@@ -239,6 +244,9 @@ export class ArenaScreen implements Screen {
     this.introUntil = 0;
     this.board.intro(null);
     this.board.setWarnings([]);
+    this.setTimeLock(false);
+    document.body.classList.remove('finale-hand');
+    this.board.setCrowned(this.ctx.state.finale.beaten);
     sanitizeFormation(this.ctx.state, this.limit(), this.levelId);
     this.renderInfo();
   }
@@ -253,10 +261,13 @@ export class ArenaScreen implements Screen {
     const level = getLevel(this.levelId);
     const chapter = chapterOf(this.levelId);
     const abyss = isAbyss(this.levelId);
-    setText(this.title, abyss ? `Бездна · ${level.name}` : `${level.id} · ${level.name}`);
+    const finale = isFinale(this.levelId);
+    setText(this.title, abyss ? `Бездна · ${level.name}` : finale ? `Финал · ${level.name}` : `${level.id} · ${level.name}`);
     setText(this.subtitle, abyss
       ? `Этаж ${abyssFloor(this.levelId)} · рекорд ${s.abyss.best}`
-      : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
+      : finale
+        ? `${chapter.name} · фаза ${finalePhase(this.levelId)} из 3`
+        : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
     this.board.setTheme(chapter.id);
     this.root.dataset.theme = String(chapter.id);
     document.body.dataset.chapter = String(chapter.id);
@@ -306,8 +317,18 @@ export class ArenaScreen implements Screen {
     setText(this.enemyText, `Враги: ${enemies.length} · ур. ${enemies[0]?.level ?? level.level}${level.boss ? ` · ${level.boss}` : ''}`);
     const best = s.stars[level.id] ?? 0;
     this.conditions.innerHTML = '';
-    this.conditions.hidden = abyss;
+    this.conditions.hidden = abyss || finale;
     this.autoBtn2.hidden = !abyss;
+    if (finale) {
+      const phase = finalePhase(this.levelId);
+      setText(this.rewardText, phase < 3
+        ? 'Победа сохраняет прогресс финала'
+        : s.finale.beaten ? 'Рука уже опущена — это бой на память' : `Награда: +${FINALE_CROWNS} ♛ и конец истории`);
+      setText(this.hintText, level.hint);
+      this.relicCard.hidden = s.relics.length === 0;
+      this.relicSlot.replaceChildren(relicStrip(s.relics));
+      return;
+    }
     if (abyss) {
       const floor = abyssFloor(this.levelId);
       setText(this.rewardText, `Награда: +${fmt(Math.round(abyssReward(floor)))} золота · +${shardsForFloor(floor)} ◆`);
@@ -411,12 +432,14 @@ export class ArenaScreen implements Screen {
     if (bossId && !(isAbyss(this.levelId) && this.autoDescend)) {
       const boss = this.battle.units.find((u) => u.uid === this.battle!.bossUid)!;
       this.board.intro({
-        name: getLevel(this.levelId).boss ?? 'Босс', sprite: spriteUrl(boss.kind, 'enemy', boss.tier as Tier),
+        name: getLevel(this.levelId).boss ?? 'Босс',
+        sprite: bossId === 'hand' ? handUrl() : spriteUrl(boss.kind, 'enemy', boss.tier as Tier),
         skill: BOSSES[bossId].skill, rage: BOSSES[bossId].rage,
       });
       this.introUntil = performance.now() + 2200;
       audio.play('roar');
     } else audio.play('start');
+    document.body.classList.toggle('finale-hand', bossId === 'hand');
     this.ctx.save();
   }
 
@@ -452,10 +475,27 @@ export class ArenaScreen implements Screen {
       }, 1300);
       return;
     }
+    if (outcome.ending) {
+      this.setTimeLock(false);
+      setTimeout(() => {
+        void playEnding(this.ctx.state).then(() => this.showResult(outcome));
+      }, 1400);
+      return;
+    }
     setTimeout(() => {
       this.showResult(outcome);
       if (outcome.relicsEarned > 0) setTimeout(() => openRelicPicker(this.ctx), 500);
     }, 700);
+  }
+
+  /** "Рука держит время": during the Hand's rage the speed cannot be raised. */
+  private timeLocked = false;
+
+  private setTimeLock(on: boolean): void {
+    if (this.timeLocked === on) return;
+    this.timeLocked = on;
+    document.body.classList.toggle('glitch', on);
+    for (const { b } of this.speedBtns) b.classList.toggle('locked', on);
   }
 
   private showResult(o: BattleOutcome): void {
@@ -497,7 +537,11 @@ export class ArenaScreen implements Screen {
     if (this.battle) content.append(this.reportView(o.win));
 
     if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', 'Новая реликвия! Выберите одну из трёх.'));
-    if (o.win) {
+    if (isFinale(this.levelId)) {
+      if (o.ending) content.append(el('div', 'result-reward', `+${FINALE_CROWNS} ♛ · трофейная корона на вашем короле`));
+      else if (o.win && nextLevelId(this.levelId)) content.append(el('div', 'result-unlock', 'Фаза пройдена — прогресс сохранён. Дальше будет хуже.'));
+      else if (!o.win) content.append(el('div', 'result-unlock', 'Рука ждёт. Улучшите армию — враги финала растут вместе с ней, но реликвии, кузница и древо — нет.'));
+    } else if (o.win) {
       content.append(el('div', 'result-reward', `+${fmt(o.reward)} золота`));
       if (o.trophy) content.append(el('div', 'result-unlock relic', `Трофей: «${o.trophy.name}» — ${o.trophy.text}`));
       if (o.shards > 0) content.append(el('div', 'result-unlock shard', `+${o.shards} ◆ осколков бездны — крутите за них рулетку в «Улучшениях»`));
@@ -613,7 +657,7 @@ export class ArenaScreen implements Screen {
   // ---------- Frame ----------
 
   frame(dt: number): void {
-    const speed = this.ctx.settings.speed;
+    const speed = this.timeLocked ? 1 : this.ctx.settings.speed;
     let events: BattleEvent[] = [];
     if (this.introUntil && performance.now() >= this.introUntil) {
       this.introUntil = 0;
@@ -644,6 +688,7 @@ export class ArenaScreen implements Screen {
     this.board.setFxLevel(speed >= 4 ? 0 : speed >= 2 ? 1 : 2);
     this.board.render(this.collectUnits());
     if (events.length) {
+      this.handEvents(events);
       this.bossEvents(events);
       this.firstAbility(events);
       this.board.react(events, (uid) => `b${uid}`, this.ctx.settings.effects && events.length <= 60);
@@ -685,6 +730,7 @@ export class ArenaScreen implements Screen {
     }
 
     if (this.battle) {
+      setText(this.kingBars.enemy.name, this.levelId === 'final-3' ? 'Рука над доской' : this.levelId === 'final-2' ? 'Тень полководца' : 'Чёрный король');
       for (const side of ['ally', 'enemy'] as const) {
         const king = this.battle.units.find((u) => u.side === side && u.kind === 'king');
         const ratio = king ? Math.max(0, king.hp) / king.maxHp : 0;
@@ -711,6 +757,24 @@ export class ArenaScreen implements Screen {
     this.board.setWarnings(b.warnings.flatMap((w) => w.cells));
   }
 
+  /** The Hand moves pieces and turns the board over; its rage locks the speed. */
+  private handEvents(events: BattleEvent[]): void {
+    const b = this.battle;
+    if (!b) return;
+    for (const e of events) {
+      if (e.type === 'hand') {
+        this.board.handGrab(e.fromX, e.fromY, e.x, e.y);
+        if (!b.bossId) this.board.callout('Рука переставляет фигуру!', 'skill');
+      } else if (e.type === 'flip') {
+        this.board.flip();
+        this.board.setTerrain(b.terrain);
+      } else if (e.type === 'rage' && b.bossId === 'hand') {
+        this.setTimeLock(true);
+        toast('Рука держит время: ускорение недоступно');
+      }
+    }
+  }
+
   /** Callouts for boss skills, rage, new rocks and the boss falling. */
   private bossEvents(events: BattleEvent[]): void {
     const b = this.battle;
@@ -720,7 +784,7 @@ export class ArenaScreen implements Screen {
       else if (e.type === 'rage') this.board.callout(`Ярость: ${e.label}`, 'rage');
       else if (e.type === 'terrain') this.board.setTerrain(b.terrain);
       else if (e.type === 'death' && e.uid === b.bossUid) {
-        this.board.callout('Босс повержен!', 'down');
+        this.board.callout(b.bossId === 'hand' ? 'Рука опущена!' : 'Босс повержен!', 'down');
         audio.play('bossDown');
       }
     }
@@ -803,10 +867,15 @@ export class ArenaScreen implements Screen {
         selected: !!from && from.x === f.x && from.y === f.y,
       };
     });
+    // "Зеркало": the Black King stands beside your king (placed for you).
+    if (this.levelId === 'final-2') {
+      const bk = battleSetup(s, this.levelId).allies.find((a) => a.boss);
+      if (bk) views.push({ key: 'black-king', team: 'ally', kind: 'king', x: bk.x, y: bk.y, hp: 1, maxHp: 1, boss: true, tier: 2, skin: 'blackKing' });
+    }
     this.enemies().forEach((p, i) => {
       views.push({
         key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss, trait: p.trait,
-        tier: abilityTier(p.level) as Tier,
+        tier: abilityTier(p.level) as Tier, skin: p.boss && this.levelId === 'final-3' ? 'hand' : undefined,
       });
     });
     return views;
@@ -817,6 +886,8 @@ export class ArenaScreen implements Screen {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
       shield: u.shield / u.maxHp, tier: abilityTier(u.level) as Tier,
       boss: u.boss, trait: u.trait, dead: u.hp <= 0,
+      skin: this.battle?.bossId === 'hand' && u.uid === this.battle.bossUid ? 'hand'
+        : u.side === 'ally' && u.boss && u.kind === 'king' ? 'blackKing' : undefined,
     };
   }
 }

@@ -1,7 +1,7 @@
-import { ABYSS_UNLOCK, CHAPTERS, abyssId, enemyPlacements, levelIncome, type ChapterDef } from '../../game/levels';
+import { ABYSS_UNLOCK, CHAPTERS, abyssId, finaleId, enemyPlacements, levelIncome, type ChapterDef } from '../../game/levels';
 import { RELIC_IDS } from '../../game/relics';
 import {
-  canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, prestige,
+  canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, prestige, isFinaleOpen, FINALE_FLOOR, FINALE_GAME,
   collectTreasury, currentLevelId, incomePerMinute, isLevelOpen, treasuryCap, treasuryCapHours,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
@@ -13,6 +13,8 @@ import { spriteUrl } from '../sprites';
 import { drawChapterScene } from '../mapArt';
 import { openCrownTree } from '../crownTree';
 import { openChronicle, playGameIntro } from '../story';
+import { playCredits } from '../finale';
+import { handUrl } from '../handArt';
 import { DISTORTIONS, distortionFor } from '../../game/distortions';
 
 // Snake layout of the nine nodes on a 3x3 grid: row 1 left→right, row 2 right→left, row 3 left→right.
@@ -47,6 +49,11 @@ export class MapScreen implements Screen {
   private treeBtn = el('button', 'btn btn-buy tree-btn', '♛ Древо короны');
   private chronicleBtn = el('button', 'btn btn-small chronicle-btn', 'Летопись');
   private distortionInfo = el('div', 'distortion-info treasury-info');
+  private finaleCard = el('div', 'card finale-card');
+  private finaleInfo = el('div', 'treasury-info');
+  private finalePips = el('div', 'finale-pips');
+  private finaleBtn = el('button', 'btn btn-danger finale-btn');
+  private creditsBtn = el('button', 'btn btn-small', 'Титры');
 
   constructor(private ctx: Ctx) {
     const main = el('div', 'map-main card');
@@ -101,10 +108,25 @@ export class MapScreen implements Screen {
       'После финального босса можно начать кампанию заново ради корон.\nКороны тратятся в «Древе короны» на доктрины: новые шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы древа открываются в следующих партиях.\nВраги становятся сильнее (в первой главе чуть-чуть, к Тронному залу на 2 уровня), награды растут. Каждая партия приносит искажение — Чёрный король меняет одно правило. Короны, древо, достижения, осколки и рекорд Бездны сохраняются.'));
     this.prestigeBtn.addEventListener('click', () => void this.onPrestige());
     this.treeBtn.addEventListener('click', () => openCrownTree(this.ctx));
-    this.chronicleBtn.addEventListener('click', () => openChronicle(gameNumber(this.ctx.state)));
+    this.chronicleBtn.addEventListener('click', () => openChronicle(gameNumber(this.ctx.state),
+      this.ctx.state.finale.beaten ? () => void playCredits(this.ctx.state) : undefined));
     this.prestigeCard.append(pHead, this.prestigeInfo, this.distortionInfo, this.prestigeBtn, this.treeBtn, this.chronicleBtn);
 
-    side.append(treasury, this.abyssCard, relics, this.prestigeCard);
+    const fHead = el('div', 'panel-head');
+    fHead.append(el('span', 'panel-title', 'Край доски'), infoBtn('Рука над доской',
+      `Финал истории: три боя подряд — «Последняя партия», «Зеркало» и «Рука над доской».\nОткрывается в ${FINALE_GAME}-й партии после Чёрного ферзя или на ${FINALE_FLOOR}-м этаже Бездны.\nВраги подстраиваются под силу вашей армии. Выигранные фазы сохраняются.`));
+    const fImg = el('img', 'finale-img');
+    fImg.src = handUrl();
+    fImg.alt = '';
+    for (let i = 0; i < 3; i++) this.finalePips.append(el('span'));
+    this.finaleBtn.addEventListener('click', () => {
+      const f = this.ctx.state.finale;
+      this.ctx.go('arena', finaleId(f.beaten ? 1 : f.phase + 1));
+    });
+    this.creditsBtn.addEventListener('click', () => void playCredits(this.ctx.state));
+    this.finaleCard.append(fHead, fImg, this.finaleInfo, this.finalePips, this.finaleBtn, this.creditsBtn);
+
+    side.append(treasury, this.abyssCard, relics, this.finaleCard, this.prestigeCard);
     this.root.append(main, side);
   }
 
@@ -247,6 +269,20 @@ export class MapScreen implements Screen {
       : `🔒 После босса ${ABYSS_UNLOCK}`);
     this.abyssBtn.hidden = !abyssOpen;
     this.abyssCard.classList.toggle('locked', !abyssOpen);
+    const fOpen = isFinaleOpen(s);
+    this.finaleCard.hidden = !fOpen && s.prestige === 0 && s.abyss.best < 20;
+    this.finaleCard.classList.toggle('locked', !fOpen);
+    this.finaleCard.classList.toggle('beaten', s.finale.beaten);
+    setText(this.finaleInfo, s.finale.beaten
+      ? 'Рука опущена. Доска больше не переворачивается.'
+      : fOpen
+        ? `Над доской кто-то есть… Пройдено фаз: ${s.finale.phase} из 3`
+        : `🔒 Партия ${FINALE_GAME} или ${FINALE_FLOOR}-й этаж Бездны (сейчас: партия ${gameNumber(s)}, этаж ${s.abyss.best})`);
+    [...this.finalePips.children].forEach((p, i) => p.classList.toggle('on', s.finale.beaten || i < s.finale.phase));
+    this.finalePips.hidden = !fOpen;
+    this.finaleBtn.hidden = !fOpen;
+    setText(this.finaleBtn, s.finale.beaten ? 'Сразиться снова' : s.finale.phase ? `Фаза ${s.finale.phase + 1}` : 'Подняться к краю');
+    this.creditsBtn.hidden = !s.finale.beaten;
     const ready = canPrestige(s);
     setText(this.prestigeInfo, ready
       ? `Получите +${crownsForPrestige(s)} ♛ · свободно ${s.crowns} ♛`

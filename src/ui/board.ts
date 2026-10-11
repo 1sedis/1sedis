@@ -7,6 +7,7 @@ import { spriteUrl, type Team, type Tier } from './sprites';
 import { TERRAIN_INFO, walkable, type Terrain } from '../game/terrain';
 import { terrainUrl } from './terrainArt';
 import { traitUrl } from './traitIcons';
+import { handUrl } from './handArt';
 import type { Trait } from '../game/elites';
 
 export interface UnitView {
@@ -26,6 +27,8 @@ export interface UnitView {
   trait?: Trait;
   selected?: boolean;
   dead?: boolean;
+  /** Drawn as something other than a chess piece (the finale's Hand). */
+  skin?: 'hand' | 'blackKing';
 }
 
 export class BoardView {
@@ -67,6 +70,12 @@ export class BoardView {
     // One-shot animations must drop their class when done: a hidden screen that is shown
     // again restarts every running CSS animation, which would replay old callouts.
     this.calloutEl.addEventListener('animationend', () => this.calloutEl.classList.remove('show'));
+    // The Hand watches the cursor: its sprite leans towards the pointer.
+    this.root.addEventListener('pointermove', (e) => {
+      const r = this.root.getBoundingClientRect();
+      const t = ((e.clientX - r.left) / r.width - 0.5) * 24;
+      this.root.style.setProperty('--hand-tilt', `${t.toFixed(1)}deg`);
+    });
     this.root.addEventListener('animationend', (e) => {
       if (e.target === this.root) this.root.classList.remove('shake', 'shake-big');
     });
@@ -163,10 +172,11 @@ export class BoardView {
         node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
         this.unitLayer.append(node);
         u = { node, body, img, fill, shield, kind: v.kind, team: v.team, tier: v.tier ?? 0 };
-        img.src = spriteUrl(v.kind, v.team, u.tier);
+        img.src = v.skin === 'hand' ? handUrl() : v.skin === 'blackKing' ? spriteUrl('king', 'enemy', 2) : spriteUrl(v.kind, v.team, u.tier);
+        node.classList.toggle('hand-unit', v.skin === 'hand');
         this.units.set(v.key, u);
       }
-      if (u.kind !== v.kind || u.tier !== (v.tier ?? 0)) {
+      if (!v.skin && (u.kind !== v.kind || u.tier !== (v.tier ?? 0))) {
         // Promotion or a new level swaps the sprite.
         u.kind = v.kind;
         u.tier = v.tier ?? 0;
@@ -223,7 +233,10 @@ export class BoardView {
       }
       if (e.type === 'hit') {
         // Web Animations restart cleanly without forcing a layout like class toggling does.
-        this.units.get(keyOf(e.uid))?.img.animate(HIT_FLASH, { duration: 160, easing: 'steps(1, end)' });
+        // The Hand is hit all the time: a white flash would keep it a blank silhouette, so it only flinches.
+        const hit = this.units.get(keyOf(e.uid));
+        if (hit?.node.classList.contains('hand-unit')) hit.body.animate(HAND_FLINCH, { duration: 160 });
+        else hit?.img.animate(HIT_FLASH, { duration: 160, easing: 'steps(1, end)' });
         const dx = e.x - e.fromX;
         const dy = e.y - e.fromY;
         // Melee attackers (adjacent or a knight's jump) lunge at their target.
@@ -265,6 +278,37 @@ export class BoardView {
   /** Scale a particle count by the effect level. */
   private many(count: number): number {
     return this.fxLevel === 2 ? count : this.fxLevel === 1 ? Math.ceil(count / 2) : Math.ceil(count / 4);
+  }
+
+  /** The Hand lifts a piece and drops it elsewhere: a ghost hand travels between the cells. */
+  handGrab(fromX: number, fromY: number, x: number, y: number): void {
+    if (REDUCED_MOTION) return;
+    const ghost = el('img', 'fx-hand');
+    ghost.src = handUrl();
+    ghost.alt = '';
+    this.fxLayer.append(ghost);
+    const at = (cx: number, cy: number) => `${cx * 100}% ${cy * 100}%`;
+    ghost.animate([
+      { translate: at(fromX, fromY - 1.6), opacity: 0 },
+      { translate: at(fromX, fromY - 0.9), opacity: 1, offset: 0.25 },
+      { translate: at(x, y - 0.9), opacity: 1, offset: 0.75 },
+      { translate: at(x, y - 1.6), opacity: 0 },
+    ], { duration: 700, easing: 'ease-in-out' }).onfinish = () => ghost.remove();
+  }
+
+  /** "Переворот доски": the whole board turns over on its axis. */
+  flip(): void {
+    if (REDUCED_MOTION) return;
+    this.root.animate([
+      { transform: 'perspective(900px) rotateY(0deg)' },
+      { transform: 'perspective(900px) rotateY(90deg)', offset: 0.5 },
+      { transform: 'perspective(900px) rotateY(0deg)' },
+    ], { duration: 800, easing: 'ease-in-out' });
+  }
+
+  /** The player's king wears the trophy crown after the finale. */
+  setCrowned(on: boolean): void {
+    this.root.classList.toggle('crowned', on);
   }
 
   /** Big centred text for boss skills, rage and defeat. */
@@ -401,6 +445,7 @@ export class BoardView {
 
 /** Restart a one-shot CSS animation class. */
 const HIT_FLASH: Keyframe[] = [{ filter: 'brightness(0) invert(1)' }, { filter: 'none' }];
+const HAND_FLINCH: Keyframe[] = [{ translate: '0 0' }, { translate: '0 -3%' }, { translate: '0 0' }];
 const REDUCED_MOTION = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 function restart(node: HTMLElement | undefined, cls: string): void {

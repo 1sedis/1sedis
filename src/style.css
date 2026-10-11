@@ -1783,3 +1783,80 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
 .chronicle-item p { margin: 4px 0; line-height: 1.4; }
 .chronicle-title { color: var(--gold, #ffd36b); letter-spacing: 1px; }
 .chronicle-distortion { color: #c77dff; margin-top: 6px; font-size: 14px; }
+
+/* ---------- Finale: «Рука над доской» ---------- */
+.board-frame[data-theme='6'] { --cell-light: #3a3352; --cell-dark: #251f3a; --board-edge: #0a0716; --board-label: #e6dcff; }
+.arena-screen[data-theme="6"] { --glow: #e6dcff; --mote: #c77dff; --glow-a: rgba(199, 125, 255, 0.34); }
+
+/* The Hand: one cell in the engine, a giant hand on screen reaching over the board's edge. */
+.unit.hand-unit { z-index: 3; }
+.unit.hand-unit .unit-sprite {
+  inset: auto;
+  left: -70%;
+  bottom: 10%;
+  width: 240%;
+  height: 300%;
+  transform-origin: 50% 0;
+  rotate: var(--hand-tilt, 0deg);
+  transition: rotate 0.4s ease-out;
+  filter: drop-shadow(0 0 14px rgba(199, 125, 255, 0.85)) drop-shadow(0 10px 0 rgba(0, 0, 0, 0.35));
+  animation: hand-hover 2.2s ease-in-out infinite;
+}
+.unit.hand-unit::after, .unit.hand-unit .unit-body::before { display: none; }
+.unit.hand-unit .hp { opacity: 0; }
+@keyframes hand-hover { 50% { translate: 0 -5%; } }
+.fx-hand { position: absolute; left: 0; top: 0; width: 12.5%; height: 12.5%; object-fit: contain; image-rendering: pixelated; pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(199, 125, 255, 0.9)); z-index: 5; }
+body.finale-hand .arena-screen { --glow-a: rgba(255, 255, 255, 0.22); }
+body.finale-hand .board-stage { filter: drop-shadow(0 0 30px rgba(199, 125, 255, 0.35)); }
+
+/* "Рука держит время": the interface itself starts to break. */
+body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles { animation: glitch 1.6s steps(1) infinite; }
+@keyframes glitch {
+  0%, 86%, 100% { translate: 0 0; filter: none; }
+  88% { translate: 3px -1px; filter: hue-rotate(90deg) saturate(2); }
+  92% { translate: -4px 1px; filter: invert(0.15); }
+  95% { translate: 1px 2px; filter: hue-rotate(-60deg); }
+}
+.seg-btn.locked { opacity: 0.35; pointer-events: none; text-decoration: line-through; }
+@media (prefers-reduced-motion: reduce) { body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles, .unit.hand-unit .unit-sprite { animation: none; } }
+
+/* The trophy crown over the player's king once the Hand is beaten. */
+.board.crowned .unit.ally.king::after { content: ''; position: absolute; left: 33%; width: 34%; height: 34%; top: -16%;
+  background: var(--icon-crown) center / contain no-repeat; image-rendering: pixelated; filter: drop-shadow(0 0 4px #ffcf4a); }
+
+/* The Hand's voice in scenes. */
+.story-hand .story-face { filter: drop-shadow(0 0 12px rgba(199, 125, 255, 0.9)); }
+.story-hand .story-name { color: #e6dcff; animation: glitch 1.2s steps(1) infinite; }
+.story-hand .story-text { letter-spacing: 1px; color: #f3eeff; }
+
+/* Map card */
+.finale-card { position: relative; background: linear-gradient(180deg, var(--card), #1b1230); }
+.finale-card .finale-btn { width: calc(100% - 8px); }
+.finale-card .btn-small { width: calc(100% - 8px); margin-top: 6px; }
+.finale-img { position: absolute; right: 16px; top: 6px; width: 40px; height: 50px; image-rendering: pixelated;
+  filter: drop-shadow(0 0 8px rgba(199, 125, 255, 0.8)); animation: hand-hover 2.2s ease-in-out infinite; }
+.finale-card.locked .finale-img { filter: brightness(0.35); animation: none; }
+.finale-card.beaten .finale-img { filter: grayscale(1) brightness(0.8); animation: none; rotate: 180deg; }
+.finale-pips { display: flex; gap: 6px; margin: 4px 0 10px; }
+.finale-pips span { width: 14px; height: 14px; background: #2a1846; box-shadow: 0 0 0 2px #120a24; }
+.finale-pips span.on { background: #c77dff; box-shadow: 0 0 0 2px #120a24, 0 0 8px #c77dff; }
+.chronicle-ending { border-left-color: var(--gold); }
+
+/* Credits */
+.credits { position: fixed; inset: 0; z-index: 200; background: radial-gradient(ellipse at 50% 30%, #1d1433, #07050d 70%); overflow: hidden; }
+.credits-roll { position: absolute; left: 50%; top: 100%; width: min(520px, calc(100vw - 32px)); translate: -50% 0; text-align: center;
+  animation: credits-roll 46s linear forwards; }
+@keyframes credits-roll { to { transform: translateY(calc(-100% - 100vh)); } }
+.credits-logo { font-size: 40px; color: var(--gold); text-shadow: 0 4px 0 var(--gold-deep), 0 0 24px #ffcf4a66; margin-bottom: 8px; }
+.credits-sub { color: #c9bfe6; font-size: 18px; margin-bottom: 80px; }
+.credits-block { margin-bottom: 70px; }
+.credits-title { color: #c77dff; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 18px; }
+.credits-line { color: #f3eeff; font-size: 18px; line-height: 1.7; }
+.credits-cast { display: grid; grid-template-columns: 48px 1fr 1fr; align-items: center; gap: 12px; text-align: left; margin: 8px 0; }
+.credits-cast img { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; }
+.credits-name { color: #fff; }
+.credits-role { color: #a996e0; text-align: right; }
+.credits-end { font-size: 26px; color: #fff; margin: 120px 0 12px; text-shadow: 0 0 18px #c77dff; }
+.credits-skip { position: absolute; right: 16px; bottom: 16px; }
+@media (prefers-reduced-motion: reduce) { .credits-roll { animation-duration: 90s; } }

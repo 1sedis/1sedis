@@ -1,13 +1,13 @@
 import { BOARD_SIZE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
   ABYSS_UNLOCK, ALL_LEVELS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
-  isAbyss, levelIncome, levelIndex, replayReward,
+  isAbyss, levelIncome, levelIndex, replayReward, isFinale, finalePhase,
 } from './levels';
 import type { Branch } from './abilities';
 import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId } from './crownTree';
 import { bossFor } from './bosses';
-import { withElites } from './elites';
-import { levelTerrain, levelTerrainRows, walkable, withDarkness, type Terrain } from './terrain';
+import { withElites, type Trait } from './elites';
+import { levelTerrain, levelTerrainRows, parseTerrain, walkable, withDarkness, type Terrain } from './terrain';
 import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionFor, type DistortionId } from './distortions';
 import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
@@ -86,6 +86,8 @@ export interface GameState {
   shards: number;
   /** Roulette of the Abyss: buffs bought with shards, kept across new games. */
   roulette: RouletteState;
+  /** The finale: phases cleared (a checkpoint kept across games) and whether the Hand is beaten. */
+  finale: { phase: number; beaten: boolean };
   stats: {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
@@ -126,6 +128,7 @@ export function newGame(now = Date.now()): GameState {
     crownTree: [],
     shards: 0,
     roulette: emptyRoulette(),
+    finale: { phase: 0, beaten: false },
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
       flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
@@ -137,6 +140,7 @@ export function newGame(now = Date.now()): GameState {
 
 export function isCleared(s: GameState, id: string): boolean {
   if (isAbyss(id)) return abyssFloor(id) < s.abyss.floor;
+  if (isFinale(id)) return s.finale.beaten || finalePhase(id) <= s.finale.phase;
   return (s.stars[id] ?? 0) > 0;
 }
 
@@ -144,8 +148,17 @@ export function isAbyssOpen(s: GameState): boolean {
   return isCleared(s, ABYSS_UNLOCK);
 }
 
+/** The finale opens in game 6 after the Black Queen, or at Abyss floor 50. */
+export const FINALE_GAME = 6;
+export const FINALE_FLOOR = 50;
+
+export function isFinaleOpen(s: GameState): boolean {
+  return s.finale.beaten || s.abyss.best >= FINALE_FLOOR || (gameNumber(s) >= FINALE_GAME && isCleared(s, PRESTIGE_UNLOCK));
+}
+
 export function isLevelOpen(s: GameState, id: string): boolean {
   if (isAbyss(id)) return isAbyssOpen(s) && abyssFloor(id) === s.abyss.floor;
+  if (isFinale(id)) return isFinaleOpen(s) && (s.finale.beaten || finalePhase(id) <= s.finale.phase + 1);
   const i = levelIndex(id);
   return i === 0 || (i > 0 && isCleared(s, ALL_LEVELS[i - 1].id));
 }
@@ -425,20 +438,81 @@ const BATTLE_PERKS: ReadonlySet<NodeId> = new Set<NodeId>([
 
 /** The distortion bending this level's rules (campaign levels only). */
 export function levelDistortion(s: GameState, levelId: string): DistortionId | null {
-  return isAbyss(levelId) ? null : distortionFor(gameNumber(s));
+  return isAbyss(levelId) || isFinale(levelId) ? null : distortionFor(gameNumber(s));
 }
 
 /** Terrain rows of a level as this game sees it. */
 export function terrainRowsFor(s: GameState, levelId: string): string[] | undefined {
+  if (isFinale(levelId)) return finalePhase(levelId) === 2 ? undefined : withDarkness(levelId, undefined);
   const rows = levelTerrainRows(levelId);
   return levelDistortion(s, levelId) === 'darkness' ? withDarkness(levelId, rows) : rows;
 }
 
 export function terrainFor(s: GameState, levelId: string): Terrain[] {
+  if (isFinale(levelId)) return parseTerrain(terrainRowsFor(s, levelId));
   return levelTerrain(levelId, levelDistortion(s, levelId) === 'darkness');
 }
 
+/**
+ * Enemy level in the finale: the Hand knows your strength. The mean level of
+ * your five best piece types (the king aside).
+ */
+export function finaleLevel(s: GameState): number {
+  const levels = (Object.keys(s.army) as PieceKind[])
+    .filter((k) => k !== 'king' && s.army[k] > 0)
+    .map((k) => s.levels[k])
+    .sort((a, c) => c - a)
+    .slice(0, 5);
+  return levels.length ? Math.round(levels.reduce((a, c) => a + c, 0) / levels.length) : 1;
+}
+
+/** Traits of the Black King's full army in "Последняя партия". */
+const FINALE_TRAITS: Partial<Record<PieceKind, Trait>> = { knight: 'swift', bishop: 'vampire', rook: 'armored', queen: 'furious' };
+
+/** Extra health of the Hand on top of the boss multiplier. */
+const HAND_HP = 18;
+const HAND_ATK = 2;
+
+function finaleSetup(s: GameState, levelId: string, base: BattleSetup): BattleSetup {
+  const phase = finalePhase(levelId);
+  const lv = finaleLevel(s);
+  const placements = enemyPlacements(getLevel(levelId));
+  if (phase === 1) {
+    return {
+      ...base,
+      enemies: placements.map((p) => ({ ...p, level: lv + 3, trait: FINALE_TRAITS[p.kind] })),
+      enemyAbilityShift: AWAKENING_SHIFT, enemyKingHp: BLACK_KING_HP, enemyKingAtk: BLACK_KING_ATK,
+    };
+  }
+  if (phase === 2) {
+    // The board turned over: your own army in black, a little stronger. The Black King joins you.
+    const enemies = s.formation.map((f) => ({
+      kind: f.kind, x: f.x, y: BOARD_SIZE - 1 - f.y, level: s.levels[f.kind] + 1, boss: f.kind === 'king',
+    }));
+    const taken = new Set(base.allies.map((a) => `${a.x},${a.y}`));
+    const king = base.allies.find((a) => a.kind === 'king') ?? { x: 3, y: 7 };
+    const spots: [number, number][] = [];
+    for (let y = 5; y < BOARD_SIZE; y++) for (let x = 0; x < BOARD_SIZE; x++) if (!taken.has(`${x},${y}`)) spots.push([x, y]);
+    spots.sort((a, c) => Math.max(Math.abs(a[0] - king.x), Math.abs(a[1] - king.y)) - Math.max(Math.abs(c[0] - king.x), Math.abs(c[1] - king.y)));
+    const allies = [...base.allies];
+    if (spots[0]) allies.push({ kind: 'king', x: spots[0][0], y: spots[0][1], level: lv, boss: true });
+    // The shadows copy your forge and roulette strength too.
+    return { ...base, allies, enemies, handMeddle: true, enemyHpMult: base.allyHpMult, enemyAtkMult: base.allyAtkMult };
+  }
+  return {
+    ...base,
+    enemies: placements.map((p) => ({ ...p, level: p.boss ? lv + 3 : lv + 2 })),
+    enemyKingHp: HAND_HP,
+    enemyKingAtk: HAND_ATK,
+  };
+}
+
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
+  if (isFinale(levelId)) return finaleSetup(s, levelId, plainSetup(s, levelId));
+  return plainSetup(s, levelId);
+}
+
+function plainSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s);
   const rb = rouletteBonuses(s.roulette);
@@ -505,6 +579,8 @@ export interface BattleOutcome {
   damageShare: number;
   /** A free roulette buff from "Трофеи" on a first clear. */
   trophy?: BuffDef;
+  /** The Hand fell for the first time: roll the credits. */
+  ending?: boolean;
 }
 
 /** A lost battle still pays: up to half of a replay reward, in proportion to the damage done. */
@@ -521,6 +597,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   const stars = win ? 1 + Number(conditions.king) + Number(conditions.losses) : 0;
   const damageShare = enemyDamageShare(b);
   if (isAbyss(levelId)) return recordAbyss(s, levelId, b, stars, conditions, damageShare);
+  if (isFinale(levelId)) return recordFinale(s, levelId, b, stars, conditions, damageShare);
   const prev = s.stars[levelId] ?? 0;
   const firstClear = win && prev === 0;
   const newStars = Math.max(0, stars - prev);
@@ -585,6 +662,29 @@ function recordAbyss(
   return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards, damageShare };
 }
 
+/** Crowns for beating the Hand the first time. */
+export const FINALE_CROWNS = 10;
+
+/** The finale: a won phase is a checkpoint; beating the Hand ends the story (once) and pays crowns. */
+function recordFinale(
+  s: GameState, levelId: string, b: Battle, stars: number, conditions: BattleOutcome['conditions'], damageShare: number,
+): BattleOutcome {
+  const phase = finalePhase(levelId);
+  const win = b.result === 'win';
+  const firstClear = win && !s.finale.beaten && phase > s.finale.phase;
+  let ending = false;
+  if (win) {
+    s.finale.phase = Math.max(s.finale.phase, phase);
+    if (phase === 3 && !s.finale.beaten) {
+      s.finale.beaten = true;
+      s.crowns += FINALE_CROWNS;
+      ending = true;
+    }
+  }
+  countBattle(s, b, win, 0);
+  return { win, stars, newStars: 0, firstClear, reward: 0, conditions, relicsEarned: 0, shards: 0, damageShare, ending };
+}
+
 // ---------- Prestige ----------
 
 export const PRESTIGE_UNLOCK = '4-9';
@@ -613,6 +713,7 @@ export function prestige(s: GameState, now = Date.now()): number {
   fresh.abyss = { floor: 1, best: s.abyss.best };
   fresh.shards = s.shards;
   fresh.roulette = s.roulette;
+  fresh.finale = s.finale;
   fresh.crownTree = s.crownTree;
   fresh.abyss.guardian = s.abyss.guardian;
   if (s.crownTree.includes('heritage')) {
@@ -699,6 +800,7 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       buildings: { ...state.buildings, ...data.buildings },
       stats: { ...state.stats, ...data.stats },
       abyss: { ...state.abyss, ...data.abyss },
+      finale: { ...state.finale, ...data.finale },
       crownTree: [...(data.crownTree ?? [])],
       roulette: { ...state.roulette, ...data.roulette, owned: { ...data.roulette?.owned } },
       // The old Altar became the roulette: give back every shard spent on it.
