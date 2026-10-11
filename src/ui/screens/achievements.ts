@@ -4,19 +4,36 @@ import { audio } from '../audio';
 import type { Ctx, Screen } from '../context';
 import { el, pulse, setText, toast } from '../dom';
 import { fmt } from '../format';
+import { iconUrl, type IconId } from '../icons';
 
-interface Card {
+interface Row {
   def: AchievementDef;
   root: HTMLElement;
   bar: HTMLElement;
   count: HTMLElement;
   btn: HTMLButtonElement;
+  state: 'ready' | 'progress' | 'done';
+  ratio: number;
+}
+
+/** A themed badge per achievement, picked from its id. */
+function badgeFor(id: string): IconId {
+  if (/win|veteran|commander/.test(id)) return 'sword';
+  if (/flawless/.test(id)) return 'heart';
+  if (/promote|prestige|crown|boss|captain|rider|fortress|queen|mate/.test(id)) return 'crown';
+  if (/kill/.test(id)) return 'skull';
+  if (/crit|abilit|relic/.test(id)) return 'spark';
+  if (/abyss|deep|floor/.test(id)) return 'shard';
+  if (/architect|hq|build/.test(id)) return 'lock';
+  return 'star';
 }
 
 export class AchievementsScreen implements Screen {
   readonly root = el('section', 'achievements-screen');
-  private cards: Card[] = [];
+  private rows: Row[] = [];
+  private list = el('div', 'ach-list');
   private summary = el('div', 'arena-sub');
+  private orderSig = '';
 
   constructor(private ctx: Ctx) {
     const top = el('div', 'arena-top');
@@ -26,17 +43,21 @@ export class AchievementsScreen implements Screen {
     titles.append(el('h1', 'arena-title', 'Достижения'), this.summary);
     top.append(back, titles);
 
-    const grid = el('div', 'ach-grid');
     for (const def of ACHIEVEMENTS) {
-      const root = el('div', 'card ach-card');
-      const badge = el('div', 'ach-badge');
+      const root = el('div', 'ach-row');
+      const badge = el('img', 'ach-icon');
+      badge.src = iconUrl(badgeFor(def.id));
+      badge.alt = '';
       const body = el('div', 'ach-body');
-      const track = el('div', 'bar');
-      const bar = el('div', 'bar-fill');
+      const head = el('div', 'ach-head');
+      const count = el('span', 'ach-count');
+      head.append(el('span', 'ach-name', def.name), count);
+      const track = el('div', 'ach-track');
+      const bar = el('div', 'ach-fill');
       track.append(bar);
-      const count = el('div', 'ach-count');
-      body.append(el('div', 'row-name', def.name), el('div', 'row-desc', def.description), track, count);
-      const btn = el('button', 'btn btn-buy ach-btn');
+      body.append(head, el('div', 'ach-desc', def.description), track);
+      const reward = el('div', 'ach-reward', `+${fmt(def.reward)}`);
+      const btn = el('button', 'btn btn-buy ach-btn', 'Забрать');
       btn.addEventListener('click', () => {
         const got = claimAchievement(this.ctx.state, def.id);
         if (got > 0) {
@@ -46,30 +67,41 @@ export class AchievementsScreen implements Screen {
           this.ctx.save();
         }
       });
-      root.append(badge, body, btn);
-      grid.append(root);
-      this.cards.push({ def, root, bar, count, btn });
+      root.append(badge, body, reward, btn);
+      this.rows.push({ def, root, bar, count, btn, state: 'progress', ratio: 0 });
     }
-    this.root.append(top, grid);
+    this.root.append(top, this.list);
   }
 
-  show(): void {}
+  show(): void {
+    this.orderSig = '';
+  }
 
   frame(): void {
     const s = this.ctx.state;
     let done = 0;
-    for (const c of this.cards) {
-      const unlocked = s.achievements.includes(c.def.id);
-      const claimed = s.achievementsClaimed.includes(c.def.id);
+    let ready = 0;
+    for (const r of this.rows) {
+      const unlocked = s.achievements.includes(r.def.id);
+      const claimed = s.achievementsClaimed.includes(r.def.id);
       if (unlocked) done++;
-      const value = Math.min(c.def.goal, c.def.progress(s));
-      c.bar.style.width = `${(value / c.def.goal) * 100}%`;
-      setText(c.count, `${fmt(value)} / ${fmt(c.def.goal)} · награда ${fmt(c.def.reward)} золота`);
-      c.root.classList.toggle('unlocked', unlocked);
-      c.root.classList.toggle('claimed', claimed);
-      setText(c.btn, claimed ? 'Получено' : unlocked ? 'Забрать' : 'В пути');
-      c.btn.disabled = !unlocked || claimed;
+      const value = Math.min(r.def.goal, r.def.progress(s));
+      r.ratio = value / r.def.goal;
+      r.state = claimed ? 'done' : unlocked ? 'ready' : 'progress';
+      if (r.state === 'ready') ready++;
+      r.bar.style.width = `${r.ratio * 100}%`;
+      setText(r.count, claimed ? '✓' : `${fmt(value)}/${fmt(r.def.goal)}`);
+      r.root.dataset.state = r.state;
+      r.btn.hidden = r.state !== 'ready';
     }
-    setText(this.summary, `Открыто ${done} из ${this.cards.length}. Каждое достижение приносит золото.`);
+    // Ready to claim first, then the closest to done, finished ones last.
+    const rank = { ready: 0, progress: 1, done: 2 };
+    const sorted = [...this.rows].sort((a, b) => rank[a.state] - rank[b.state] || b.ratio - a.ratio);
+    const sig = sorted.map((r) => r.def.id).join();
+    if (sig !== this.orderSig) {
+      this.orderSig = sig;
+      this.list.replaceChildren(...sorted.map((r) => r.root));
+    }
+    setText(this.summary, `Открыто ${done} из ${this.rows.length}${ready ? ` · забрать: ${ready}` : ''}`);
   }
 }

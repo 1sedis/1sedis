@@ -1,7 +1,8 @@
 /** 8x8 pixel icons that replace system glyphs (★ 🔒 ❤ ⚔ ◎ ◆ ♛ ☠ ✦) in UI text. */
-type IconId = 'star' | 'starEmpty' | 'lock' | 'heart' | 'sword' | 'range' | 'shard' | 'crown' | 'skull' | 'spark';
+export type IconId = 'coin' | 'star' | 'starEmpty' | 'lock' | 'heart' | 'sword' | 'range' | 'shard' | 'crown' | 'skull' | 'spark';
 
 const MAPS: Record<IconId, string[]> = {
+  coin: ['..oooo..', '.ohhaao.', 'ohaooabo', 'oaaoaabo', 'oaaoaabo', 'oaaooabo', '.oabbbo.', '..oooo..'],
   star: ['...o....', '..oho...', 'oooaaooo', 'ohaaaabo', '.oaaabo.', '.oabobo.', 'oabo.obo', 'ooo...oo'],
   starEmpty: ['...o....', '..o.o...', 'ooo..ooo', 'o......o', '.o....o.', '.o.oo.o.', 'o.o..o.o', 'oo....oo'],
   lock: ['..oooo..', '.o....o.', '.o....o.', 'oooooooo', 'ohaaaabo', 'oaaobaao', 'oaaobabo', 'oooooooo'],
@@ -15,6 +16,7 @@ const MAPS: Record<IconId, string[]> = {
 };
 
 const COLORS: Record<IconId, Record<string, string>> = {
+  coin: { o: '#6b4709', h: '#fff4c2', a: '#ffcf4a', b: '#e0a020' },
   star: { o: '#6b4709', h: '#fff4c2', a: '#ffcf4a', b: '#e0a020' },
   starEmpty: { o: '#6e6699' },
   lock: { o: '#1a1433', h: '#fff1b8', a: '#e0b040', b: '#a87a1c' },
@@ -76,4 +78,5 @@ export function installIconVars(): void {
   const root = document.documentElement.style;
   root.setProperty('--icon-crown', `url(${iconUrl('crown')})`);
   root.setProperty('--icon-star', `url(${iconUrl('star')})`);
+  root.setProperty('--icon-coin', `url(${iconUrl('coin')})`);
 }

@@ -1493,3 +1493,46 @@ button.ability-chip:hover { opacity: 1; }
 .arena-screen[data-theme="5"] { --glow-a: rgba(127, 91, 255, 0.36); }
 .board-wrap::before { background: radial-gradient(ellipse 60% 55% at 50% 50%, var(--glow-a), transparent 80%); }
 .board-wrap::before { inset: -50px -10px; background: radial-gradient(ellipse 58% 62% at 50% 50%, var(--glow-a) 0 52%, transparent 78%); }
+
+/* ---------- Achievements list ---------- */
+.ach-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 10px 18px; }
+.ach-row {
+  display: grid; grid-template-columns: 40px 1fr auto auto; align-items: center; gap: 12px;
+  padding: 10px 12px; background: var(--card); box-shadow: 0 0 0 2px var(--line);
+}
+.ach-icon { width: 36px; height: 36px; image-rendering: pixelated; filter: grayscale(.9) brightness(.7); }
+.ach-row[data-state="ready"] { box-shadow: 0 0 0 3px var(--gold); background: #2a2238; }
+.ach-row[data-state="ready"] .ach-icon, .ach-row[data-state="done"] .ach-icon { filter: none; }
+.ach-row[data-state="done"] { opacity: .6; }
+.ach-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.ach-name { font-size: 18px; }
+.ach-count { color: var(--muted); font-size: 16px; white-space: nowrap; }
+.ach-desc { color: var(--muted); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ach-track { height: 6px; margin-top: 6px; background: #0b0818; }
+.ach-fill { height: 100%; background: var(--violet); }
+.ach-row[data-state="ready"] .ach-fill, .ach-row[data-state="done"] .ach-fill { background: var(--gold); }
+.ach-reward { color: var(--gold); font-size: 16px; white-space: nowrap; }
+.ach-btn { padding: 6px 10px; }
+@media (width <= 560px) {
+  .ach-list { grid-template-columns: minmax(0, 1fr); }
+  .ach-row { grid-template-columns: 32px 1fr auto; gap: 10px; }
+  .ach-icon { width: 30px; height: 30px; }
+  .ach-btn { grid-column: 1 / -1; }
+  .ach-desc { white-space: normal; }
+}
+
+/* ---------- Compact top bar on phones ---------- */
+@media (width <= 560px) {
+  .topbar { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; margin-bottom: 14px; }
+  .topbar .menu-btn, .topbar .sound-btn { font-size: 0; padding: 6px 10px; margin: 4px; }
+  .topbar .menu-btn::before { content: '☰'; font-size: 18px; }
+  .topbar .sound-btn::before { content: '♪'; font-size: 18px; }
+  .topbar .chips { grid-column: 3; width: auto; gap: 6px; flex-wrap: nowrap; margin-left: 0; }
+  .topbar .chip { min-width: 0; padding: 4px 6px; flex-direction: row; align-items: center; gap: 4px; flex: 1 1 auto; }
+  .topbar .chip-label { display: none; }
+  .topbar .chip b { font-size: 16px; }
+  .topbar .chip-gold::before, .topbar .chip-wave::before { content: ''; width: 14px; height: 14px; flex: none; background: center / contain no-repeat; image-rendering: pixelated; }
+  .topbar .chip-gold::before { background-image: var(--icon-coin); }
+  .topbar .chip-wave::before { background-image: var(--icon-star); }
+  .topbar .topnav { grid-column: 1 / -1; }
+}
