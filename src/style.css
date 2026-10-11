@@ -402,13 +402,17 @@ img { image-rendering: pixelated; }
 .toast-layer {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  top: calc(env(safe-area-inset-top) + 72px);
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
   display: flex;
   flex-direction: column;
   gap: 14px;
   align-items: center;
-  z-index: 20;
+  text-align: center;
+  /* Above the tutorial's dimming, so news is never hidden behind a tip. */
+  z-index: 45;
   pointer-events: none;
 }
 .toast {
@@ -419,7 +423,7 @@ img { image-rendering: pixelated; }
   transition: opacity 0.3s, transform 0.3s;
 }
 .toast.good { --frame: var(--mint-deep); color: var(--mint); }
-.toast.out { opacity: 0; transform: translateY(8px); }
+.toast.out { opacity: 0; transform: translateY(-8px); }
 
 .modal-overlay {
   position: fixed;
@@ -700,7 +704,7 @@ img { image-rendering: pixelated; }
 
 .map-side { display: flex; flex-direction: column; gap: 24px; }
 .treasury-amount { font-size: 24px; margin-top: 6px; }
-.treasury-amount b { font-size: 40px; font-weight: 400; color: var(--gold); display: inline-block; }
+.treasury-amount b { font-size: 40px; font-weight: 400; color: var(--gold); display: inline-block; transform-origin: left center; }
 .treasury-info { color: var(--muted); font-size: 16px; margin-bottom: 12px; }
 .treasury .btn { width: calc(100% - 8px); }
 
@@ -1196,6 +1200,9 @@ img { image-rendering: pixelated; }
 .report-tips { margin: 8px 0 0; padding-left: 18px; color: var(--ink); line-height: 1.4; }
 .report-tips li { margin: 4px 0; }
 .result-modal { max-height: 92vh; overflow-y: auto; }
+/* The buttons stay in sight however long the battle report gets. */
+.codex-actions, .result-modal .result-actions { position: sticky; bottom: -18px; margin: 12px -18px -18px; padding: 12px 18px 18px; background: var(--card);
+  box-shadow: 0 -10px 12px -6px rgba(0, 0, 0, 0.5); z-index: 1; }
 
 /* Loss advice: the best upgrade for this battle */
 .result-reward.small { font-size: 20px; }
@@ -2018,7 +2025,7 @@ body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles { animation:
 @media (prefers-reduced-motion: reduce) { .scene-embers span, .scene-big-title-main { animation: none; } }
 
 /* While a scene plays on its own board, the page underneath stops drawing. */
-body.staging #app { visibility: hidden; }
+body.staging #app, body.staging .toast-layer { visibility: hidden; }
 .stage-overlay .actor-sprite { animation: none; }
 
 /* Phones: no filters on pieces in scenes (Safari renders each one offscreen and runs out of memory). */
@@ -2027,3 +2034,6 @@ body.staging #app { visibility: hidden; }
   .actor.glowing .actor-sprite { filter: brightness(1.4); }
   .scene-embers span { box-shadow: none; }
 }
+.ach-claim-all { margin-left: auto; }
+/* With a window open, news slides to the bottom so it never covers the window's title. */
+body:has(.modal-overlay) .toast-layer { top: auto; bottom: 24px; }

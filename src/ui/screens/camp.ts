@@ -52,7 +52,7 @@ export class CampScreen implements Screen {
     const titles = el('div', 'arena-titles');
     titles.append(el('h1', 'arena-title', 'Улучшения'));
     const codexBtn = el('button', 'btn btn-small', 'Справочник');
-    codexBtn.addEventListener('click', openCodex);
+    codexBtn.addEventListener('click', () => openCodex(this.ctx.state));
     top.append(back, titles, codexBtn);
 
     const army = el('div', 'card camp-army');

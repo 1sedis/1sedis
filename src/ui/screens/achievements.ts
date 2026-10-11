@@ -34,6 +34,7 @@ export class AchievementsScreen implements Screen {
   private list = el('div', 'ach-list');
   private summary = el('div', 'arena-sub');
   private orderSig = '';
+  private claimAllBtn = el('button', 'btn btn-buy ach-claim-all');
 
   constructor(private ctx: Ctx) {
     const top = el('div', 'arena-top');
@@ -41,7 +42,16 @@ export class AchievementsScreen implements Screen {
     back.addEventListener('click', () => this.ctx.go('map'));
     const titles = el('div', 'arena-titles');
     titles.append(el('h1', 'arena-title', 'Достижения'), this.summary);
-    top.append(back, titles);
+    this.claimAllBtn.addEventListener('click', () => {
+      let total = 0;
+      for (const r of this.rows) if (r.state === 'ready') total += claimAchievement(this.ctx.state, r.def.id);
+      if (total > 0) {
+        audio.play('coins');
+        toast(`Награды за достижения: +${fmt(total)} золота`, 'good');
+        this.ctx.save();
+      }
+    });
+    top.append(back, titles, this.claimAllBtn);
 
     for (const def of ACHIEVEMENTS) {
       const root = el('div', 'ach-row');
@@ -102,6 +112,8 @@ export class AchievementsScreen implements Screen {
       this.orderSig = sig;
       this.list.replaceChildren(...sorted.map((r) => r.root));
     }
+    this.claimAllBtn.hidden = ready < 2;
+    setText(this.claimAllBtn, `Забрать всё · ${ready}`);
     setText(this.summary, `Открыто ${done} из ${this.rows.length}${ready ? ` · забрать: ${ready}` : ''}`);
   }
 }

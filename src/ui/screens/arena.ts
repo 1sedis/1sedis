@@ -197,7 +197,7 @@ export class ArenaScreen implements Screen {
     const infoCard = el('div', 'card task-card');
     const taskHead = el('div', 'panel-head');
     const codexBtn = el('button', 'btn btn-ghost btn-small', 'Фигуры');
-    codexBtn.addEventListener('click', openCodex);
+    codexBtn.addEventListener('click', () => openCodex(this.ctx.state));
     taskHead.append(el('span', 'panel-title', 'Задача'), codexBtn, infoBtn('Как играть',
       'Сразите вражеского короля. Если падёт ваш — бой проигран.\n'
       + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
@@ -294,7 +294,7 @@ export class ArenaScreen implements Screen {
     const finale = isFinale(this.levelId);
     setText(this.title, abyss ? `Бездна · ${level.name}` : finale ? `Финал · ${level.name}` : `${level.id} · ${level.name}`);
     setText(this.subtitle, abyss
-      ? `Этаж ${abyssFloor(this.levelId)} · рекорд ${s.abyss.best}`
+      ? `Рекорд: этаж ${s.abyss.best}`
       : finale
         ? `${chapter.name} · фаза ${finalePhase(this.levelId)} из 3`
         : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);

@@ -7,15 +7,20 @@ import { TERRAIN_INFO } from '../game/terrain';
 import { terrainUrl } from './terrainArt';
 import { traitUrl } from './traitIcons';
 import { TRAITS, TRAIT_ORDER } from '../game/elites';
+import { featureOpen } from '../game/features';
+import type { GameState } from '../game/state';
 
 const ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
 
 /** Reference of all pieces (yours and the enemy's) and composition bonuses. */
-export function openCodex(): void {
+export function openCodex(s?: GameState): void {
+  // No spoilers: Crown Tree pieces show up once there is a Crown Tree, synergies once they open.
+  const treeKnown = !s || s.prestige > 0 || s.crowns > 0;
   const content = el('div', 'codex');
   content.append(el('h2', '', 'Справочник'));
   const list = el('div', 'codex-list');
   for (const kind of ORDER) {
+    if (!treeKnown && PRESTIGE_PIECES.includes(kind)) continue;
     const def = PIECES[kind];
     const card = el('details', 'codex-item');
     const sum = el('summary', 'codex-head');
@@ -79,9 +84,9 @@ export function openCodex(): void {
   const synBody = el('div', 'codex-body');
   for (const d of SYNERGIES) synBody.append(el('p', '', `${d.name}: ${d.description}.`));
   syn.append(synHead, synBody);
-  list.append(syn);
+  if (!s || featureOpen(s, 'synergies')) list.append(syn);
   content.append(el('p', 'hint', `Здоровье и атака — на 1-м уровне, каждый уровень +18%. Приём открывается на ${ABILITY_LEVELS[0]}-м.`), list);
-  const actions = el('div', 'modal-actions');
+  const actions = el('div', 'modal-actions codex-actions');
   const ok = el('button', 'btn btn-primary', 'Закрыть');
   actions.append(ok);
   content.append(actions);
