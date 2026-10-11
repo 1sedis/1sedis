@@ -81,6 +81,7 @@ export class App implements Ctx {
 
   go(screen: ScreenId, levelId?: string): void {
     const fromMenu = this.screenId === 'menu';
+    if (this.screenId !== screen || levelId) wipe();
     this.tutorial.reset();
     this.screenId = screen;
     // The arena switches to battle music itself when a fight starts.
@@ -245,6 +246,7 @@ export class App implements Ctx {
 
   // ---------------- Loop ----------------
 
+
   private frame(now: number): void {
     const dt = Math.min(now - this.lastFrame, 30 * 60 * 1000);
     this.lastFrame = now;
@@ -301,4 +303,30 @@ export class App implements Ctx {
       this.tip('t_upgrades', this.navCamp, 'Золота хватает на улучшения. Здесь нанимают фигуры и повышают их уровень.');
     }
   }
+}
+
+let wipeEl: HTMLElement | null = null;
+
+/** A pixel-block reveal over the new screen. */
+function wipe(): void {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  if (!wipeEl) {
+    wipeEl = el('div', 'wipe');
+    const cols = 12;
+    const rows = 8;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const b = el('span');
+        b.style.animationDelay = `${(x + y) * 22}ms`;
+        wipeEl.append(b);
+      }
+    }
+    wipeEl.addEventListener('animationend', (e) => {
+      if ((e.target as HTMLElement) === wipeEl!.lastElementChild) wipeEl!.classList.remove('run');
+    });
+    document.body.append(wipeEl);
+  }
+  wipeEl.classList.remove('run');
+  void wipeEl.offsetWidth;
+  wipeEl.classList.add('run');
 }

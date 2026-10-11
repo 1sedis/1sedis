@@ -3,6 +3,28 @@ import type { Settings } from './settings';
 import { spriteUrl } from './sprites';
 import { el } from './dom';
 
+/** Two little armies walking across the checkered floor behind the menu. */
+function marchingArmies(): HTMLElement {
+  const layer = el('div', 'menu-march');
+  const rows: { team: 'ally' | 'enemy'; kinds: PieceKind[]; dir: 'right' | 'left' }[] = [
+    { team: 'ally', kinds: ['pawn', 'pawn', 'knight', 'king', 'bishop', 'rook', 'pawn'], dir: 'right' },
+    { team: 'enemy', kinds: ['pawn', 'rook', 'queen', 'knight', 'pawn', 'bishop', 'pawn'], dir: 'left' },
+  ];
+  rows.forEach((row, r) => {
+    const line = el('div', `march-line march-${row.dir}`);
+    line.style.animationDelay = `${-r * 9}s`;
+    row.kinds.forEach((kind, i) => {
+      const img = el('img', 'march-piece');
+      img.src = spriteUrl(kind, row.team);
+      img.alt = '';
+      img.style.animationDelay = `${-i * 0.18}s`;
+      line.append(img);
+    });
+    layer.append(line);
+  });
+  return layer;
+}
+
 export interface MenuOptions {
   hasSave: boolean;
   summary: string;
@@ -13,7 +35,7 @@ export interface MenuOptions {
 
 export function buildMenu(o: MenuOptions): HTMLElement {
   const root = el('div', 'menu');
-  root.append(el('div', 'menu-floor'));
+  root.append(el('div', 'menu-floor'), marchingArmies(), el('div', 'menu-stars'));
 
   const card = el('div', 'menu-card');
   const pieces = el('div', 'menu-pieces');

@@ -450,9 +450,25 @@ export class ArenaScreen implements Screen {
 
   private showResult(o: BattleOutcome): void {
     const level = getLevel(this.levelId);
-    const content = el('div', 'result');
+    const content = el('div', `result ${o.win ? 'is-win' : 'is-loss'}`);
     content.append(el('h2', `result-title ${o.win ? 'win' : 'loss'}`, o.win ? 'Победа!' : 'Поражение'));
+    if (o.win) {
+      // Falling pixel confetti over the dialog.
+      const confetti = el('div', 'confetti');
+      const colours = ['#3ee6c1', '#ffcf4a', '#ff5d85', '#9b6bff', '#ffffff'];
+      for (let i = 0; i < 36; i++) {
+        const c = el('span');
+        c.style.left = `${(i * 29) % 100}%`;
+        c.style.background = colours[i % colours.length];
+        c.style.animationDelay = `${(i % 12) * 0.08}s`;
+        c.style.animationDuration = `${1.4 + (i % 5) * 0.25}s`;
+        c.style.setProperty('--sway', `${((i * 17) % 40) - 20}px`);
+        confetti.append(c);
+      }
+      content.append(confetti);
+    }
     const starRow = el('div', 'result-stars');
+    if (o.win) starRow.append(el('div', 'result-rays'));
     for (let i = 0; i < 3; i++) {
       const st = el('span', i < o.stars ? 'on' : '', '★');
       st.style.animationDelay = `${0.15 + i * 0.2}s`;
