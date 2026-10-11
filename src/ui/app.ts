@@ -1,6 +1,7 @@
+import { offlineDescent, type OfflineDescent } from '../game/offline';
 import { ALL_LEVELS, chapterOf } from '../game/levels';
 import {
-  accrue, canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, hasSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
+  accrue, canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, exportSave, hasSave, importSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
   type GameState,
 } from '../game/state';
 import { audio } from './audio';
@@ -21,6 +22,7 @@ export class App implements Ctx {
   state: GameState;
   settings: Settings = loadSettings();
   private offlineGold: number;
+  private descent: OfflineDescent | null = null;
   private screenId: ScreenId = 'menu';
   private screens!: Record<Exclude<ScreenId, 'menu'>, Screen>;
   private menuEl: HTMLElement = el('div');
@@ -42,6 +44,7 @@ export class App implements Ctx {
     const loaded = loadGame();
     this.state = loaded.state;
     this.offlineGold = loaded.offlineGold;
+    this.descent = offlineDescent(this.state, loaded.offlineMs);
   }
 
   start(): void {
@@ -91,7 +94,7 @@ export class App implements Ctx {
     for (const [id, s] of Object.entries(this.screens)) s.root.hidden = id !== screen;
     this.screens[screen].show(levelId);
     window.scrollTo(0, 0);
-    if (fromMenu && this.offlineGold >= 1) this.showOfflineGains();
+    if (fromMenu && (this.offlineGold >= 1 || this.descent?.floors)) this.showOfflineGains();
   }
 
   // ---------------- Build ----------------
@@ -198,19 +201,38 @@ export class App implements Ctx {
     }, () => {
       this.state.tutorial = [];
       this.save();
+    }, {
+      exportCode: () => {
+        this.save();
+        return exportSave(this.state);
+      },
+      importCode: (code) => {
+        const next = importSave(code);
+        if (!next) return false;
+        this.state = next;
+        this.offlineGold = 0;
+        this.descent = null;
+        this.save();
+        this.renderMenu();
+        return true;
+      },
     });
   }
 
   private showOfflineGains(): void {
     const gold = Math.floor(this.offlineGold);
+    const d = this.descent;
     this.offlineGold = 0;
+    this.descent = null;
     const content = el('div', 'offline');
-    content.append(
-      el('h2', '', 'С возвращением!'),
-      el('p', '', 'Пока вас не было, захваченные земли пополнили казну:'),
-      el('div', 'result-reward', `+${fmt(gold)} золота`),
-      el('p', 'hint', 'Заберите золото в казне на карте.'),
-    );
+    content.append(el('h2', '', 'С возвращением!'));
+    if (gold >= 1) content.append(el('div', 'result-reward', `Казна: +${fmt(gold)} золота`));
+    if (d && d.floors > 0) {
+      content.append(el('div', 'result-unlock shard',
+        `Армия прошла в Бездне ${d.floors} эт.: +${fmt(d.gold)} золота, +${d.shards} ◆`));
+      if (d.relics > 0) content.append(el('div', 'result-unlock relic', 'Страж повержен — ждёт новая реликвия!'));
+      if (d.stoppedAt) content.append(el('p', 'hint', `Остановились на этаже ${d.stoppedAt}: нужна сила посерьёзнее.`));
+    }
     const actions = el('div', 'modal-actions');
     const ok = el('button', 'btn btn-primary', 'Отлично');
     actions.append(ok);

@@ -56,7 +56,11 @@ export function buildMenu(o: MenuOptions): HTMLElement {
 }
 
 /** Settings dialog. Changes apply immediately through onChange. */
-export function openSettings(current: Settings, onChange: (s: Settings) => void, onReset: () => void, onResetTips?: () => void): void {
+export interface SaveTransfer { exportCode: () => string; importCode: (code: string) => boolean }
+
+export function openSettings(
+  current: Settings, onChange: (s: Settings) => void, onReset: () => void, onResetTips?: () => void, transfer?: SaveTransfer,
+): void {
   const s = { ...current };
   const overlay = el('div', 'modal-overlay');
   const box = el('div', 'modal card settings');
@@ -124,6 +128,19 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
     row('Показать подсказки снова', again);
   }
 
+  if (transfer) {
+    const box2 = el('div', 'volume-row');
+    const exp = el('button', 'btn btn-small', 'Экспорт');
+    const imp = el('button', 'btn btn-small', 'Импорт');
+    exp.addEventListener('click', () => saveDialog('export', transfer));
+    imp.addEventListener('click', () => {
+      overlay.remove();
+      saveDialog('import', transfer);
+    });
+    box2.append(exp, imp);
+    row('Сохранение', box2);
+  }
+
   const sync = () => {
     segBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === s.speed));
     for (const [b, on] of [[soundBtn, s.sound], [musicBtn, s.music], [fxBtn, s.effects], [hintsBtn, s.hints]] as const) {
@@ -150,4 +167,57 @@ export function openSettings(current: Settings, onChange: (s: Settings) => void,
   });
   overlay.append(box);
   document.body.append(overlay);
+}
+
+/** Export: show the code to copy. Import: paste a code to replace the current progress. */
+function saveDialog(mode: 'export' | 'import', t: SaveTransfer): void {
+  const overlay = el('div', 'modal-overlay save-overlay');
+  const box = el('div', 'modal card save-dialog');
+  const area = el('textarea', 'save-code');
+  area.spellcheck = false;
+  const status = el('p', 'hint');
+  const actions = el('div', 'modal-actions');
+  const close = el('button', 'btn btn-ghost', mode === 'export' ? 'Готово' : 'Отмена');
+  close.addEventListener('click', () => overlay.remove());
+  if (mode === 'export') {
+    box.append(el('h2', '', 'Экспорт'));
+    status.textContent = 'Скопируйте код и вставьте его через «Импорт» на другом устройстве.';
+    area.value = t.exportCode();
+    area.readOnly = true;
+    const copy = el('button', 'btn btn-primary', 'Скопировать');
+    copy.addEventListener('click', async () => {
+      area.select();
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(area.value);
+        ok = true;
+      } catch {
+        ok = document.execCommand?.('copy') ?? false;
+      }
+      copy.textContent = ok ? 'Скопировано' : 'Выделено — Ctrl+C';
+    });
+    actions.append(close, copy);
+  } else {
+    box.append(el('h2', '', 'Импорт'));
+    status.textContent = 'Вставьте код сохранения. Текущий прогресс будет заменён.';
+    area.placeholder = 'PG2:...';
+    const load = el('button', 'btn btn-primary', 'Загрузить');
+    load.addEventListener('click', () => {
+      if (t.importCode(area.value)) {
+        overlay.remove();
+      } else {
+        status.textContent = 'Код не подошёл: проверьте, что он скопирован целиком.';
+        status.classList.add('save-error');
+      }
+    });
+    actions.append(close, load);
+  }
+  box.append(status, area, actions);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  overlay.append(box);
+  document.body.append(overlay);
+  if (mode === 'export') area.select();
+  else area.focus();
 }

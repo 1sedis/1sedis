@@ -558,30 +558,61 @@ export function saveGame(s: GameState): void {
 }
 
 /** Load the save (or a new game) and accrue offline treasury income. */
-export function loadGame(now = Date.now()): { state: GameState; offlineGold: number } {
+/** Merge saved data over a fresh game so new fields get defaults. Null when the data is not a save. */
+export function parseSave(raw: string, now = Date.now()): GameState | null {
+  try {
+    const data = JSON.parse(raw) as Partial<GameState>;
+    if (!data || data.version !== 2) return null;
+    const state = newGame(now);
+    return {
+      ...state,
+      ...data,
+      army: { ...state.army, ...data.army, king: 1 },
+      levels: { ...state.levels, ...data.levels },
+      buildings: { ...state.buildings, ...data.buildings },
+      stats: { ...state.stats, ...data.stats },
+      abyss: { ...state.abyss, ...data.abyss },
+      altar: { ...state.altar, ...data.altar },
+    } as GameState;
+  } catch {
+    return null;
+  }
+}
+
+export function loadGame(now = Date.now()): { state: GameState; offlineGold: number; offlineMs: number } {
   let state = newGame(now);
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) {
-      const data = JSON.parse(raw) as Partial<GameState>;
-      if (data.version === 2) {
-        state = {
-          ...state,
-          ...data,
-          army: { ...state.army, ...data.army, king: 1 },
-          levels: { ...state.levels, ...data.levels },
-          buildings: { ...state.buildings, ...data.buildings },
-          stats: { ...state.stats, ...data.stats },
-          abyss: { ...state.abyss, ...data.abyss },
-          altar: { ...state.altar, ...data.altar },
-        } as GameState;
-      }
-    }
+    if (raw) state = parseSave(raw, now) ?? state;
   } catch {
-    // Corrupt save: keep the new game.
+    // Storage unavailable: keep the new game.
   }
+  const offlineMs = Math.max(0, now - state.lastTick);
   const offlineGold = accrue(state, now);
-  return { state, offlineGold };
+  return { state, offlineGold, offlineMs };
+}
+
+const CODE_PREFIX = 'PG2:';
+
+/** A save as a copyable text code. */
+export function exportSave(s: GameState): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(s));
+  let bin = '';
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return CODE_PREFIX + btoa(bin);
+}
+
+/** Parse a code made by exportSave. Null when the code is broken. */
+export function importSave(code: string, now = Date.now()): GameState | null {
+  const text = code.trim().replace(/\s+/g, '');
+  if (!text.startsWith(CODE_PREFIX)) return null;
+  try {
+    const bin = atob(text.slice(CODE_PREFIX.length));
+    const json = new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+    return parseSave(json, now);
+  } catch {
+    return null;
+  }
 }
 
 export function hasSave(): boolean {
