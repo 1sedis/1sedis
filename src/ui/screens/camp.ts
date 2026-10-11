@@ -32,7 +32,7 @@ export class CampScreen implements Screen {
     const back = el('button', 'btn btn-ghost', '← Карта');
     back.addEventListener('click', () => this.ctx.go('map'));
     const titles = el('div', 'arena-titles');
-    titles.append(el('h1', 'arena-title', 'Лагерь'), el('div', 'arena-sub', 'Нанимайте фигуры и улучшайте их — уровень действует на всех фигур этого типа'));
+    titles.append(el('h1', 'arena-title', 'Улучшения'), el('div', 'arena-sub', 'Нанимайте фигуры и повышайте их уровень: он действует на все фигуры этого типа'));
     top.append(back, titles);
 
     const army = el('div', 'card camp-army');

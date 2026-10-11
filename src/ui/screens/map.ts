@@ -50,7 +50,7 @@ export class MapScreen implements Screen {
     treasury.append(tHead, amountRow, bar, this.treasuryInfo, this.collectBtn);
 
     const camp = el('button', 'card camp-link');
-    camp.append(el('img'), el('span', 'camp-title', 'Лагерь'), el('span', 'camp-sub', 'Нанять и улучшить армию, постройки'));
+    camp.append(el('img'), el('span', 'camp-title', 'Улучшения'), el('span', 'camp-sub', 'Нанять фигуры, повысить уровень, постройки'));
     (camp.firstElementChild as HTMLImageElement).src = spriteUrl('rook', 'ally');
     camp.addEventListener('click', () => this.ctx.go('camp'));
 

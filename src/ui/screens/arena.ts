@@ -324,7 +324,7 @@ export class ArenaScreen implements Screen {
       }
     } else {
       content.append(el('p', 'hint-text', level.hint));
-      content.append(el('p', 'hint', 'Улучшите фигуры в лагере, соберите казну или попробуйте другую расстановку.'));
+      content.append(el('p', 'hint', 'Повысьте уровень фигур в «Улучшениях», заберите золото из казны на карте или попробуйте другую расстановку.'));
     }
 
     const actions = el('div', 'modal-actions result-actions');
@@ -342,11 +342,15 @@ export class ArenaScreen implements Screen {
       this.ctx.go('map');
     });
     if (o.win) {
+      button('Улучшения', '', () => {
+        this.enterPrep();
+        this.ctx.go('camp');
+      });
       button('Переиграть', '', () => this.enterPrep());
       const next = nextLevelId(this.levelId);
       if (next) button('Дальше ▶', 'btn-primary', () => this.show(next));
     } else {
-      button('Лагерь', '', () => {
+      button('Улучшения', '', () => {
         this.enterPrep();
         this.ctx.go('camp');
       });

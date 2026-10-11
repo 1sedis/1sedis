@@ -1,6 +1,6 @@
 import { ALL_LEVELS, chapterOf } from '../game/levels';
 import {
-  accrue, clearSave, currentLevelId, hasSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
+  accrue, canAffordUpgrade, clearSave, currentLevelId, hasSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
   type GameState,
 } from '../game/state';
 import type { Ctx, Screen, ScreenId } from './context';
@@ -23,6 +23,9 @@ export class App implements Ctx {
   private shell = el('div', 'shell');
   private content = el('main', 'content');
   private chips!: { gold: HTMLElement; stars: HTMLElement; income: HTMLElement };
+  private navMap!: HTMLButtonElement;
+  private navCamp!: HTMLButtonElement;
+  private navBadge = el('span', 'nav-badge');
   private lastFrame = performance.now();
   private lastGold = -1;
 
@@ -98,7 +101,15 @@ export class App implements Ctx {
       stars: chip('chip-wave', 'Звёзды'),
       income: chip('chip-best', 'Доход/мин'),
     };
-    top.append(menuBtn, brand, chipBox);
+    const nav = el('nav', 'topnav');
+    this.navMap = el('button', 'nav-btn', 'Карта');
+    this.navMap.addEventListener('click', () => this.go('map'));
+    this.navCamp = el('button', 'nav-btn', 'Улучшения');
+    this.navCamp.append(this.navBadge);
+    this.navCamp.title = 'Лагерь: найм фигур, их уровни и постройки';
+    this.navCamp.addEventListener('click', () => this.go('camp'));
+    nav.append(this.navMap, this.navCamp);
+    top.append(menuBtn, brand, nav, chipBox);
 
     this.screens = {
       map: new MapScreen(this),
@@ -187,6 +198,9 @@ export class App implements Ctx {
     if (s.gold > this.lastGold && this.lastGold >= 0) pulse(this.chips.gold);
     this.lastGold = s.gold;
     setText(this.chips.stars, `${totalStars(s)}/${ALL_LEVELS.length * 3}`);
+    this.navMap.classList.toggle('active', this.screenId === 'map');
+    this.navCamp.classList.toggle('active', this.screenId === 'camp');
+    this.navBadge.hidden = this.screenId === 'camp' || !canAffordUpgrade(s);
     const rate = incomePerMinute(s);
     setText(this.chips.income, rate < 100 ? String(Math.round(rate * 10) / 10) : fmt(rate));
   }

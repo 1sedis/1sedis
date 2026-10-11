@@ -151,6 +151,19 @@ export function collectTreasury(s: GameState): number {
   return amount;
 }
 
+/** True when the player can afford at least one recruit, upgrade or building. */
+export function canAffordUpgrade(s: GameState): boolean {
+  const kinds = Object.keys(PIECES) as PieceKind[];
+  for (const kind of kinds) {
+    if (!isUnlocked(s, kind)) continue;
+    if (s.gold >= upgradeCost(s, kind)) return true;
+    const canRecruit = kind !== 'king' && !(kind === 'queen' && s.army.queen >= 1);
+    if (canRecruit && s.gold >= recruitCost(s, kind)) return true;
+  }
+  return (Object.keys(BUILDINGS) as BuildingId[])
+    .some((id) => s.buildings[id] < BUILDINGS[id].maxLevel && s.gold >= buildingCost(s, id));
+}
+
 // ---------- Purchases (return true on success) ----------
 
 export function recruit(s: GameState, kind: PieceKind): boolean {
