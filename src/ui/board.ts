@@ -19,6 +19,8 @@ export interface UnitView {
 }
 
 export class BoardView {
+  /** The board with its coordinate frame; this is what screens insert. */
+  readonly frame: HTMLElement;
   readonly root: HTMLElement;
   private cells: HTMLElement[] = [];
   private unitLayer: HTMLElement;
@@ -41,6 +43,24 @@ export class BoardView {
     this.fxLayer = el('div', 'fx-layer');
     this.banner = el('div', 'banner');
     this.root.append(this.unitLayer, this.fxLayer, this.banner);
+
+    // Chess notation around the board: ranks 8..1 on the left, files a..h below.
+    this.frame = el('div', 'board-frame');
+    const ranks = el('div', 'board-ranks');
+    for (let r = BOARD_SIZE; r >= 1; r--) ranks.append(el('span', '', String(r)));
+    const files = el('div', 'board-files');
+    for (const f of 'abcdefgh') files.append(el('span', '', f));
+    this.frame.append(ranks, this.root, el('span'), files);
+  }
+
+  /** Drop leftover effects (they never finish while the screen is hidden). */
+  clearFx(): void {
+    this.fxLayer.replaceChildren();
+  }
+
+  /** Colour the board for a chapter (1-4). */
+  setTheme(chapter: number): void {
+    this.frame.dataset.theme = String(chapter);
   }
 
   setMode(setup: boolean, placing: boolean): void {
@@ -178,7 +198,7 @@ export class BoardView {
   }
 
   private bolt(e: BattleEvent): void {
-    const b = el('div', `fx-bolt ${e.side === 'ally' ? 'enemy' : 'ally'}`);
+    const b = el('div', `fx-bolt ${e.side === 'ally' ? 'enemy' : 'ally'} from-${e.fromKind ?? 'pawn'}`);
     // The bolt box is one cell in size, so translate % moves it cell by cell.
     b.style.left = `${e.fromX * 12.5}%`;
     b.style.top = `${e.fromY * 12.5}%`;

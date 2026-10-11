@@ -21,6 +21,7 @@ export class MapScreen implements Screen {
   private tabs = el('nav', 'chapter-tabs');
   private chapterTitle = el('h1', 'chapter-title');
   private chapterSub = el('div', 'chapter-sub');
+  private chapterBoss = el('img', 'chapter-boss');
   private path = el('div', 'level-path');
   private treasuryAmount = el('b');
   private treasuryFill = el('div', 'bar-fill');
@@ -32,10 +33,11 @@ export class MapScreen implements Screen {
 
   constructor(private ctx: Ctx) {
     const main = el('div', 'map-main card');
-    const head = el('div', 'map-head');
+    const head = el('div', 'map-head chapter-banner');
     const titles = el('div');
     titles.append(this.chapterTitle, this.chapterSub);
-    head.append(titles);
+    this.chapterBoss.alt = '';
+    head.append(titles, el('div', 'chapter-strip'), this.chapterBoss);
     main.append(this.tabs, head, this.path);
 
     const side = el('aside', 'map-side');
@@ -96,6 +98,10 @@ export class MapScreen implements Screen {
       this.tabs.append(tab);
     }
     const chapter = CHAPTERS[this.chapter - 1];
+    this.root.dataset.theme = String(chapter.id);
+    const boss = chapter.levels[chapter.levels.length - 1];
+    this.chapterBoss.src = spriteUrl(enemyPlacements(boss).find((p) => p.boss)?.kind ?? 'king', 'enemy');
+    this.chapterBoss.title = boss.boss ?? '';
     setText(this.chapterTitle, chapter.name);
     setText(this.chapterSub, `${chapter.subtitle} · до ${chapter.limit} фигур в бою`);
     this.renderPath(chapter);

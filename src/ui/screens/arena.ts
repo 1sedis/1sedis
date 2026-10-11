@@ -82,7 +82,7 @@ export class ArenaScreen implements Screen {
     // Board column with the reserve tray.
     const boardCol = el('div', 'board-col');
     const boardWrap = el('div', 'board-wrap');
-    boardWrap.append(this.board.root);
+    boardWrap.append(this.board.frame);
     const trayPanel = el('div', 'bench-panel');
     const trayHead = el('div', 'panel-head');
     trayHead.append(el('span', 'panel-title', 'Резерв'), this.trayTitle);
@@ -181,6 +181,7 @@ export class ArenaScreen implements Screen {
     this.battle = null;
     this.selection = null;
     this.board.showBanner(null);
+    this.board.clearFx();
     sanitizeFormation(this.ctx.state, this.limit());
     this.renderInfo();
   }
@@ -191,6 +192,7 @@ export class ArenaScreen implements Screen {
     const chapter = chapterOf(this.levelId);
     setText(this.title, `${level.id} · ${level.name}`);
     setText(this.subtitle, `Глава ${chapter.id}. ${chapter.name}`);
+    this.board.setTheme(chapter.id);
     const enemies = enemyPlacements(level);
     setText(this.enemyText, `Враги: ${enemies.length} фигур, уровень ${level.level}${level.boss ? ` · босс: ${level.boss}` : ''}`);
     const best = s.stars[level.id] ?? 0;

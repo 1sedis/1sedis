@@ -73,6 +73,7 @@ export interface BattleEvent {
   fromY: number;
   /** The acting unit (attacker or healer). */
   fromUid: number;
+  fromKind?: PieceKind;
   crit?: boolean;
   /** The struck piece is a king or a boss. */
   big?: boolean;
@@ -247,7 +248,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
   target.hp -= damage;
   target.flash = 2;
   const big = target.kind === 'king' || target.boss;
-  const base = { uid: target.uid, side: target.side, x: target.x, y: target.y, fromX: u.x, fromY: u.y, fromUid: u.uid, big };
+  const base = { uid: target.uid, side: target.side, x: target.x, y: target.y, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, big };
   b.events.push({ ...base, type: 'hit', amount: damage, crit });
   if (u.kind === 'queen' && has(b, u.side, 'bloodQueen')) u.hp = Math.min(u.maxHp, u.hp + damage * 0.25);
   if (target.hp <= 0 && target.kind === 'king' && has(b, target.side, 'secondLife') && !b.kingSaved) {

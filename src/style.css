@@ -139,12 +139,10 @@ img { image-rendering: pixelated; }
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
-  width: min(100%, 68vh, 640px);
+  width: min(calc(100vw - 96px), 64vh, 620px);
+  max-width: 100%;
   aspect-ratio: 1;
-  box-shadow:
-    0 -6px 0 0 var(--line), 0 6px 0 0 var(--line), -6px 0 0 0 var(--line), 6px 0 0 0 var(--line),
-    0 14px 0 0 rgba(0, 0, 0, 0.35);
-  margin: 6px 6px 20px;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.3);
   user-select: none;
 }
 
@@ -190,17 +188,17 @@ img { image-rendering: pixelated; }
 
 .unit-sprite {
   position: absolute;
-  inset: 8% 10% 16%;
-  width: 80%;
-  height: 76%;
+  inset: 2% 8% 14%;
+  width: 84%;
+  height: 84%;
   animation: bob 1s steps(2) infinite;
-  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.35));
 }
 .unit.enemy .unit-sprite { animation-delay: -0.5s; }
 
 .unit.hit { animation: hit-flash 0.16s steps(1); }
 @keyframes hit-flash { 0% { filter: brightness(0) invert(1); } 100% { filter: none; } }
-.unit.dead { opacity: 0; transform-origin: center; }
+.unit.dead { opacity: 0; }
+.unit.dead .unit-body { rotate: 75deg; translate: 0 12%; transition: rotate 0.2s, translate 0.2s; }
 
 .unit.selected::before {
   content: '';
@@ -214,7 +212,7 @@ img { image-rendering: pixelated; }
   position: absolute;
   left: 14%;
   right: 14%;
-  bottom: 8%;
+  bottom: 4%;
   height: 6%;
   min-height: 4px;
   background: #0b0818;
@@ -940,3 +938,105 @@ img { image-rendering: pixelated; }
 @media (prefers-reduced-motion: reduce) {
   .board.shake, .board.shake.shake-big, .unit-body.lunge { animation: none; }
 }
+
+/* ---------- Board frame and chapter themes ---------- */
+.board-frame {
+  --cell-light: #393071;
+  --cell-dark: #2b235c;
+  --board-edge: #241d4a;
+  --board-label: var(--muted);
+  display: grid;
+  grid-template-columns: 18px auto;
+  grid-template-rows: auto 18px;
+  gap: 6px 10px;
+  padding: 14px 18px 10px 10px;
+  margin: 8px 8px 24px;
+  max-width: calc(100% - 16px);
+  background: var(--board-edge);
+  box-shadow:
+    0 -6px 0 0 var(--line), 0 6px 0 0 var(--line), -6px 0 0 0 var(--line), 6px 0 0 0 var(--line),
+    0 14px 0 0 rgba(0, 0, 0, 0.35);
+}
+.board-frame[data-theme='1'] { --cell-light: #6f8f4e; --cell-dark: #5a7740; --board-edge: #33432a; --board-label: #d9e7a6; }
+.board-frame[data-theme='2'] { --cell-light: #2f6152; --cell-dark: #22483d; --board-edge: #142a24; --board-label: #8fd4bb; }
+.board-frame[data-theme='3'] { --cell-light: #5d6886; --cell-dark: #48516d; --board-edge: #2a2f42; --board-label: #c8d0ec; }
+.board-frame[data-theme='4'] { --cell-light: #7d3b59; --cell-dark: #622d46; --board-edge: #3a1729; --board-label: #ffcf4a; }
+
+.board-ranks, .board-files {
+  display: grid;
+  font-family: var(--pixel);
+  font-size: 15px;
+  color: var(--board-label);
+  text-align: center;
+  align-items: center;
+  user-select: none;
+}
+.board-ranks { grid-template-rows: repeat(8, 1fr); }
+.board-files { grid-template-columns: repeat(8, 1fr); }
+
+/* Pixel dither on dark squares gives the tiles some texture. */
+.cell.dark {
+  background-image:
+    linear-gradient(45deg, rgba(0, 0, 0, 0.08) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.08) 75%),
+    linear-gradient(45deg, rgba(0, 0, 0, 0.08) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.08) 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+}
+
+/* Stepped pixel shadow under every piece. */
+.unit-body::before {
+  content: '';
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 10%;
+  height: 9%;
+  background: rgba(0, 0, 0, 0.35);
+  clip-path: polygon(15% 0, 85% 0, 100% 35%, 100% 65%, 85% 100%, 15% 100%, 0 65%, 0 35%);
+}
+.unit.king .unit-sprite { filter: drop-shadow(0 0 6px rgba(255, 207, 74, 0.55)); }
+
+/* Projectiles by shooter. */
+.fx-bolt.from-rook::after { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: #2a2440; box-shadow: inset 3px 3px 0 #6d6491, 0 0 0 2px #0b0818; }
+.fx-bolt.from-bishop::after { background: var(--mint); box-shadow: 0 0 0 2px #0b0818, 0 0 10px 2px rgba(62, 230, 193, 0.7); }
+.fx-bolt.enemy.from-bishop::after { background: var(--violet); box-shadow: 0 0 0 2px #0b0818, 0 0 10px 2px rgba(155, 107, 255, 0.8); }
+.fx-bolt.from-queen::after {
+  width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  background: var(--gold); box-shadow: none;
+  clip-path: polygon(50% 0, 62% 38%, 100% 38%, 69% 60%, 80% 100%, 50% 75%, 20% 100%, 31% 60%, 0 38%, 38% 38%);
+}
+.fx-bolt.enemy.from-queen::after { background: var(--coral); }
+
+/* ---------- Map chapter themes ---------- */
+.map-screen { --theme-accent: var(--mint); --theme-a: #393071; --theme-b: #2b235c; }
+.map-screen[data-theme='1'] { --theme-accent: #c5e07a; --theme-a: #6f8f4e; --theme-b: #5a7740; }
+.map-screen[data-theme='2'] { --theme-accent: #7fe0bf; --theme-a: #2f6152; --theme-b: #22483d; }
+.map-screen[data-theme='3'] { --theme-accent: #b8c6f2; --theme-a: #5d6886; --theme-b: #48516d; }
+.map-screen[data-theme='4'] { --theme-accent: #ffcf4a; --theme-a: #7d3b59; --theme-b: #622d46; }
+.chapter-title { color: var(--theme-accent); }
+.chapter-banner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.chapter-strip {
+  flex: 1;
+  height: 24px;
+  align-self: center;
+  background: repeating-linear-gradient(90deg, var(--theme-a) 0 24px, var(--theme-b) 24px 48px);
+  box-shadow: 0 0 0 4px var(--bg-2);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 30%);
+  mask-image: linear-gradient(90deg, transparent, #000 30%);
+}
+.chapter-boss { width: 72px; height: 72px; filter: drop-shadow(0 0 10px rgba(255, 93, 133, 0.6)); animation: bob 1.2s steps(2) infinite; }
+.level-node.cleared .level-tile { background: var(--theme-b); }
+
+@media (max-width: 560px) {
+  .board-frame { padding: 10px 12px 8px 6px; gap: 4px 6px; grid-template-columns: 14px auto; grid-template-rows: auto 14px; }
+  .board { width: min(calc(100vw - 92px), 64vh); }
+  .board-ranks, .board-files { font-size: 12px; }
+  .chapter-boss { width: 52px; height: 52px; }
+}
+.chapter-banner .chapter-sub { margin-bottom: 0; }
