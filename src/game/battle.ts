@@ -152,6 +152,9 @@ export interface Unit {
   checkReady: number;
   /** Came back from "Теневой резерв". */
   shade: boolean;
+  /** "Призрачный": the tick it may blink again; traits on a timer count their uses here. */
+  blinkReady: number;
+  traitUses: number;
 }
 
 export interface BattleEvent {
@@ -277,7 +280,7 @@ function makeUnit(
     atkMult: atkMult * (boss ? BOSS_ATK : 1),
     pawnMoveMult, buff: 1, struck: false,
     tier: abilities ? abilityTier(p.level + abilityShift) : 0, abilityTimer: 0, strikes: 0, shield: 0, maxShield: 0, rallyUntil: 0, rallyMult: 1,
-    cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false, reborn: false, moved: false, checkReady: 0, shade: false,
+    cursedUntil: 0, curseMult: 1, trait: p.trait, raged: false, reborn: false, moved: false, checkReady: 0, shade: false, blinkReady: 0, traitUses: 0,
   };
   applyStats(u, p.kind);
   u.hp = u.maxHp;
@@ -484,6 +487,8 @@ function baseDamage(b: Battle, u: Unit): number {
   if (RANGED.has(u.kind) && b.terrain[u.y * BOARD_SIZE + u.x] === 'hill') damage *= HILL_BONUS;
   if (b.tick < u.rallyUntil) damage *= u.rallyMult;
   if (has(b, u.side, 'warCry') && b.tick <= 60) damage *= 1.35;
+  // "Знаменосец": a banner next to you.
+  if (alive(b, u.side).some((f) => f !== u && f.trait === 'banner' && chebyshev(f, u.x, u.y) === 1)) damage *= 1.25;
   return damage;
 }
 
@@ -795,6 +800,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     target.raged = true;
     traitEvent(b, target, 'Ярость!');
   }
+  if (target.trait === 'blinker' && target.hp > 0 && b.tick >= target.blinkReady) blink(b, target);
   if (target.trait === 'thorns' && !reflected && !shot && u.hp > 0 && damage > 0) {
     dealDamage(b, target, u, damage * 0.3, false, true);
   }
@@ -860,6 +866,50 @@ function traitEvent(b: Battle, u: Unit, label: string): void {
 }
 
 /** An explosive elite blows up when it falls, hitting every enemy next to it. */
+/** "Призрачный": vanish and reappear on a free square two steps away. */
+function blink(b: Battle, u: Unit): void {
+  const spots: [number, number][] = [];
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      const x = u.x + dx;
+      const y = u.y + dy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) === 2 && standable(b.terrain, x, y) && !unitAt(b, x, y)) spots.push([x, y]);
+    }
+  }
+  if (!spots.length) return;
+  const [x, y] = spots[roll(b, u.uid + 31, spots.length)];
+  u.x = x;
+  u.y = y;
+  u.blinkReady = b.tick + 30;
+  traitEvent(b, u, 'Скачок!');
+}
+
+/** Traits on a timer: healers, summoners, shield-bearers. */
+function traitTick(b: Battle): void {
+  for (const u of b.units) {
+    if (u.hp <= 0 || !u.trait) continue;
+    const near = () => alive(b, u.side).filter((f) => f !== u && chebyshev(f, u.x, u.y) === 1);
+    if (u.trait === 'healer' && b.tick % 30 === 0) {
+      let healed = false;
+      for (const f of near()) {
+        if (f.hp >= f.maxHp) continue;
+        f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12);
+        healed = true;
+      }
+      if (healed) traitEvent(b, u, 'Лечит!');
+    }
+    if (u.trait === 'warder' && b.tick % 40 === 0) {
+      const list = near();
+      for (const f of list) f.shield = f.maxShield = Math.max(f.shield, f.maxHp * 0.15);
+      if (list.length) traitEvent(b, u, 'Щиты!');
+    }
+    if (u.trait === 'summoner' && b.tick % 60 === 0 && u.traitUses < 2 && summon(b, u, 'pawn', true)) {
+      u.traitUses++;
+      traitEvent(b, u, 'Ко мне!');
+    }
+  }
+}
+
 function explode(b: Battle, u: Unit): void {
   const cells: number[] = [];
   const victims: Unit[] = [];
@@ -1203,6 +1253,7 @@ export function stepBattle(b: Battle): void {
   if (!sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) {
     bossTick(b);
     eliteTick(b);
+    if (b.tick % 10 === 0) traitTick(b);
   }
   if (b.decisions && !b.checkAsked && !b.decision) offerCheck(b);
   if (b.handTimer > 0 && --b.handTimer === 0 && !sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) {

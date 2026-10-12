@@ -2,7 +2,8 @@ import type { Placement } from './battle';
 import type { PieceKind } from './pieces';
 
 /** Traits of elite enemy pieces. */
-export type Trait = 'armored' | 'furious' | 'vampire' | 'thorns' | 'swift' | 'explosive';
+export type Trait = 'armored' | 'furious' | 'vampire' | 'thorns' | 'swift' | 'explosive'
+  | 'healer' | 'summoner' | 'banner' | 'warder' | 'blinker';
 
 export interface TraitDef {
   /** Adjective, masculine and feminine. */
@@ -17,9 +18,14 @@ export const TRAITS: Record<Trait, TraitDef> = {
   thorns: { name: ['Шипастый', 'Шипастая'], text: 'возвращает 30% урона тем, кто бьёт вплотную' },
   swift: { name: ['Быстрый', 'Быстрая'], text: 'ходит вдвое быстрее и бьёт на 25% чаще' },
   explosive: { name: ['Взрывной', 'Взрывная'], text: 'при гибели взрывается и бьёт всех соседей' },
+  healer: { name: ['Целящий', 'Целящая'], text: 'каждые 3 с лечит соседних союзников на 12% здоровья' },
+  summoner: { name: ['Зовущий', 'Зовущая'], text: 'каждые 6 с зовёт в строй пешку (до двух за бой)' },
+  banner: { name: ['Знаменный', 'Знаменная'], text: 'соседние союзники бьют на 25% сильнее' },
+  warder: { name: ['Щитовой', 'Щитовая'], text: 'каждые 4 с даёт соседним союзникам щит в 15% здоровья' },
+  blinker: { name: ['Призрачный', 'Призрачная'], text: 'получив удар, исчезает и появляется рядом (раз в 3 с)' },
 };
 
-export const TRAIT_ORDER: Trait[] = ['armored', 'furious', 'vampire', 'thorns', 'swift', 'explosive'];
+export const TRAIT_ORDER: Trait[] = ['armored', 'furious', 'vampire', 'thorns', 'swift', 'explosive', 'healer', 'summoner', 'banner', 'warder', 'blinker'];
 
 const FEMININE = new Set<PieceKind>(['pawn', 'rook']);
 
@@ -30,13 +36,13 @@ export function traitAdjective(trait: Trait, kind: PieceKind): string {
 
 /** Traits that can appear per chapter; chapter 1 has no elites. */
 const POOLS: Record<number, Trait[]> = {
-  2: ['swift', 'thorns', 'furious', 'vampire'],
-  3: ['armored', 'explosive', 'vampire', 'furious', 'thorns'],
+  2: ['swift', 'thorns', 'banner', 'healer', 'furious'],
+  3: ['armored', 'explosive', 'warder', 'summoner', 'vampire', 'blinker'],
   4: TRAIT_ORDER,
 };
 
 /** Chapter 1 traits under the "Чёрная гвардия" distortion. */
-const GUARD_POOL: Trait[] = ['swift', 'thorns', 'furious'];
+const GUARD_POOL: Trait[] = ['swift', 'thorns', 'furious', 'banner'];
 
 /** How many elites a level has; "Чёрная гвардия" adds one everywhere and opens chapter 1. */
 function eliteCount(levelId: string, guard: boolean): { count: number; pool: Trait[] } {

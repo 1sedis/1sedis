@@ -93,3 +93,42 @@ describe('elite traits', () => {
     expect(healed || knight.hp > start).toBe(true);
   });
 });
+
+describe('enemy roles', () => {
+  const at = (kind: Placement['kind'], x: number, y: number, trait?: Placement['trait'], level = 3): Placement => ({ kind, x, y, level, trait });
+  const run = (setup: Parameters<typeof createBattle>[0], ticks: number) => {
+    const b = createBattle(setup);
+    const labels: string[] = [];
+    for (let i = 0; i < ticks && !b.result; i++) {
+      stepBattle(b);
+      for (const e of b.events) if (e.label) labels.push(e.label);
+    }
+    return { b, labels };
+  };
+
+  it('healers heal, shield-bearers shield, summoners call pawns', () => {
+    const heal = createBattle({ allies: [at('king', 0, 7)], enemies: [at('king', 7, 0), at('bishop', 6, 0, 'healer')] });
+    const hurt = heal.units.find((u) => u.kind === 'king' && u.side === 'enemy')!;
+    hurt.hp = hurt.maxHp / 2;
+    heal.units.find((u) => u.trait === 'healer')!.wait = 999; // stays beside the king
+    for (let i = 0; i < 31; i++) stepBattle(heal);
+    expect(hurt.hp).toBeGreaterThan(hurt.maxHp / 2);
+    const ward = createBattle({ allies: [at('king', 3, 7)], enemies: [at('king', 7, 0), at('rook', 3, 0, 'warder'), at('pawn', 4, 0)] });
+    for (const u of ward.units) if (u.side === 'enemy') u.wait = 999;
+    for (let i = 0; i < 41; i++) stepBattle(ward);
+    expect(ward.units.find((u) => u.kind === 'pawn' && u.side === 'enemy')!.shield).toBeGreaterThan(0);
+    const { labels } = run({ allies: [at('king', 3, 7)], enemies: [at('king', 7, 0), at('rook', 0, 0, 'summoner')] }, 70);
+    expect(labels).toContain('Ко мне!');
+  });
+
+  it('a banner makes its neighbours hit harder; a blinker jumps away when hit', () => {
+    const hits = (trait?: Placement['trait']) => run({
+      allies: [at('king', 7, 7), at('rook', 3, 6, undefined, 40)],
+      enemies: [at('king', 7, 0), at('rook', 3, 0), at('pawn', 2, 0, trait)],
+    }, 40).b.report;
+    const dealt = (r: ReturnType<typeof hits>) => Object.values(r).filter((x) => x.side === 'enemy' && x.kind === 'rook').reduce((n, x) => n + x.dealt, 0);
+    expect(dealt(hits('banner'))).toBeGreaterThan(dealt(hits()));
+    const { labels } = run({ allies: [at('king', 3, 7), at('rook', 0, 7, undefined, 5)], enemies: [at('king', 7, 0), at('pawn', 0, 2, 'blinker', 20)] }, 60);
+    expect(labels).toContain('Скачок!');
+  });
+});
