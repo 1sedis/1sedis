@@ -157,4 +157,7 @@ export const arena: Record<string, string> = {
   'Враг нанёс в {k} раза больше урона: армия пока слабее.': 'The foe dealt {k}× more damage: your army is still weaker.',
   'Почему поражение': 'Why you lost',
   'Совет: {tip}': 'Tip: {tip}',
+  'Мой ход — и я ферзь!': 'One move and I\'m a Queen!',
+  'Ход: {name} под боем — бери!': 'Move: the {name} is open — take it!',
+  'Ход: уведи меня из-под удара!': 'Move: get me out of harm\'s way!',
 };

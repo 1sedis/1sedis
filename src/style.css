@@ -2294,3 +2294,15 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 .loss-why-title { font-family: var(--font-title, inherit); color: var(--coral); font-size: 14px; margin-bottom: 6px; text-transform: uppercase; }
 .loss-why-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; line-height: 1.35; }
 .loss-why-tip { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed #ff5d8555; color: var(--mint); font-size: 14px; line-height: 1.35; }
+
+/* ---------- Player moves stand out (polish 2.4) ---------- */
+.moves-tokens { height: 44px; gap: 8px; }
+.moves-label { font-size: 15px; }
+.move-token { width: 20px; height: 20px; }
+.moves-tokens.hot { box-shadow: 0 0 0 3px var(--gold), 0 0 16px 2px #ffcf4a88; animation: tokens-hot .4s steps(2, end) 6; }
+@keyframes tokens-hot { 50% { box-shadow: 0 0 0 3px #fff, 0 0 22px 4px #ffcf4aaa; } }
+.unit.move-hint .unit-body::after { content: ''; position: absolute; inset: -6%; border: 3px solid var(--gold); pointer-events: none;
+  animation: move-hint .5s steps(2, end) 6; }
+@keyframes move-hint { 50% { border-color: #fff; inset: -12%; } }
+@media (width <= 560px) { .moves-tokens { height: 38px; gap: 6px; } .move-token { width: 16px; height: 16px; } .moves-label { font-size: 13px; } }
+@media (prefers-reduced-motion: reduce) { .moves-tokens.hot, .unit.move-hint .unit-body::after { animation: none; } }

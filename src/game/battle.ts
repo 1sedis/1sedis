@@ -1869,6 +1869,52 @@ export function legalMoves(b: Battle, uid: number): PlayerMove[] {
   return out;
 }
 
+/** A moment when one of the player's moves pays off, worth pointing at. */
+export interface MoveMoment {
+  uid: number;
+  /** promote: a pawn can step onto the last rank; capture: a valuable enemy can be taken; escape: a wounded piece can leave a threatened cell. */
+  kind: 'promote' | 'capture' | 'escape';
+  /** The target cell of the suggested move. */
+  x: number;
+  y: number;
+  /** The captured enemy, for 'capture'. */
+  target?: PieceKind;
+}
+
+const CAPTURE_VALUE: Record<PieceKind, number> = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9, king: 9, archbishop: 6, chancellor: 7, ghost: 4 };
+
+/** The best move moment right now, or null: promotion first, then a valuable capture, then saving a wounded piece. */
+export function moveMoment(b: Battle): MoveMoment | null {
+  if (b.result || b.decision || b.movesLeft <= 0) return null;
+  const allies = b.units.filter((u) => u.side === 'ally' && u.hp > 0 && !(u.kind === 'king' && u.boss));
+  const early = (has(b, 'ally', 'earlyCrown') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
+  let capture: MoveMoment | null = null;
+  let best = 0;
+  for (const u of allies) {
+    for (const m of legalMoves(b, u.uid)) {
+      if (u.kind === 'pawn' && m.type === 'move' && m.y <= early) return { uid: u.uid, kind: 'promote', x: m.x, y: m.y };
+      if (m.type !== 'capture') continue;
+      const foe = unitAt(b, m.x, m.y);
+      if (!foe) continue;
+      const value = (foe.boss ? 9 : CAPTURE_VALUE[foe.kind] ?? 1) + (foe.trait ? 1 : 0);
+      if (value >= 3 && value > best) {
+        best = value;
+        capture = { uid: u.uid, kind: 'capture', x: m.x, y: m.y, target: foe.kind };
+      }
+    }
+  }
+  if (capture) return capture;
+  const foes = b.units.filter((u) => u.side === 'enemy' && u.hp > 0);
+  const grid = buildGrid(b);
+  const threatened = (x: number, y: number, self: Unit) => foes.some((e) => threatens(grid, b.terrain, e, x, y) && !(e.x === self.x && e.y === self.y));
+  for (const u of allies) {
+    if (u.kind === 'king' || u.hp > u.maxHp * 0.4 || !threatened(u.x, u.y, u)) continue;
+    const safe = legalMoves(b, u.uid).find((m) => m.type === 'move' && !threatened(m.x, m.y, u));
+    if (safe) return { uid: u.uid, kind: 'escape', x: safe.x, y: safe.y };
+  }
+  return null;
+}
+
 /**
  * Make one of the player's moves. A move to an empty square relocates the
  * piece; a capture strikes the enemy hard and stuns it, taking its square if

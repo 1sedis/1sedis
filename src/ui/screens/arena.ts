@@ -1,5 +1,5 @@
 import {
-  createBattle, legalMoves, playMove, resolveDecision, stepBattle, threatMap,
+  createBattle, legalMoves, moveMoment, playMove, resolveDecision, stepBattle, threatMap,
   type Battle, type BattleEvent, type Decision, type PlayerMove, type Unit,
 } from '../../game/battle';
 import { accentFor } from '../accents';
@@ -978,6 +978,9 @@ export class ArenaScreen implements Screen {
   }
 
   private lastBark = 0;
+  /** Move-moment hints shown this battle and when the last one was. */
+  private momentHints = 0;
+  private lastMoment = 0;
   private barked = new Set<string>();
 
   /** Short lines the pieces shout in battle: bosses in rage, kings in danger, the Hand at work. */
@@ -1002,6 +1005,23 @@ export class ArenaScreen implements Screen {
         shout('promote', e.x, e.y, t('Я — ферзь!'), 'ally');
       } else if (e.type === 'save' && e.side === 'ally') {
         shout('save', e.x, e.y, t('Ещё не конец!'), 'ally', true);
+      }
+    }
+    // A move would pay off right now: the piece says so and the move tokens light up.
+    // At most two such hints a battle, six seconds apart, each kind once: a nudge, not a nag.
+    if (b.tick <= 3) this.momentHints = 0;
+    if (this.ctx.settings.hints && this.movePick === null && b.movesLeft > 0 && b.tick % 5 === 0
+      && this.momentHints < 2 && now - this.lastMoment > 6000) {
+      const m = moveMoment(b);
+      const u = m && b.units.find((x) => x.uid === m.uid);
+      if (m && u && !this.barked.has(`moment-${m.kind}`)) {
+        this.barked.add(`moment-${m.kind}`);
+        this.momentHints++;
+        this.lastMoment = now;
+        shout(null, u.x, u.y, m.kind === 'promote' ? t('Мой ход — и я ферзь!')
+          : m.kind === 'capture' ? t('Ход: {name} под боем — бери!', { name: PIECES[m.target!].name.toLowerCase() })
+            : t('Ход: уведи меня из-под удара!'), 'ally', true);
+        this.board.hintUnit(`b${m.uid}`, this.movesEl);
       }
     }
     for (const u of b.units) {

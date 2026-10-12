@@ -325,6 +325,20 @@ export class BoardView {
     ], { duration: 700, easing: 'ease-in-out' }).onfinish = () => ghost.remove();
   }
 
+  /** Point at a piece whose move would pay off now: it glows for a few seconds and the move tokens flash. */
+  hintUnit(key: string, tokens?: HTMLElement): void {
+    const u = this.units.get(key);
+    if (!u) return;
+    u.node.classList.remove('move-hint');
+    void u.node.offsetWidth;
+    u.node.classList.add('move-hint');
+    setTimeout(() => u.node.classList.remove('move-hint'), 3000);
+    if (tokens) {
+      tokens.classList.add('hot');
+      setTimeout(() => tokens.classList.remove('hot'), 3000);
+    }
+  }
+
   /** A short line shouted by a piece in battle. */
   bark(x: number, y: number, text: string, team: Team | 'hand'): void {
     const b = el('div', `bark ${team}${y < 2 ? ' below' : ''}${x <= 1 ? ' edge-left' : x >= 6 ? ' edge-right' : ''}`, text);
