@@ -137,12 +137,17 @@ test('story bot', () => {
   /** Relic audit: every relic taken this run with the chapter it came in, and each run's outcome. */
   const relicLog: { relic: string; game: number; chapter: number; won: boolean; reached: number }[] = [];
   let taken: { relic: string; game: number; chapter: number }[] = [];
+  /** Event audit: each event choice made this run, closed with the run's outcome like the relics. */
+  const eventLog: { event: string; choice: number; game: number; chapter: number; won: boolean; reached: number }[] = [];
+  let picked: { event: string; choice: number; game: number; chapter: number }[] = [];
   const noteRelics = () => {
     for (const r of s.relics) if (!taken.some((x) => x.relic === r)) taken.push({ relic: r, game: gameNumber(s), chapter: s.run.chapter });
   };
   const closeRun = (won: boolean, reached: number) => {
     for (const x of taken) relicLog.push({ ...x, won, reached });
+    for (const x of picked) eventLog.push({ ...x, won, reached });
     taken = [];
+    picked = [];
   };
   let t = 0;
   const log: string[] = [];
@@ -245,8 +250,11 @@ test('story bot', () => {
       } else if (node.kind === 'event') {
         const choices = EVENTS[node.event!].choices;
         // A careful player: takes the choice without a gamble on banners or pawns when one exists.
-        const order = node.event === 'dice' || node.event === 'crown' ? [1, 0] : [0, 1];
-        if (!order.some((i) => chooseEvent(s, i)) && choices.length) finishNode(s);
+        const order = RANDOM_RELICS ? [...choices.keys()].sort(() => relRand() - 0.5)
+          : node.event === 'dice' || node.event === 'crown' ? [1, 0] : [0, 1];
+        const chosen = order.find((i) => chooseEvent(s, i));
+        if (chosen === undefined && choices.length) finishNode(s);
+        else if (RANDOM_RELICS && chosen !== undefined) picked.push({ event: node.event!, choice: chosen, game: gameNumber(s), chapter });
       } else if (node.kind === 'shop') {
         const items = shopItems(s, node).sort((a, b) => (a.relic ? RELIC_RANK.indexOf(a.relic) : 99) - (b.relic ? RELIC_RANK.indexOf(b.relic) : 99));
         // The spare banner first: a second life is worth more than any relic.
@@ -289,6 +297,6 @@ test('story bot', () => {
     log.push(`Темп (${kind}, ${a.length} боёв): медиана ${pct(a, 0.5)} с, 10–90% ${pct(a, 0.1)}–${pct(a, 0.9)} с игрового времени`);
   }
   log.push(`MATRIX ${JSON.stringify({ army: ARMY ?? 'guard', strat: STRAT, moves: USE_MOVES, seed: Number(process.env.SEED ?? 0), runs: runsPerGame, deaths, hours: +(t / 3600).toFixed(2), finale: phases.map((p) => p.attempts) })}`);
-  if (RANDOM_RELICS) log.push(`RELICS ${JSON.stringify(relicLog)}`);
+  if (RANDOM_RELICS) log.push(`RELICS ${JSON.stringify(relicLog)}`, `EVENTS ${JSON.stringify(eventLog)}`);
   console.log(log.join('\n'));
 }, 1_800_000);

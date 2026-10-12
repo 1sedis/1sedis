@@ -815,7 +815,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     if (target.side === 'enemy') b.allyStats.kills++;
     if (has(b, target.side, 'avengers')) {
       for (const f of alive(b, target.side)) {
-        if (Math.max(Math.abs(f.x - target.x), Math.abs(f.y - target.y)) <= 1) f.buff *= 1.15;
+        if (Math.max(Math.abs(f.x - target.x), Math.abs(f.y - target.y)) <= 1) f.buff *= 1.12;
       }
     }
     if (target.trait === 'explosive') explode(b, target);
@@ -1203,7 +1203,7 @@ function moveUnit(b: Battle, u: Unit): void {
       u.x = nx;
       u.moved = true;
       u.wait = u.moveCd;
-      const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (has(b, u.side, 'queensGambit') ? 1 : 0) + (u.side === 'ally' && b.perks.has('earlyCrown') ? 2 : 0);
+      const early = (has(b, u.side, 'earlyCrown') ? 2 : 0) + (has(b, u.side, 'queensGambit') ? 1 : 0) + (u.side === 'ally' && b.perks.has('earlyCrown') ? 2 : 0);
       const promotes = u.side === 'ally' ? u.y <= early : u.y >= BOARD_SIZE - 1;
       if (promotes) {
         promote(b, u, 'queen');
@@ -1888,7 +1888,7 @@ const CAPTURE_VALUE: Record<PieceKind, number> = { pawn: 1, knight: 3, bishop: 3
 export function moveMoment(b: Battle): MoveMoment | null {
   if (b.result || b.decision || b.movesLeft <= 0) return null;
   const allies = b.units.filter((u) => u.side === 'ally' && u.hp > 0 && !(u.kind === 'king' && u.boss));
-  const early = (has(b, 'ally', 'earlyCrown') ? 1 : 0) + (has(b, 'ally', 'queensGambit') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
+  const early = (has(b, 'ally', 'earlyCrown') ? 2 : 0) + (has(b, 'ally', 'queensGambit') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
   let capture: MoveMoment | null = null;
   let best = 0;
   for (const u of allies) {
@@ -1939,7 +1939,7 @@ export function playMove(b: Battle, uid: number, x: number, y: number): boolean 
     u.y = y;
     u.wait = Math.max(u.wait, 4);
     orderEvent(b, u, fromX, fromY, t('Ход'));
-    const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (has(b, u.side, 'queensGambit') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
+    const early = (has(b, u.side, 'earlyCrown') ? 2 : 0) + (has(b, u.side, 'queensGambit') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
     if (u.kind === 'pawn' && u.y <= early) promote(b, u, 'queen');
     return true;
   }

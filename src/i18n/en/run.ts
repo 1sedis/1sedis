@@ -42,7 +42,7 @@ export const run: Record<string, string> = {
   '−1 пешка, +1 уровень лучшей фигуре': '−1 Pawn, +1 level to your best piece',
   'Нужно хотя бы две пешки': 'Need at least two Pawns',
   'Тьма приняла жертву. Король стал сильнее.': 'The darkness accepts. Your King grows stronger.',
-  'Тьма приняла жертву. Лучшая фигура стал сильнее.': 'The darkness accepts. Your best piece grows stronger.',
+  'Тьма приняла жертву. Лучшая фигура стала сильнее.': 'The darkness accepts. Your best piece grows stronger.',
   'Пройти мимо': 'Walk Past',
   'Ничего': 'Nothing',
   'Вы обошли алтарь стороной.': 'You give the altar a wide berth.',

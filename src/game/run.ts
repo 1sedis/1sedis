@@ -448,7 +448,7 @@ export interface ShopItem {
 
 /** Merchant and smith prices ("Торговая грамота" cuts them). */
 export function price(s: GameState, gold: number): number {
-  return Math.round(gold * (s.relics.includes('charter') ? 0.6 : 1) * threatMods(s.run.threat ?? 0).prices);
+  return Math.round(gold * (s.relics.includes('charter') ? 0.5 : 1) * threatMods(s.run.threat ?? 0).prices);
 }
 
 export function shopItems(s: GameState, node: RunNode): ShopItem[] {
@@ -576,7 +576,7 @@ export const EVENTS: Record<EventId, EventDef> = {
           s.army.pawn--;
           const kind = ownedKinds(s).find((k) => k !== 'pawn') ?? 'king';
           s.levels[kind]++;
-          return kind === 'king' ? t('Тьма приняла жертву. Король стал сильнее.') : t('Тьма приняла жертву. Лучшая фигура стал сильнее.');
+          return kind === 'king' ? t('Тьма приняла жертву. Король стал сильнее.') : t('Тьма приняла жертву. Лучшая фигура стала сильнее.');
         },
       },
       { label: t('Пройти мимо'), hint: t('Ничего'), apply: () => t('Вы обошли алтарь стороной.') },

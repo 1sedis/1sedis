@@ -14,7 +14,7 @@ export interface RelicDef {
 
 export const RELICS: Record<RelicId, RelicDef> = {
   phalanx: { id: 'phalanx', name: t('Фаланга'), description: t('Пешка, рядом с которой в ряду стоит другая пешка, получает на 30% меньше урона.') },
-  earlyCrown: { id: 'earlyCrown', name: t('Ранняя коронация'), description: t('Пешки превращаются в ферзя на ряд раньше.') },
+  earlyCrown: { id: 'earlyCrown', name: t('Ранняя коронация'), description: t('Пешки превращаются в ферзя на два ряда раньше.') },
   forcedMarch: { id: 'forcedMarch', name: t('Форсированный марш'), description: t('Пешки ходят на 40% быстрее.') },
   queensGambit: { id: 'queensGambit', name: t('Ферзевый гамбит'), description: t('Пешки превращаются на ряд раньше, а их ферзи бьют на 50% сильнее.') },
   bloodQueen: { id: 'bloodQueen', name: t('Кровавая корона'), description: t('Ферзи лечатся на 25% нанесённого урона.') },
@@ -25,7 +25,7 @@ export const RELICS: Record<RelicId, RelicDef> = {
   piercing: { id: 'piercing', name: t('Пронзающие стрелы'), description: t('Выстрел слона задевает следующую фигуру на линии на 60% урона.') },
   heavyShot: { id: 'heavyShot', name: t('Тяжёлые ядра'), description: t('Ладьи наносят на 50% больше урона королям и боссам.') },
   warCry: { id: 'warCry', name: t('Боевой клич'), description: t('Первые 6 секунд боя вся армия бьёт на 35% сильнее.') },
-  avengers: { id: 'avengers', name: t('Мстители'), description: t('Когда союзник гибнет, его соседи до конца боя бьют на 15% сильнее.') },
+  avengers: { id: 'avengers', name: t('Мстители'), description: t('Когда союзник гибнет, его соседи до конца боя бьют на 12% сильнее.') },
   chainmail: { id: 'chainmail', name: t('Кольчуга'), description: t('Вся армия получает +15% здоровья.') },
   sharpBlades: { id: 'sharpBlades', name: t('Точильный камень'), description: t('Вся армия получает +12% к атаке.') },
   reserve: { id: 'reserve', name: t('Резерв'), description: t('+1 фигура в каждом бою.') },
@@ -37,7 +37,7 @@ export const RELICS: Record<RelicId, RelicDef> = {
   ironKing: { id: 'ironKing', name: t('Железный король'), description: t('Король крепче на 50% и бьёт на 40% сильнее.') },
   loneWolf: { id: 'loneWolf', name: t('Одинокий волк'), description: t('Если кроме короля в строю не больше трёх фигур, вся армия +40% к атаке и здоровью.') },
   piggyBank: { id: 'piggyBank', name: t('Копилка'), description: t('После каждой победы +10% к золоту, что у вас есть (не больше половины награды за бой главы).') },
-  charter: { id: 'charter', name: t('Торговая грамота'), description: t('Торговцы и кузнецы берут на 40% меньше.') },
+  charter: { id: 'charter', name: t('Торговая грамота'), description: t('Торговцы и кузнецы берут вдвое меньше.') },
   fangs: { id: 'fangs', name: t('Вампирские клыки'), description: t('Вся армия лечится на 10% нанесённого урона.') },
   thornMail: { id: 'thornMail', name: t('Шипастые латы'), description: t('Ваши фигуры возвращают 20% урона ближнего боя.') },
   executioner: { id: 'executioner', name: t('Топор палача'), description: t('Удары по врагам с меньше чем 30% здоровья на 60% сильнее.') },
