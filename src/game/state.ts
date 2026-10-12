@@ -48,7 +48,7 @@ export const BUILDING_ORDER: BuildingId[] = ['hq', 'forge'];
 const UPGRADE_BASE: Record<PieceKind, number> = {
   // Pawns are trained as a squad, so one level for eight of them is cheap; the other pieces are priced so
   // that a build around knights, bishops or rooks keeps up with the pawn swarm (see docs/BALANCE_MATRIX.md).
-  king: 60, pawn: 30, knight: 60, bishop: 60, rook: 110, queen: 240, archbishop: 200, chancellor: 230, ghost: 170,
+  king: 60, pawn: 30, knight: 70, bishop: 60, rook: 110, queen: 240, archbishop: 200, chancellor: 230, ghost: 170,
 };
 
 export interface FormationSlot { kind: PieceKind; x: number; y: number }
@@ -247,7 +247,7 @@ export function upgradeCost(s: GameState, kind: PieceKind): number {
 }
 
 /** Enemies of later chapters gain levels faster than the level table alone says. */
-export const CHAPTER_ENEMY_LEVELS = [0, 0, 0, 1, 2];
+export const CHAPTER_ENEMY_LEVELS = [0, 0, -1, 1, 2];
 
 export function buildingCost(s: GameState, id: BuildingId): number {
   const def = BUILDINGS[id];
