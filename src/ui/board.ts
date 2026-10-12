@@ -282,6 +282,14 @@ export class BoardView {
     }
   }
 
+  /** A quick zoom-punch of the whole board: boss blows on the army, the fall of a king or boss. */
+  punch(level: 1 | 2): void {
+    if (REDUCED_MOTION) return;
+    const k = level > 1 ? 1.045 : 1.022;
+    this.root.animate([{ scale: '1' }, { scale: String(k), offset: 0.3 }, { scale: '1' }],
+      { duration: level > 1 ? 360 : 220, easing: 'ease-out' });
+  }
+
   /** 2 = every effect, 1 = lighter, 0 = only what matters (used at high speeds). */
   private fxLevel: 0 | 1 | 2 = 2;
 

@@ -1,7 +1,7 @@
 import { test } from 'vitest';
 import { MOVES_PER_BATTLE, createBattle, legalMoves, playMove, resolveDecision, simulate, stepBattle, MAX_TICKS, type Battle } from '../src/game/battle';
 import { bestFormation } from '../src/game/autoformation';
-import { FINALE_LEVELS } from '../src/game/levels';
+import { FINALE_LEVELS, getLevel } from '../src/game/levels';
 import {
   EVENTS, availableNodes, recruitLevel, buyItem, campForge, campTrain, canBuy, chooseEvent, enterNode, finishNode, lives, shopItems,
   type RunNode,
@@ -114,6 +114,8 @@ test('story bot', () => {
   let t = 0;
   const log: string[] = [];
   let timeouts = 0;
+  /** Battle lengths in ticks (100 ms of game time), by kind, for the pace summary. */
+  const lengths: Record<'battle' | 'boss', number[]> = { battle: [], boss: [] };
 
   const fight = (id: string): boolean => {
     bestFormation(s, id, commandLimit(s, id));
@@ -121,6 +123,7 @@ test('story bot', () => {
     if (USE_MOVES) playWithMoves(b);
     else simulate(b);
     if (b.tick >= MAX_TICKS) timeouts++;
+    lengths[getLevel(id).boss ? 'boss' : 'battle'].push(b.tick);
     const out = recordResult(s, id, b);
     t += (b.tick * 0.1) / 2 + 10;
     return out.win;
@@ -237,5 +240,9 @@ test('story bot', () => {
   log.push(`Финал: ${((t - finaleStart) / 60).toFixed(0)} мин · ${phases.map((p) => `${p.label} ${p.attempts} поп.`).join(', ')}`);
   log.push(`ИТОГО до конца истории: ${(t / 3600).toFixed(1)} ч · таймаутов ${timeouts}`);
   log.push(`древо: ${s.crownTree.join(', ')} · рулетка: ${Object.keys(s.roulette.owned).length} баффов`);
+  const pct = (a: number[], q: number) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor((a.length - 1) * q)] / 10 : 0);
+  for (const [kind, a] of Object.entries(lengths)) {
+    log.push(`Темп (${kind}, ${a.length} боёв): медиана ${pct(a, 0.5)} с, 10–90% ${pct(a, 0.1)}–${pct(a, 0.9)} с игрового времени`);
+  }
   console.log(log.join('\n'));
 }, 1_800_000);

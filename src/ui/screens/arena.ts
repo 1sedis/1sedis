@@ -2,6 +2,7 @@ import {
   createBattle, legalMoves, playMove, resolveDecision, stepBattle, threatMap,
   type Battle, type BattleEvent, type Decision, type PlayerMove, type Unit,
 } from '../../game/battle';
+import { accentFor } from '../accents';
 import { adviceLabel, adviseUpgrade } from '../../game/advice';
 import { bestFormation } from '../../game/autoformation';
 import { SYNERGIES, synergyProgress } from '../../game/synergies';
@@ -90,6 +91,10 @@ export class ArenaScreen implements Screen {
   private distortionRow = el('div', 'boss-info distortion-info');
   /** performance.now() until which the boss intro plays and the battle waits. */
   private introUntil = 0;
+  /** performance.now() until which a hit-stop holds the battle clock. */
+  private stopUntil = 0;
+  /** No new hit-stop before this moment, so a cascade of deaths never stalls the fight. */
+  private stopReady = 0;
   private terrainRow = el('div', 'terrain-row');
   private eliteRow = el('div', 'terrain-row elite-row');
   private synergySig = '';
@@ -840,9 +845,11 @@ export class ArenaScreen implements Screen {
     if (this.phase === 'battle' && b) this.guideFirstMove(b);
     // Time stands still while the player picks a move or decides.
     const frozen = this.movePick !== null || !!b?.decision;
-    if (this.phase === 'battle' && b && !this.introUntil && !frozen) {
+    const now = performance.now();
+    if (this.phase === 'battle' && b && !this.introUntil && !frozen && now >= this.stopUntil) {
       this.acc += dt * speed;
       const live = this.acc / TICK_MS < LIVE_FX_LIMIT;
+      const accents = live && this.ctx.settings.effects;
       let steps = 0;
       while (this.acc >= TICK_MS && steps < 2000 && this.phase === 'battle' && !b.decision) {
         this.acc -= TICK_MS;
@@ -850,6 +857,17 @@ export class ArenaScreen implements Screen {
         if (live) events.push(...b.events);
         if (b.result) this.finish();
         steps++;
+        if (accents) {
+          const accent = accentFor(b.events, b.bossUid, speed);
+          if (accent.punch) this.board.punch(accent.punch);
+          if (accent.stop && (now >= this.stopReady || b.result)) {
+            // Hit-stop: hold the clock for a beat and drop the rest of this frame's time.
+            this.stopUntil = now + accent.stop;
+            this.stopReady = this.stopUntil + 250;
+            this.acc = 0;
+            break;
+          }
+        }
       }
       if (!live) events = [];
       if (b.decision) this.acc = 0;
