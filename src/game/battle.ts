@@ -15,7 +15,7 @@ export const BOARD_SIZE = 8;
 export const MAX_TICKS = 900;
 /** Allies adjacent to their king hit this much harder. */
 export const KING_AURA = 1.2;
-const BOSS_HP = 3.6;
+const BOSS_HP = 3;
 const BOSS_ATK = 1.5;
 export const CRIT_CHANCE = 0.1;
 export const CRIT_MULT = 1.75;

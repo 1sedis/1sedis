@@ -260,9 +260,16 @@ export function recruitCost(s: GameState, kind: PieceKind): number {
 /** Upgrades grow gently: a run has only its own gold, and several piece types to raise. */
 export const UPGRADE_GROWTH = 1.45;
 
+/** Training a kind costs more the more pieces of it there are: a big squad is a big drill. */
+export const SQUAD_COST = 0.15;
+
 export function upgradeCost(s: GameState, kind: PieceKind): number {
-  return Math.round(UPGRADE_BASE[kind] * UPGRADE_GROWTH ** (s.levels[kind] - 1));
+  const squad = 1 + SQUAD_COST * Math.max(0, (kind === 'king' ? 1 : s.army[kind]) - 1);
+  return Math.round(UPGRADE_BASE[kind] * UPGRADE_GROWTH ** (s.levels[kind] - 1) * squad);
 }
+
+/** Enemies of later chapters gain levels faster than the level table alone says. */
+export const CHAPTER_ENEMY_LEVELS = [0, 0, 1, 2, 2];
 
 export function buildingCost(s: GameState, id: BuildingId): number {
   const def = BUILDINGS[id];
@@ -563,6 +570,9 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
   return plainSetup(s, levelId);
 }
 
+/** Chapter bosses are tougher than the base giant. */
+export const CHAPTER_BOSS_HP = 1.2;
+
 function plainSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s);
@@ -576,10 +586,10 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const tm = threatMods(campaignLevel ? s.run.threat ?? 0 : 0);
   const eliteUp = elite ? ELITE_LEVELS + tm.eliteLevels : 0;
   let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard') || elite)
-    .map((p) => ({ ...p, level: p.level + bonus + tm.enemyLevels + eliteUp }));
+    .map((p) => ({ ...p, level: p.level + bonus + tm.enemyLevels + eliteUp + (campaignLevel ? CHAPTER_ENEMY_LEVELS[chapterOf(levelId).id] ?? 0 : 0) }));
   if (rule === 'mirror') {
     // "Зеркало": your own formation in black, at this battle's level.
-    const lv = getLevel(levelId).level + bonus + tm.enemyLevels + eliteUp;
+    const lv = getLevel(levelId).level + bonus + tm.enemyLevels + eliteUp + (CHAPTER_ENEMY_LEVELS[chapterOf(levelId).id] ?? 0);
     enemies = s.formation.map((f) => ({ kind: f.kind, x: f.x, y: BOARD_SIZE - 1 - f.y, level: lv }));
   }
   // Every elite battle has a champion: its strongest piece, bigger and far tougher.
@@ -641,7 +651,8 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
     enemyKingHp: (distortions.includes('blackKing') ? BLACK_KING_HP : 1) * tm.enemyKingHp,
     enemyKingAtk: distortions.includes('blackKing') ? BLACK_KING_ATK : 1,
     eliteRule: rule,
-    bossHpMult: tm.bossHp,
+    // Chapter bosses are a fifth tougher than the base giant (the finale keeps its own balance).
+    bossHpMult: campaignLevel ? CHAPTER_BOSS_HP * tm.bossHp : 1,
     championHpMult: tm.championHp,
     bossRageAt: tm.rageAt,
   };
