@@ -160,4 +160,6 @@ export const arena: Record<string, string> = {
   'Мой ход — и я ферзь!': 'One move and I\'m a Queen!',
   'Ход: {name} под боем — бери!': 'Move: the {name} is open — take it!',
   'Ход: уведи меня из-под удара!': 'Move: get me out of harm\'s way!',
+  'Рука устаёт: враги финала слабее на {n} ур.': 'The Hand grows tired: finale foes are {n} lv. weaker.',
+  'Каждые два поражения подряд Рука устаёт — враги финала слабеют.': 'Every two defeats in a row tire the Hand — finale foes grow weaker.',
 };

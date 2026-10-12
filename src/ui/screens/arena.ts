@@ -40,7 +40,7 @@ import type { Ctx, Screen } from '../context';
 import { el, infoBtn, openModal, setDisabled, setHidden, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
-import { FINALE_CROWNS } from '../../game/state';
+import { FINALE_CROWNS, finaleEase } from '../../game/state';
 import { featureOpen } from '../../game/features';
 import { spriteUrl, type Tier } from '../sprites';
 import { t } from '../../i18n';
@@ -674,7 +674,13 @@ export class ArenaScreen implements Screen {
     if (isFinale(this.levelId)) {
       if (o.ending) content.append(el('div', 'result-reward', t('+{n} ♛ · трофейная корона на вашем короле', { n: FINALE_CROWNS })));
       else if (o.win && nextLevelId(this.levelId)) content.append(el('div', 'result-unlock', t('Фаза пройдена — прогресс сохранён. Дальше будет хуже.')));
-      else if (!o.win) content.append(el('div', 'result-unlock', t('Рука ждёт. Улучшите армию — враги финала растут вместе с ней, но реликвии, кузница и древо — нет.')));
+      else if (!o.win) {
+        content.append(el('div', 'result-unlock', t('Рука ждёт. Улучшите армию — враги финала растут вместе с ней, но реликвии, кузница и древо — нет.')));
+        const ease = finaleEase(this.ctx.state);
+        content.append(el('div', 'result-reward small', ease > 0
+          ? t('Рука устаёт: враги финала слабее на {n} ур.', { n: ease })
+          : t('Каждые два поражения подряд Рука устаёт — враги финала слабеют.')));
+      }
     } else if (o.win) {
       content.append(el('div', 'result-reward', t('+{gold} золота', { gold: fmt(o.reward) })));
       if (o.trophy) content.append(el('div', 'result-unlock relic', t('Трофей: бесплатная крутка Колеса короны')));

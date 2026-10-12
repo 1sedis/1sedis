@@ -87,8 +87,11 @@ export interface GameState {
   crownTree: NodeId[];
   /** The Crown Wheel: gifts bought with crowns, kept forever. */
   roulette: RouletteState;
-  /** The finale: phases cleared (a checkpoint kept across games) and whether the Hand is beaten. */
-  finale: { phase: number; beaten: boolean };
+  /**
+   * The finale: phases cleared (a checkpoint kept across games), whether the Hand is beaten, and
+   * losses in a row at the next phase ("Рука устаёт": every two of them make its enemies a level weaker).
+   */
+  finale: { phase: number; beaten: boolean; losses?: number };
   /** The current run: the chapter map, the path taken and how it ended. */
   run: RunState;
   /** Starting armies opened so far (kept forever). */
@@ -132,7 +135,7 @@ export function newGame(now = Date.now()): GameState {
     threatMax: 0,
     crownTree: [],
     roulette: emptyRoulette(),
-    finale: { phase: 0, beaten: false },
+    finale: { phase: 0, beaten: false, losses: 0 },
     run: newRun((now % 1_000_000_007) >>> 0),
     armies: ['guard'],
     stats: {
@@ -493,7 +496,14 @@ export function finaleLevel(s: GameState): number {
   const levels = (Object.keys(s.army) as PieceKind[])
     .filter((k) => k !== 'king')
     .flatMap((k) => new Array<number>(s.army[k]).fill(s.levels[k]));
-  return levels.length ? Math.round(levels.reduce((a, c) => a + c, 0) / levels.length) : 1;
+  const mean = levels.length ? Math.round(levels.reduce((a, c) => a + c, 0) / levels.length) : 1;
+  return Math.max(1, mean - finaleEase(s));
+}
+
+/** "Рука устаёт": every two losses in a row at a finale phase take a level off its enemies, up to six. */
+export const FINALE_EASE_MAX = 6;
+export function finaleEase(s: GameState): number {
+  return s.finale.beaten ? 0 : Math.min(FINALE_EASE_MAX, Math.floor((s.finale.losses ?? 0) / 2));
 }
 
 /** Traits of the Black King's full army in "Последняя партия". */
@@ -517,7 +527,7 @@ function finaleSetup(s: GameState, levelId: string, base: BattleSetup): BattleSe
   if (phase === 2) {
     // The board turned over: your own army in black, a little stronger. The Black King joins you.
     const enemies = s.formation.map((f) => ({
-      kind: f.kind, x: f.x, y: BOARD_SIZE - 1 - f.y, level: s.levels[f.kind] + 1, boss: f.kind === 'king',
+      kind: f.kind, x: f.x, y: BOARD_SIZE - 1 - f.y, level: Math.max(1, s.levels[f.kind] + 1 - finaleEase(s)), boss: f.kind === 'king',
     }));
     const taken = new Set(base.allies.map((a) => `${a.x},${a.y}`));
     const king = base.allies.find((a) => a.kind === 'king') ?? { x: 3, y: 7 };
@@ -770,6 +780,7 @@ function recordFinale(
   const firstClear = win && !s.finale.beaten && phase > s.finale.phase;
   let ending = false;
   if (win) {
+    if (phase > s.finale.phase) s.finale.losses = 0;
     s.finale.phase = Math.max(s.finale.phase, phase);
     if (phase === 3 && !s.finale.beaten) {
       s.finale.beaten = true;
@@ -777,6 +788,7 @@ function recordFinale(
       ending = true;
     }
   }
+  else if (!s.finale.beaten && phase === s.finale.phase + 1) s.finale.losses = (s.finale.losses ?? 0) + 1;
   countBattle(s, b, win, 0);
   return { win, firstClear, reward: 0, relicsEarned: 0, damageShare, ending };
 }

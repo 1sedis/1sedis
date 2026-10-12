@@ -47,7 +47,7 @@ describe('finale', () => {
     s.cleared['4-9'] = true;
     prestige(s);
     expect(s.finale.phase).toBe(1);
-    expect(parseSave(JSON.stringify({ version: 2 }))!.finale).toEqual({ phase: 0, beaten: false });
+    expect(parseSave(JSON.stringify({ version: 2 }))!.finale).toEqual({ phase: 0, beaten: false, losses: 0 });
   });
 
   test('enemy levels follow the army', () => {
@@ -123,5 +123,21 @@ describe('finale', () => {
       const b = createBattle(battleSetup(s, id));
       expect(simulate(b)).toMatch(/win|loss/);
     }
+  });
+});
+
+describe('the Hand grows tired', () => {
+  test('every two losses in a row at the next phase take a level off, up to six, and a phase win resets it', async () => {
+    const { newGame, finaleEase, finaleLevel, FINALE_EASE_MAX } = await import('../src/game/state');
+    const s = newGame(0);
+    s.levels.pawn = 20;
+    const base = finaleLevel(s);
+    s.finale.losses = 3;
+    expect(finaleEase(s)).toBe(1);
+    expect(finaleLevel(s)).toBe(base - 1);
+    s.finale.losses = 40;
+    expect(finaleEase(s)).toBe(FINALE_EASE_MAX);
+    s.finale.beaten = true;
+    expect(finaleEase(s)).toBe(0);
   });
 });
