@@ -13,10 +13,10 @@ import { traitUrl } from '../traitIcons';
 import { TRAITS, traitAdjective } from '../../game/elites';
 import { buildReport, pieceName } from '../../game/report';
 import {
-  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, firstReward, getLevel, isAbyss, isFinale,
+  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, getLevel, isAbyss, isFinale,
   nextLevelId,
 } from '../../game/levels';
-import { ELITE_GOLD, RUN_GOLD, activeBoons, availableNodes, boonText, enterNode, lives } from '../../game/run';
+import { activeBoons, availableNodes, boonText, enterNode, lives } from '../../game/run';
 import { ELITE_RULES } from '../../game/battle';
 import { livesRow, openRunEnd } from '../runNodes';
 import { bossArtUrl, hasBossArt } from '../bossArt';
@@ -24,7 +24,7 @@ import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
-  available, battleSetup, clearFormation, goldMultiplier, isEliteBattle, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isLevelOpen, isPlayerCell,
+  available, battleGold, battleSetup, clearFormation, isEliteBattle, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isLevelOpen, isPlayerCell,
   moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, upgradePiece, type BattleOutcome,
   type FormationSlot,
 } from '../../game/state';
@@ -101,6 +101,8 @@ export class ArenaScreen implements Screen {
   private limitText = el('b');
   private enemyText = el('div', 'info-line');
   private rewardText = el('div', 'info-line');
+  /** Phones: the key facts of the fight in one line above the board. */
+  private strip = el('div', 'prep-strip');
   private hintText = el('p', 'hint-text');
   private relicCard = el('div', 'task-relics');
   private relicSlot = el('div');
@@ -157,7 +159,7 @@ export class ArenaScreen implements Screen {
     const bossTrack = el('div', 'boss-bar-track');
     bossTrack.append(this.bossFill, el('span', 'boss-bar-notch'));
     this.bossBar.append(bossHead, bossTrack);
-    boardCol.append(this.bossBar);
+    boardCol.append(this.strip, this.bossBar);
     const trayPanel = el('div', 'bench-panel');
     const trayHead = el('div', 'panel-head');
     trayHead.append(el('span', 'panel-title', t('Резерв')), this.trayTitle);
@@ -388,12 +390,21 @@ export class ArenaScreen implements Screen {
       return;
     }
     const elite = isEliteBattle(s, level.id);
-    const gold = Math.round(firstReward(level.id) * RUN_GOLD * (elite ? ELITE_GOLD : 1) * goldMultiplier(s) * (s.relics.includes('plunder') ? 1.3 : 1));
+    const gold = battleGold(s, level.id, elite);
     setText(this.rewardText, t('Награда: +{gold} золота', { gold: fmt(gold) }) + (elite || level.boss ? t(' · реликвия') : '')
       + ' · ' + (lives(s) > 1 ? t('жизней: 2') : t('одна жизнь')));
     setText(this.hintText, level.hint);
     this.relicCard.hidden = s.relics.length === 0;
     this.relicSlot.replaceChildren(relicStrip(s.relics));
+    const traitIcons = [...new Set(this.enemies().filter((p) => p.trait).map((p) => p.trait!))].map((tr) => {
+      const img = el('img', 'strip-trait');
+      img.src = traitUrl(tr);
+      img.alt = '';
+      img.title = TRAITS[tr].text;
+      return img;
+    });
+    this.strip.replaceChildren(el('span', '', t('⚔ {n} · ур. {lv}', { n: enemies.length, lv: enemies[0]?.level ?? level.level })),
+      ...traitIcons, el('span', 'strip-gold', t('+{gold} золота', { gold: fmt(gold) })));
   }
 
   // ---------- Interaction ----------
@@ -915,6 +926,7 @@ export class ArenaScreen implements Screen {
     setDisabled(this.fightBtn, this.phase === 'result');
     this.speedBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === speed));
     setHidden(this.infoPanel, !prep);
+    setHidden(this.strip, !prep);
     setHidden(this.battlePanel, prep);
     setHidden(this.prepTools, !prep);
     // Parts of the screen a new player has not met yet stay out of the way.

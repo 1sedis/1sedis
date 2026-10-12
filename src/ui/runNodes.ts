@@ -6,7 +6,11 @@ import { CHAPTERS, getLevel as levelOf } from '../game/levels';
 import {
   EVENTS, buyItem, campForge, campGain, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type RunNode, type RunOver,
 } from '../game/run';
-import { startNextRun, upgradeCost, type GameState } from '../game/state';
+import { battleGold, enemyLevel, startNextRun, upgradeCost, type GameState } from '../game/state';
+import { enemyPlacements } from '../game/levels';
+import { TRAITS, traitAdjective, withElites } from '../game/elites';
+import { BOSSES, bossFor } from '../game/bosses';
+import { traitUrl } from './traitIcons';
 import { ARMIES, ARMY_ORDER, type ArmyId } from '../game/armies';
 import { activeThreats } from '../game/ascension';
 import { audio } from './audio';
@@ -34,8 +38,8 @@ export function nodeLabel(node: RunNode): string {
 }
 
 export const NODE_HELP: Record<RunNode['kind'], string> = {
-  battle: t('Бой. Победа приносит золото и звёзды.'),
-  elite: t('Элита: враги на уровень сильнее, с лишним элитным бойцом и особым правилом боя. За победу — реликвия.'),
+  battle: t('Бой. Победа приносит золото.'),
+  elite: t('Элита: враги на 2 уровня сильнее, с Чемпионом и особым правилом боя. За победу — реликвия.'),
   event: t('Событие: выбор с последствиями.'),
   shop: t('Торговец: реликвии, запасное знамя и заточка за золото.'),
   camp: t('Лагерь: заточить оружие или потренировать фигуру.'),
@@ -170,6 +174,56 @@ function modal(title: string, text: string): { content: HTMLElement; body: HTMLE
   const actions = el('div', 'modal-actions');
   content.append(el('h2', '', title), el('p', 'node-text', text), body, actions);
   return { content, body, actions };
+}
+
+/**
+ * A look at a fight before stepping on its node (stepping in is final: the path is chosen).
+ * `onGo` enters the node.
+ */
+export function openBattlePreview(ctx: Ctx, node: RunNode, onGo: () => void): void {
+  const s = ctx.state;
+  const level = levelOf(node.level!);
+  const elite = node.kind === 'elite';
+  const enemies = withElites(level.id, enemyPlacements(level), elite);
+  const lv = enemyLevel(s, level.id, elite);
+  const kind = node.kind === 'boss' ? t('Босс') : elite ? t('Элита') : t('Бой');
+  const { content, body, actions } = modal(nodeLabel(node), t('{kind} · {id} «{name}»', { kind, id: level.id, name: level.name }));
+  content.classList.add('preview-dialog', `preview-${node.kind}`);
+  body.append(el('div', 'preview-line', t('Враги: {n} · ур. {lv}', { n: enemies.length + (elite && node.rule === 'mirror' ? 0 : 0), lv })));
+  const traits = enemies.filter((p) => p.trait);
+  if (traits.length) {
+    const row = el('div', 'preview-traits');
+    for (const p of traits) {
+      const chip = el('span', 'terrain-chip');
+      const img = el('img');
+      img.src = traitUrl(p.trait!);
+      img.alt = '';
+      chip.append(img, `${traitAdjective(p.trait!, p.kind)} ${PIECES[p.kind].name.toLowerCase()}`);
+      chip.title = TRAITS[p.trait!].text;
+      row.append(chip);
+    }
+    body.append(row);
+  }
+  if (elite && node.rule) {
+    const r = ELITE_RULES[node.rule];
+    body.append(el('div', 'preview-rule', `☠ ${r.name}: ${r.text}.`), el('div', 'preview-note', t('Чемпион: самая сильная фигура врага — крупнее, крепче и всегда со свойством.')));
+  }
+  const boss = node.kind === 'boss' ? bossFor(level.id) : undefined;
+  if (boss) {
+    const d = BOSSES[boss];
+    if (d.passive) body.append(el('div', 'preview-rule', `◆ ${d.passive}: ${d.passiveText}.`));
+    body.append(el('div', 'preview-rule', `★ ${d.skill}: ${d.skillText}.`), el('div', 'preview-rule', `☠ ${d.rage}: ${d.rageText}.`));
+  }
+  body.append(el('div', 'preview-reward', t('Награда: +{gold} золота', { gold: fmt(battleGold(s, level.id, elite)) }) + (elite || boss ? t(' · реликвия') : '')));
+  const close = openModal(content, { cls: 'node-modal' });
+  const back = el('button', 'btn btn-ghost', t('Назад'));
+  back.addEventListener('click', close);
+  const go = el('button', `btn ${elite || boss ? 'btn-danger' : 'btn-primary'}`, t('В бой ▶'));
+  go.addEventListener('click', () => {
+    close();
+    onGo();
+  });
+  actions.append(back, go);
 }
 
 /** The dialog of an event, merchant or camp node. `onDone` runs once the node is finished. */

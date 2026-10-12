@@ -575,6 +575,24 @@ export function battleSetup(s: GameState, levelId: string): BattleSetup {
 /** Chapter bosses are tougher than the base giant. */
 export const CHAPTER_BOSS_HP = 1.2;
 
+/** Gold a won battle of the run pays: like a first clear, elites and bosses more. */
+export function battleGold(s: GameState, levelId: string, elite: boolean): number {
+  const boss = !!getLevel(levelId).boss;
+  let reward = firstReward(levelId) * RUN_GOLD * (elite ? ELITE_GOLD : 1);
+  if ((elite || boss) && hasNode(s, 'tribute')) reward *= 2;
+  if (elite || boss) reward *= rouletteBonuses(s.roulette).loot;
+  if (hasRelic(s, 'plunder')) reward *= 1.3;
+  reward *= threatMods(s.run.threat ?? 0).gold;
+  return Math.round(reward * goldMultiplier(s));
+}
+
+/** The level of the enemies of a run battle (as plainSetup builds them), for previews. */
+export function enemyLevel(s: GameState, levelId: string, elite: boolean): number {
+  const tm = threatMods(s.run.threat ?? 0);
+  return getLevel(levelId).level + prestigeEnemyBonus(s, levelId) + tm.enemyLevels
+    + (CHAPTER_ENEMY_LEVELS[chapterOf(levelId).id] ?? 0) + (elite ? ELITE_LEVELS + tm.eliteLevels : 0);
+}
+
 function plainSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s);
@@ -726,13 +744,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   const elite = isEliteBattle(s, levelId);
   let reward = 0;
   if (win) {
-    // Every battle of the run is fought once: it pays like a first clear, elites more.
-    reward = firstReward(levelId) * RUN_GOLD * (elite ? ELITE_GOLD : 1);
-    if ((elite || level.boss) && hasNode(s, 'tribute')) reward *= 2;
-    if (elite || level.boss) reward *= rouletteBonuses(s.roulette).loot;
-    if (hasRelic(s, 'plunder')) reward *= 1.3;
-    reward *= threatMods(s.run.threat ?? 0).gold;
-    reward = Math.round(reward * goldMultiplier(s));
+    reward = battleGold(s, levelId, elite);
   } else {
     reward = Math.round(replayReward(levelId) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
   }

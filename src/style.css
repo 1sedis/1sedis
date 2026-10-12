@@ -1980,7 +1980,7 @@ body.glitch .topbar, body.glitch .topnav, body.glitch .arena-titles { animation:
 .decision-time { margin-top: 12px; height: 6px; background: #2a2448; }
 .decision-time > div { height: 100%; background: var(--gold); transform-origin: left; animation: decision-drain linear forwards; }
 @keyframes decision-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-@media (width <= 560px) { .moves-tokens { height: 34px; padding: 0 6px; } .moves-label { display: none; } }
+@media (width <= 560px) { .moves-tokens { height: 34px; padding: 0 6px; } .moves-label { font-size: 12px; margin-right: 4px; } }
 
 /* The glove that shows where to tap */
 .tip-pointer { position: fixed; left: 0; top: 0; z-index: 120; width: 30px; height: 37px; pointer-events: none; image-rendering: pixelated;
@@ -2221,3 +2221,36 @@ body:has(.modal-overlay) .toast-layer { bottom: 12px; }
 .btn-danger-ghost { color: #ff5d85; --frame: #b31d48; background: transparent; }
 .btn-danger-ghost:hover { background: #3a0f1e; }
 .settings .modal-actions { justify-content: space-between; }
+
+/* ---------- Map: enemy level on fight nodes, the preview of a fight ---------- */
+.level-tile .node-lv { position: absolute; right: -6px; bottom: -6px; padding: 1px 4px; font-size: 13px; line-height: 1.2;
+  color: #fff; background: #241d4a; box-shadow: 0 0 0 2px #0b0818; white-space: nowrap; pointer-events: none; }
+.run-node.kind-elite .level-tile .node-lv { background: #8c1530; }
+.run-node.kind-boss .level-tile .node-lv { background: #b31d48; }
+.preview-dialog .node-body { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.preview-line { font-size: 18px; color: #fff; }
+.preview-traits { display: flex; flex-wrap: wrap; gap: 6px; }
+.preview-rule { color: #ffd0dc; line-height: 1.35; }
+.preview-note { color: var(--muted); font-size: 14px; }
+.preview-reward { color: var(--gold); }
+.preview-elite h2, .preview-boss h2 { color: #ff5d85; }
+
+@media (max-width: 560px) {
+  .run-info { padding: 6px 10px; margin-bottom: 10px; gap: 6px; }
+  .run-info .run-chapter { font-size: 14px; }
+  .boon-row { gap: 4px; }
+}
+
+/* Phones: the fight in one line above the board (wide screens have the side panel). */
+.prep-strip { display: none; }
+@media (max-width: 1000px) {
+  .prep-strip:not([hidden]) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 10px;
+    background: var(--bg-2); font-size: 15px; color: #fff; }
+  .prep-strip .strip-trait { width: 20px; height: 20px; image-rendering: pixelated; }
+  .prep-strip .strip-gold { margin-left: auto; color: var(--gold); }
+}
+
+/* Touch targets: at least 40px for everything a finger has to hit. */
+@media (pointer: coarse), (max-width: 560px) {
+  .info-btn, .seg-btn, .speed-seg button, .btn-small { min-height: 40px; min-width: 40px; }
+}

@@ -1,13 +1,13 @@
 import { CHAPTERS, finaleId, enemyPlacements } from '../../game/levels';
 import { MAP_ROWS, availableNodes, boonText, endRun, enterNode, runMap, type RunNode } from '../../game/run';
-import { NODE_HELP, NODE_ICON, livesRow, nodeLabel, openNodeDialog, openRunEnd } from '../runNodes';
+import { NODE_HELP, NODE_ICON, livesRow, nodeLabel, openBattlePreview, openNodeDialog, openRunEnd } from '../runNodes';
 import { iconUrl } from '../icons';
 import { ARMIES } from '../../game/armies';
 import { bossArtUrl, hasBossArt } from '../bossArt';
 import { bossFor } from '../../game/bosses';
 import { RELIC_IDS } from '../../game/relics';
 import {
-  PRESTIGE_UNLOCK, canPrestige, crownsForPrestige, gameNumber, isFinaleOpen,
+  PRESTIGE_UNLOCK, canPrestige, crownsForPrestige, enemyLevel, gameNumber, isFinaleOpen,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
 import { confirmDialog, el, infoBtn, setText, toast } from '../dom';
@@ -125,7 +125,7 @@ export class MapScreen implements Screen {
     setText(this.chapterSub, t('{sub} · до {n} фигур в бою', { sub: chapter.subtitle, n: chapter.limit }));
     const info = el('span', 'run-chapter', s.run.complete
       ? t('Партия {g} · кампания пройдена', { g: s.prestige + 1 })
-      : t('Партия {g} · глава {ch} из {total} · {army}', { g: s.prestige + 1, ch: chapter.id, total: CHAPTERS.length, army: ARMIES[s.run.army ?? 'guard'].name }));
+      : t('Партия {g} · {army}', { g: s.prestige + 1, army: ARMIES[s.run.army ?? 'guard'].name }));
     const help = infoBtn(t('Карта главы'),
       t('Каждая глава — карта с развилками. Выбирайте путь: от узла можно идти только по дорогам вниз.\n⚔ Бой — золото. ☠ Элита — враги сильнее, зато реликвия. ? Событие — выбор с последствиями. Торговец продаёт реликвии и запасное знамя, в лагере можно заточить оружие или потренировать фигуру. В конце — босс.\nЖизнь одна: поражение заканчивает забег, и новый начнётся с 1-1 — с новой армией, но с коронами за пройденный путь. Запасное знамя (реликвия) даёт вторую жизнь.'));
     const right = el('span', 'run-right');
@@ -229,6 +229,8 @@ export class MapScreen implements Screen {
         img.alt = '';
         tile.append(img);
       }
+      // How strong the enemies of a fight ahead are.
+      if (node.level && !done) tile.append(el('span', 'node-lv', t('ур. {lv}', { lv: enemyLevel(s, node.level, node.kind === 'elite') })));
       btn.append(tile, el('div', 'level-name', nodeLabel(node)));
       if (node.id === last || (!last && node.row === 0)) {
         const king = el('img', 'map-king');
@@ -244,11 +246,24 @@ export class MapScreen implements Screen {
     requestAnimationFrame(() => {
       this.drawScene();
       this.drawEdges();
-      this.path.querySelector<HTMLElement>('.run-node.current')?.scrollIntoView({ block: 'nearest' });
+      // The rows you can step on now are brought to the middle of the screen.
+      const cur = this.path.querySelector<HTMLElement>('.run-node.current');
+      if (cur && cur.getBoundingClientRect().top > window.innerHeight * 0.6) cur.scrollIntoView({ block: 'center' });
     });
   }
 
   private onNode(node: RunNode): void {
+    const s = this.ctx.state;
+    // A fight is looked at before it is chosen: stepping on a node is final.
+    if (node.level && s.run.at !== node.id) {
+      audio.play('select');
+      openBattlePreview(this.ctx, node, () => this.enter(node));
+      return;
+    }
+    this.enter(node);
+  }
+
+  private enter(node: RunNode): void {
     const s = this.ctx.state;
     if (s.run.at !== node.id && !enterNode(s, node.id)) return;
     this.ctx.save();
