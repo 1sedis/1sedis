@@ -104,6 +104,8 @@ export interface GameState {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
     elites: number; events: number; cleanChapters: number; runs: number;
+    /** The highest threat level a game was won at. */
+    bestThreat?: number;
   };
 }
 
@@ -756,8 +758,11 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   let spared = false;
   let runOver = false;
   let chapterDone = false;
+  if (atNode) s.run.chapterLosses = (s.run.chapterLosses ?? 0) + b.allyLosses;
   if (atNode && win) {
     chapterDone = !!level.boss;
+    // "Ни шагу назад": a whole chapter without losing a single piece.
+    if (chapterDone && !s.run.chapterLosses) s.stats.cleanChapters++;
     winNode(s);
   } else if (atNode) {
     spared = loseNode(s, levelId) === 'spared';
@@ -933,16 +938,12 @@ export function checkAchievements(s: GameState): string[] {
 }
 
 /** Crowns an achievement pays: one, or two for the hardest. */
-export function achievementCrowns(goldValue: number): number {
-  return goldValue >= 20000 ? 2 : 1;
-}
-
 export function claimAchievement(s: GameState, id: string): number {
   const def = getAchievement(id);
   if (!def || !s.achievements.includes(id) || s.achievementsClaimed.includes(id)) return 0;
   s.achievementsClaimed.push(id);
   // Crowns, not gold: gold belongs to the run, and a big reward would decide it.
-  const crowns = achievementCrowns(def.reward);
+  const crowns = def.crowns;
   s.crowns += crowns;
   return crowns;
 }

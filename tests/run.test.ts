@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CHAMPION_HP, createBattle } from '../src/game/battle';
+import { getAchievement } from '../src/game/achievements';
 import { CHAPTERS } from '../src/game/levels';
 import {
   EVENTS, EVENT_IDS, MAP_ROWS, activeBoons, eventFits, SPARE, availableNodes, buildMap, buyItem, campForge, campTrain, chooseEvent, currentNode,
   enterNode, lives, shopItems, type RunNode,
 } from '../src/game/run';
 import {
-  battleSetup, commandLimit, isAbyssOpen, isEliteBattle, isLevelOpen, newGame, parseSave, prestige, recordResult, recruit, startNextRun, type GameState,
+  battleSetup, claimAchievement, commandLimit, isAbyssOpen, isEliteBattle, isLevelOpen, newGame, parseSave, prestige, recordResult, recruit, startNextRun, type GameState,
 } from '../src/game/state';
 
 /** Win or lose the battle at a node the quick way. */
@@ -336,5 +337,29 @@ describe('threat levels', () => {
     s.threatMax = 10;
     expect(shopItems(s, { id: 'x', row: 0, lane: 0, kind: 'shop', next: [] }).some((i) => i.relic === SPARE)).toBe(false);
     expect(commandLimit(s, node.level!)).toBe(commandLimit(plain, node.level!) - 1);
+  });
+});
+
+describe('achievements pay crowns', () => {
+  it('a claim pays exactly the crowns the card shows', () => {
+    const s = newGame(0);
+    s.achievements = ['boss_4', 'first_win'];
+    const before = s.crowns;
+    expect(claimAchievement(s, 'boss_4')).toBe(getAchievement('boss_4')!.crowns);
+    expect(claimAchievement(s, 'first_win')).toBe(1);
+    expect(s.crowns).toBe(before + getAchievement('boss_4')!.crowns + 1);
+    expect(claimAchievement(s, 'boss_4')).toBe(0);
+  });
+
+  it('a chapter without losses counts as clean', () => {
+    const s = newGame(0);
+    const map = buildMap(1, s.run.seed);
+    const boss = map.nodes.find((n) => n.kind === 'boss')!;
+    s.run.done = map.nodes.filter((n) => n.next.includes(boss.id)).slice(0, 1).map((n) => n.id);
+    enterNode(s, boss.id);
+    const b = createBattle(battleSetup(s, '1-9'));
+    b.result = 'win';
+    recordResult(s, '1-9', b);
+    expect(s.stats.cleanChapters).toBe(1);
   });
 });

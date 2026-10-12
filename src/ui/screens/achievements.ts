@@ -48,7 +48,7 @@ export class AchievementsScreen implements Screen {
       for (const r of this.rows) if (r.state === 'ready') total += claimAchievement(this.ctx.state, r.def.id);
       if (total > 0) {
         audio.play('coins');
-        toast(t('Награды за достижения: +{gold} золота', { gold: fmt(total) }), 'good');
+        toast(t('Награды за достижения: +{n} ♛', { n: total }), 'good');
         this.ctx.save();
       }
     });
@@ -67,14 +67,15 @@ export class AchievementsScreen implements Screen {
       const bar = el('div', 'ach-fill');
       track.append(bar);
       body.append(head, el('div', 'ach-desc', def.description), track);
-      const reward = el('div', 'ach-reward', `+${fmt(def.reward)}`);
+      const reward = el('div', 'ach-reward', `+${def.crowns} ♛`);
+      reward.title = t('Награда: {n} ♛ — короны тратятся в Древе и Колесе короны', { n: def.crowns });
       const btn = el('button', 'btn btn-buy ach-btn', t('Забрать'));
       btn.addEventListener('click', () => {
         const got = claimAchievement(this.ctx.state, def.id);
         if (got > 0) {
           audio.play('coins');
           pulse(btn);
-          toast(t('«{name}»: +{gold} золота', { name: def.name, gold: fmt(got) }), 'good');
+          toast(t('«{name}»: +{n} ♛', { name: def.name, n: got }), 'good');
           this.ctx.save();
         }
       });

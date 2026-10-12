@@ -78,6 +78,8 @@ export interface RunState {
   army?: ArmyId;
   /** The threat level this run is played at (0: none). */
   threat?: number;
+  /** Pieces lost in this chapter so far. */
+  chapterLosses?: number;
   /** Blessings and curses from events that last a few battles. */
   boons?: Boon[];
 }
@@ -311,7 +313,7 @@ export function newRun(seed: number): RunState {
 
 /** Start a chapter on a fresh map. */
 export function startChapter(s: GameState, chapter: number, seed = s.run.seed): void {
-  s.run = { ...s.run, chapter, seed, done: [], at: null, bought: [] };
+  s.run = { ...s.run, chapter, seed, done: [], at: null, bought: [], chapterLosses: 0 };
 }
 
 /** Enter a node. Battles then go to the arena; events, merchants and camps open their dialog. */
@@ -381,6 +383,7 @@ export function endRun(s: GameState, won: boolean, at: string): RunOver {
   // A won game at the highest threat opens the next one.
   const threat = s.run.threat ?? 0;
   if (won && threat >= s.threatMax) s.threatMax = Math.min(MAX_THREAT, threat + 1);
+  if (won) s.stats.bestThreat = Math.max(s.stats.bestThreat ?? -1, threat);
   s.stats.runs++;
   s.run.over = {
     won, chapter: s.run.chapter, at, wins: s.run.wins, elites: s.run.elites, bosses: s.run.bosses,
