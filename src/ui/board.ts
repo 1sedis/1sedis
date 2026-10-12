@@ -507,7 +507,7 @@ export class BoardView {
   shatter(x: number, y: number, src: string): void {
     const dirs = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
     dirs.forEach(([dx, dy], i) => {
-      const s = el('div', 'fx-shard');
+      const s = el('div', 'fx-splinter');
       s.style.backgroundImage = `url(${src})`;
       s.style.backgroundPosition = `${dx < 0 ? 0 : 100}% ${dy < 0 ? 0 : 100}%`;
       s.style.setProperty('--sx', `${dx * (24 + i * 4)}px`);

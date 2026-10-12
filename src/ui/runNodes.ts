@@ -240,7 +240,7 @@ const EVENT_ART: Record<EventId, { piece?: [PieceKind, 'ally' | 'enemy']; icon?:
   well: { icon: 'spark', color: '#1a3a6a' }, bard: { icon: 'star', color: '#5a3a1a' },
   oracle: { icon: 'question', color: '#2a1a5a' }, outpost: { piece: ['rook', 'ally'], color: '#3a4a5a' },
   refugees: { piece: ['pawn', 'ally'], color: '#4a3a2a' }, ambush: { icon: 'sword', color: '#5a1a1a' },
-  gravedigger: { icon: 'skull', color: '#2a2a3a' }, library: { icon: 'shard', color: '#2a1a4a' },
+  gravedigger: { icon: 'skull', color: '#2a2a3a' }, library: { icon: 'gem', color: '#2a1a4a' },
   lake: { piece: ['queen', 'enemy'], color: '#1a3a5a' }, witch: { icon: 'fire', color: '#2a4a1a' },
   anvil: { icon: 'sword', color: '#4a3a2a' }, tournament: { piece: ['knight', 'ally'], color: '#5a4a1a' },
 };

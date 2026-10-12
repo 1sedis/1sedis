@@ -676,7 +676,7 @@ export class ArenaScreen implements Screen {
       if (o.chapterDone) {
         const s = this.ctx.state;
         content.append(el('div', 'result-unlock', s.run.complete
-          ? t('Чёрный ферзь пал — кампания этой партии пройдена!')
+          ? t('Чёрный ферзь пал — все четыре главы пройдены!')
           : t('Глава пройдена! Впереди глава {n}: {name}.', { n: s.run.chapter, name: CHAPTERS[s.run.chapter - 1].name })));
       }
     } else {

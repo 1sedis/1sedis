@@ -73,4 +73,9 @@ describe('localization', () => {
     }
     expect(stale).toEqual([]);
   });
+
+  it('the English dictionary holds no keys the game no longer uses', () => {
+    const used = new Set(SOURCES.flatMap(([, code]) => keys(code)));
+    expect(Object.keys(EN).filter((k) => !used.has(k))).toEqual([]);
+  });
 });

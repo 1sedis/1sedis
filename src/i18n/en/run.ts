@@ -242,8 +242,6 @@ export const run: Record<string, string> = {
   'Событие': 'Event',
   'Торговец': 'Merchant',
   'Лагерь': 'Camp',
-  'Бой. Победа приносит золото и звёзды.': 'Battle. Victory brings gold and stars.',
-  'Элита: враги на уровень сильнее, с лишним элитным бойцом и особым правилом боя. За победу — реликвия.': 'Elite: enemies one level stronger, with an extra elite fighter and a special battle rule. Win for a relic.',
   'Событие: выбор с последствиями.': 'Event: a choice with consequences.',
   'Торговец: реликвии, запасное знамя и заточка за золото.': 'Merchant: relics, a Spare Banner and sharpening for gold.',
   'Лагерь: заточить оружие или потренировать фигуру.': 'Camp: sharpen weapons or train a piece.',

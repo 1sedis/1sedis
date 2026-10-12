@@ -42,7 +42,7 @@ export const scenes: Record<string, string> = {
   'Но ты… ты помнишь. Этого раньше не случалось.': 'But you… you remember. That has never happened before.',
   'Из трещин сочится тьма. Мои фигуры её пьют, а твои — растворяются.': 'Darkness seeps from the cracks. My pieces drink it; yours dissolve.',
   'Под доской — не пустота. Там лежат все фигуры, сброшенные за тысячу партий.': 'Beneath the board is not emptiness. There lie all the pieces swept away in a thousand games.',
-  'Короны, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.': 'The crowns you gather are their memory. That is why the Wheel whispers in the voices of the fallen.',
+  'Короны, что ты собираешь, — их память. Поэтому Колесо короны шепчет голосами павших.': 'The crowns you gather are their memory. That is why the Crown Wheel whispers in the voices of the fallen.',
   'Я больше не посылаю новобранцев.': 'I send no more raw recruits.',
   'Моя гвардия стоит на каждой клетке — с первой до последней.': 'My guard stands on every square, from the first to the last.',
   'Пробуждение и тьма никуда не делись. Искажения копятся.': 'The Awakening and the darkness remain. The distortions pile up.',

@@ -1,5 +1,5 @@
 /** 8x8 pixel icons that replace system glyphs (★ 🔒 ❤ ⚔ ◎ ◆ ♛ ☠ ✦) in UI text. */
-export type IconId = 'coin' | 'star' | 'starEmpty' | 'lock' | 'heart' | 'sword' | 'range' | 'shard' | 'crown' | 'skull' | 'spark'
+export type IconId = 'coin' | 'star' | 'starEmpty' | 'lock' | 'heart' | 'sword' | 'range' | 'gem' | 'crown' | 'skull' | 'spark'
   | 'fire' | 'bag' | 'question' | 'flag';
 
 const MAPS: Record<IconId, string[]> = {
@@ -10,7 +10,7 @@ const MAPS: Record<IconId, string[]> = {
   heart: ['.oo..oo.', 'ohaoohao', 'ohaaaabo', 'oaaaaabo', '.oaaabo.', '..oabo..', '...oo...', '........'],
   sword: ['......oo', '.....oho', '....oho.', 'o..oho..', 'oooho...', '.oao....', 'obooo...', 'oo..o...'],
   range: ['..oooo..', '.oaaaao.', 'oao..oao', 'oa.hh.ao', 'oa.hh.ao', 'oao..oao', '.oaaaao.', '..oooo..'],
-  shard: ['...oo...', '..ohao..', '.ohaaao.', 'ohaaaabo', '.oaaabo.', '..oabo..', '...oo...', '........'],
+  gem: ['...oo...', '..ohao..', '.ohaaao.', 'ohaaaabo', '.oaaabo.', '..oabo..', '...oo...', '........'],
   crown: ['........', 'o..o..o.', 'ohoaoao.', 'ohaaaao.', 'oaaaabo.', 'oaaaabo.', 'oooooooo', '........'],
   skull: ['.oooooo.', 'ohaaaaao', 'oaaaaaao', 'ao.aa.ao', 'oaaooaao', '.oaaaao.', '.oaoaoo.', '..oooo..'],
   spark: ['...o....', '...a....', '..oho...', 'oahhhao.', '..oho...', '...a....', '...o....', '........'],
@@ -28,7 +28,7 @@ const COLORS: Record<IconId, Record<string, string>> = {
   heart: { o: '#4a0f22', h: '#ffc2d0', a: '#ff4d6d', b: '#c42a4a' },
   sword: { o: '#1a1433', h: '#eef2ff', a: '#9aa6c8', b: '#a8743a' },
   range: { o: '#1a1433', h: '#ff4d6d', a: '#cfd6ff' },
-  shard: { o: '#2a1660', h: '#f0e2ff', a: '#b78cff', b: '#7a4fe0' },
+  gem: { o: '#2a1660', h: '#f0e2ff', a: '#b78cff', b: '#7a4fe0' },
   crown: { o: '#6b4709', h: '#fff4c2', a: '#ffcf4a', b: '#e0a020' },
   skull: { o: '#1a1433', h: '#ffffff', a: '#e8e2f2' },
   spark: { o: '#c98f12', a: '#ffcf4a', h: '#fff8dc' },
@@ -39,7 +39,7 @@ const COLORS: Record<IconId, Record<string, string>> = {
 };
 
 const GLYPHS: Record<string, IconId> = {
-  '★': 'star', '☆': 'starEmpty', '🔒': 'lock', '❤': 'heart', '⚔': 'sword', '◎': 'range', '◆': 'shard', '♛': 'crown', '☠': 'skull', '✦': 'spark',
+  '★': 'star', '☆': 'starEmpty', '🔒': 'lock', '❤': 'heart', '⚔': 'sword', '◎': 'range', '◆': 'gem', '♛': 'crown', '☠': 'skull', '✦': 'spark',
 };
 const GLYPH_RE = /(★|☆|🔒|❤|⚔|◎|◆|♛|☠|✦)/u;
 const SPLIT_RE = /(★|☆|🔒|❤|⚔|◎|◆|♛|☠|✦)/gu;

@@ -63,7 +63,7 @@ export const arena: Record<string, string> = {
   '+{gold} золота': '+{gold} gold',
   'Трофей: бесплатная крутка Колеса короны': 'Trophy: a free Crown Wheel spin',
   'Новая фигура: {name}! Наймите в лагере.': 'New piece: {name}! Recruit at camp.',
-  'Чёрный ферзь пал — кампания этой партии пройдена!': 'The Black Queen has fallen — this game\'s campaign is won!',
+  'Чёрный ферзь пал — все четыре главы пройдены!': 'The Black Queen has fallen — all four chapters are cleared!',
   'Глава пройдена! Впереди глава {n}: {name}.': 'Chapter cleared! Ahead: chapter {n}: {name}.',
   '+{gold} золота за {p}% урона врагу': '+{gold} gold for {p}% damage dealt',
   'Король пал — забег окончен.': 'The King has fallen — the run is over.',
@@ -144,7 +144,7 @@ export const arena: Record<string, string> = {
   'Понятно': 'Got it',
   // src/ui/relics.ts
   'Выберите реликвию': 'Choose a Relic',
-  'Реликвия действует до конца игры. Остальные две могут выпасть позже.': 'A relic lasts until the end of the game. The other two may turn up later.',
+  'Реликвия действует до конца забега. Остальные две могут выпасть позже.': 'The relic lasts until the run ends. The other two may turn up later.',
   'Реликвия «{name}» получена': 'Relic "{name}" obtained',
   'Выбрать позже': 'Choose Later',
   '⌛ Время на исходе': '⌛ Time is running out',

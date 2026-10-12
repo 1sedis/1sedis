@@ -225,7 +225,7 @@ export function loreScene(lore: number, game: number): Step[] {
         { t: 'wait', ms: 600 },
         ...['g1', 'g2', 'g3', 'g4'].map((id, i): Step => ({ t: 'move', id, x: [1, 3, 5, 6][i], y: 2, ms: 1400, par: true })),
         ...['g1', 'g2', 'g3', 'g4'].map((id): Step => ({ t: 'fade', id, to: 0, ms: 1400, par: true })),
-        { t: 'caption', text: t('Короны, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.') },
+        { t: 'caption', text: t('Короны, что ты собираешь, — их память. Поэтому Колесо короны шепчет голосами павших.') },
         say('bk', t('Я больше не посылаю новобранцев.')),
         { t: 'badge', id: 'bp1', trait: 'swift' },
         { t: 'badge', id: 'bp2', trait: 'thorns' },

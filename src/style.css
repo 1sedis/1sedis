@@ -1602,14 +1602,14 @@ button.ability-chip:hover { opacity: 1; }
 .fx-spark.crit { width: 11%; height: 11%; background: var(--gold); }
 @keyframes spark { from { transform: translate(-50%, -50%) scale(.4) rotate(0); } to { transform: translate(-50%, -50%) scale(1.6) rotate(45deg); opacity: 0; } }
 .fx-bolt.ghost::after { transform: scale(.7); box-shadow: none; }
-.fx-shard { position: absolute; width: 6%; height: 6%; transform: translate(-50%, -50%); z-index: 3; pointer-events: none;
-  background-size: 200% 200%; image-rendering: pixelated; animation: shard .6s steps(8, end) forwards; }
-@keyframes shard {
+.fx-splinter { position: absolute; width: 6%; height: 6%; transform: translate(-50%, -50%); z-index: 3; pointer-events: none;
+  background-size: 200% 200%; image-rendering: pixelated; animation: splinter .6s steps(8, end) forwards; }
+@keyframes splinter {
   from { transform: translate(-50%, -50%); opacity: 1; }
   60% { opacity: 1; }
   to { transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy) + 30px)) rotate(var(--rot)); opacity: 0; }
 }
-@media (prefers-reduced-motion: reduce) { .fx-spark, .fx-shard { display: none; } }
+@media (prefers-reduced-motion: reduce) { .fx-spark, .fx-splinter { display: none; } }
 
 /* ---------- Chapter accent on frames and titles ---------- */
 body { --frame-accent: var(--line); --accent-ink: var(--ink); }

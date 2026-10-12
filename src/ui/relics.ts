@@ -37,7 +37,7 @@ export function openRelicPicker(ctx: Ctx, onDone?: () => void): void {
   const content = el('div', 'relic-picker');
   content.append(
     el('h2', '', t('Выберите реликвию')),
-    el('p', 'hint', t('Реликвия действует до конца игры. Остальные две могут выпасть позже.')),
+    el('p', 'hint', t('Реликвия действует до конца забега. Остальные две могут выпасть позже.')),
   );
   const cards = el('div', 'relic-cards');
   let close = () => {};

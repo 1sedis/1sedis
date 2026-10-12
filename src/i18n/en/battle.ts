@@ -2,11 +2,9 @@
 export const battle: Record<string, string> = {
   // src/game/battle.ts — elite rules
   'Бессмертные': 'Undying',
-  'первые три павших врага встают тенями с 40% здоровья': 'the first three fallen enemies rise as shades with 40% health',
   'Бешенство': 'Frenzy',
   'враги бьют и ходят на треть быстрее': 'enemies attack and move a third faster',
   'Подкрепление': 'Reinforcements',
-  'каждые 8 секунд к врагу подходит свежая фигура': 'every 8 seconds a fresh piece joins the enemy',
   'Наступающая тьма': 'Creeping Dark',
   'каждые 6 секунд тьма захватывает новые клетки вашей половины': 'every 6 seconds darkness takes new squares on your half',
   'Зеркало': 'Mirror',
