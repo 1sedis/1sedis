@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createBattle, simulate, stepBattle, type Placement } from '../src/game/battle';
 import { RELIC_IDS, rollOffer } from '../src/game/relics';
 import {
-  battleSetup, chooseRelic, commandLimit, incomePerMinute, newGame, recordResult, relicOffer,
+  battleSetup, chooseRelic, commandLimit, newGame, recordResult, relicOffer,
 } from '../src/game/state';
 
 const p = (kind: Placement['kind'], x: number, y: number, level = 1): Placement => ({ kind, x, y, level });
@@ -42,14 +42,11 @@ describe('relic picks', () => {
 });
 
 describe('relic effects', () => {
-  it('reserve and fertile lands change the economy', () => {
+  it('reserve adds a piece to every battle', () => {
     const s = newGame(0);
-    s.stars['1-1'] = 1;
     const limit = commandLimit(s, '1-2');
-    const income = incomePerMinute(s);
-    s.relics = ['reserve', 'fertile'];
+    s.relics = ['reserve'];
     expect(commandLimit(s, '1-2')).toBe(limit + 1);
-    expect(incomePerMinute(s)).toBeCloseTo(income * 1.35);
   });
 
   it('second life saves the king once', () => {

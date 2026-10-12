@@ -56,13 +56,13 @@ describe('finale', () => {
   test('enemy levels follow the army', () => {
     const s = opened();
     expect(finaleLevel(s)).toBe(12);
-    // Neglected pieces do not drag the level down: it follows the strongest copies.
+    // The mean of every copy: six pawns at 20 weigh more than one neglected rook.
     const t = opened();
     t.levels.pawn = 20;
     t.levels.rook = 1;
     t.army.pawn = 6;
-    expect(finaleLevel(t)).toBe(20);
-    expect(battleSetup(s, 'final-1').enemies.every((e) => e.level === 15)).toBe(true);
+    expect(finaleLevel(t)).toBe(15);
+    expect(battleSetup(s, 'final-1').enemies.every((e) => e.level === 14)).toBe(true);
     expect(battleSetup(s, 'final-1').enemies.filter((e) => e.trait).length).toBe(7);
   });
 

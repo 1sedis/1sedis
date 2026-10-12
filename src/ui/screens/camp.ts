@@ -16,7 +16,7 @@ import { openCodex } from '../codex';
 import { showMulti, showSpin } from '../roulette';
 
 const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
-const SHORT_BUILDING: Record<BuildingId, string> = { treasury: '+25% дохода казны', hq: '+1 фигура в бою', forge: '+6% к силе армии' };
+const SHORT_BUILDING: Record<BuildingId, string> = { hq: '+1 фигура в бою', forge: '+6% к силе армии' };
 
 interface ArmyRow {
   kind: PieceKind;

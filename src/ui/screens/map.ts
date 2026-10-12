@@ -1,14 +1,13 @@
-import { ABYSS_UNLOCK, CHAPTERS, abyssId, finaleId, enemyPlacements } from '../../game/levels';
-import { MAP_ROWS, availableNodes, enterNode, runMap, type RunNode } from '../../game/run';
-import { NODE_HELP, NODE_ICON, bannerRow, nodeLabel, openNodeDialog } from '../runNodes';
+import { CHAPTERS, abyssId, finaleId, enemyPlacements } from '../../game/levels';
+import { MAP_ROWS, availableNodes, endRun, enterNode, runMap, type RunNode } from '../../game/run';
+import { NODE_HELP, NODE_ICON, livesRow, nodeLabel, openNodeDialog, openRunEnd } from '../runNodes';
 import { iconUrl } from '../icons';
 import { RELIC_IDS } from '../../game/relics';
 import {
-  canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, prestige, isFinaleOpen,
-  collectTreasury, incomePerMinute, treasuryCap, treasuryCapHours,
+  PRESTIGE_UNLOCK, canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, isFinaleOpen,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
-import { confirmDialog, el, infoBtn, pulse, setText, stars, toast } from '../dom';
+import { confirmDialog, el, infoBtn, setText, stars, toast } from '../dom';
 import { fmt } from '../format';
 import { audio } from '../audio';
 import { openRelicPicker, relicStrip } from '../relics';
@@ -35,14 +34,9 @@ export class MapScreen implements Screen {
   private path = el('div', 'level-path');
   private scene = el('canvas', 'map-scene');
   private sceneSig = '';
-  private treasuryAmount = el('b');
-  private treasuryFill = el('div', 'bar-fill');
-  private treasuryInfo = el('div', 'treasury-info');
-  private collectBtn = el('button', 'btn btn-buy', 'Забрать');
   private relicList = el('div');
   private relicCount = el('span');
   private relicBtn = el('button', 'btn btn-up');
-  private treasuryCard!: HTMLElement;
   private relicsCard!: HTMLElement;
   private abyssCard = el('div', 'card abyss-card');
   private abyssInfo = el('div', 'treasury-info');
@@ -72,37 +66,17 @@ export class MapScreen implements Screen {
     new ResizeObserver(() => this.drawScene()).observe(this.path);
 
     const side = el('aside', 'map-side');
-    const treasury = el('div', 'card treasury');
-    this.treasuryCard = treasury;
-    const tHead = el('div', 'panel-head');
-    tHead.append(el('span', 'panel-title', 'Казна'), infoBtn('Казна', () =>
-      'Каждый пройденный бой приносит золото в минуту.\n'
-      + `Казна копится до ${treasuryCapHours(this.ctx.state)} ч, даже когда игра закрыта. Постройка «Казна» увеличивает доход и запас.`));
-    const amountRow = el('div', 'treasury-amount');
-    amountRow.append(this.treasuryAmount);
-    const bar = el('div', 'bar');
-    bar.append(this.treasuryFill);
-    this.collectBtn.addEventListener('click', () => {
-      const got = collectTreasury(this.ctx.state);
-      if (got > 0) {
-        audio.play('coins');
-        toast(`+${fmt(got)} золота из казны`, 'good');
-        this.ctx.save();
-      }
-    });
-    treasury.append(tHead, amountRow, bar, this.treasuryInfo, this.collectBtn);
-
     const relics = el('div', 'card relics-card');
     this.relicsCard = relics;
     const rHead = el('div', 'panel-head');
     rHead.append(el('span', 'panel-title', 'Реликвии'), this.relicCount, infoBtn('Реликвии',
-      'Бонусы, меняющие правила боя, до конца партии.\nЗа каждого босса и каждую элиту вы выбираете одну из трёх; ещё их продаёт торговец и дарят события. Наведите на значок или нажмите на него, чтобы прочитать описание.'));
+      'Бонусы, меняющие правила боя, до конца забега.\nЗа каждого босса и каждую элиту вы выбираете одну из трёх; ещё их продаёт торговец и дарят события. Наведите на значок или нажмите на него, чтобы прочитать описание.'));
     this.relicBtn.addEventListener('click', () => openRelicPicker(this.ctx, () => this.renderRelics()));
     relics.append(rHead, this.relicList, this.relicBtn);
 
     const aHead = el('div', 'panel-head');
     aHead.append(el('span', 'panel-title', 'Бездна'), infoBtn('Бездна',
-      'Бесконечные этажи: чем глубже, тем сильнее враги и богаче награда.\nТолько здесь добываются осколки ◆ — за них крутят «Рулетку бездны» с вечными улучшениями, вплоть до легендарных.\nКаждые 10 этажей — страж с тройным здоровьем и реликвия. Авто-спуск ведёт армию дальше сам.'));
+      'Бесконечный путь после победы в партии: армия забега спускается этаж за этажом, враги всё сильнее.\nЗдесь добываются осколки ◆ — за них крутят «Рулетку бездны» с вечными улучшениями, а каждые 5 этажей — ещё и корона.\nПервое поражение заканчивает забег. Каждые 10 этажей — страж с тройным здоровьем и реликвия.'));
     const aImg = el('img', 'abyss-img');
     aImg.src = spriteUrl('king', 'enemy', 2);
     aImg.alt = '';
@@ -110,8 +84,8 @@ export class MapScreen implements Screen {
     this.abyssCard.append(aHead, aImg, this.abyssInfo, this.abyssBtn);
 
     const pHead = el('div', 'panel-head');
-    pHead.append(el('span', 'panel-title', 'Новая партия'), infoBtn('Новая партия',
-      'После финального босса можно начать кампанию заново ради корон.\nКороны тратятся в «Древе короны» на доктрины: новые шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы древа открываются в следующих партиях.\nВраги становятся сильнее (в первой главе чуть-чуть, к Тронному залу на 2 уровня), награды растут. Каждая партия приносит искажение — Чёрный король меняет одно правило. Короны, древо, достижения, осколки и рекорд Бездны сохраняются.'));
+    pHead.append(el('span', 'panel-title', 'Короны'), infoBtn('Короны и партии',
+      'Каждый забег, даже проигранный, приносит короны: по 2 за босса, по 1 за элиту, 3 за победу в партии и по 1 за каждые 5 этажей Бездны.\nКороны тратятся в «Древе короны» на доктрины: шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы открываются в следующих партиях.\nПобеда над Чёрным ферзём выигрывает партию: следующая будет труднее, Чёрный король принесёт новое искажение. Проигранный забег повторяет ту же партию с 1-1.'));
     this.prestigeBtn.addEventListener('click', () => void this.onPrestige());
     this.treeBtn.addEventListener('click', () => openCrownTree(this.ctx));
     this.chronicleBtn.addEventListener('click', () => openChronicle(this.ctx.state, () => this.ctx.save(),
@@ -120,7 +94,7 @@ export class MapScreen implements Screen {
 
     const fHead = el('div', 'panel-head');
     fHead.append(el('span', 'panel-title', 'Край доски'), infoBtn('Край доски',
-      'Конец истории: три боя подряд, один страшнее другого.\nВраги подстраиваются под силу вашей армии — помогут кузница, реликвии, древо и рулетка. Выигранные бои сохраняются.'));
+      'Конец истории: три боя подряд, один страшнее другого.\nВраги подстраиваются под силу вашей армии — помогут кузница, реликвии, древо и рулетка. Выигранные бои сохраняются, а поражение здесь забег не заканчивает.'));
     const fImg = el('img', 'finale-img');
     fImg.src = handUrl();
     fImg.alt = '';
@@ -132,7 +106,7 @@ export class MapScreen implements Screen {
     this.creditsBtn.addEventListener('click', () => void playCredits(this.ctx.state));
     this.finaleCard.append(fHead, fImg, this.finaleInfo, this.finalePips, this.finaleBtn, this.creditsBtn);
 
-    side.append(treasury, this.abyssCard, relics, this.finaleCard, this.prestigeCard);
+    side.append(this.prestigeCard, this.abyssCard, relics, this.finaleCard);
     this.root.append(main, side);
   }
 
@@ -140,6 +114,7 @@ export class MapScreen implements Screen {
     this.chapter = this.ctx.state.run.chapter;
     this.renderChapter();
     this.renderRelics();
+    if (this.ctx.state.run.over) this.showRunEnd();
   }
 
   private renderChapter(): void {
@@ -159,11 +134,11 @@ export class MapScreen implements Screen {
     const help = infoBtn('Карта главы',
       'Каждая глава — карта с развилками. Выбирайте путь: от узла можно идти только по дорогам вниз.\n'
       + '⚔ Бой — золото и звёзды. ☠ Элита — враги сильнее, зато реликвия. ? Событие — выбор с последствиями. '
-      + 'Торговец продаёт реликвии, в лагере можно вернуть знамя или потренировать фигуру. В конце — босс.\n'
-      + 'Знамёна: поражение снимает одно, бой можно переиграть. Без знамён глава начнётся заново на новой карте — '
-      + 'с армией, золотом и реликвиями, как в начале главы.');
+      + 'Торговец продаёт реликвии и запасное знамя, в лагере можно заточить оружие или потренировать фигуру. В конце — босс.\n'
+      + 'Жизнь одна: поражение заканчивает забег, и новый начнётся с 1-1 — с новой армией, но с коронами за пройденный путь. '
+      + 'Запасное знамя (реликвия) даёт вторую жизнь.');
     const right = el('span', 'run-right');
-    right.append(bannerRow(s.run.banners), help);
+    right.append(livesRow(s), help);
     this.runInfo.replaceChildren(info, right);
     this.renderPath();
   }
@@ -191,16 +166,25 @@ export class MapScreen implements Screen {
     if (!canPrestige(s)) return;
     const gain = crownsForPrestige(s);
     const ok = await confirmDialog('Новая партия',
-      `Кампания, армия, уровни, постройки и реликвии начнутся заново, враги станут сильнее, Чёрный король принесёт новое искажение, `
-      + `а награды вырастут. Вы получите ${gain} ♛ для Древа короны. `
-      + `Короны, древо, рулетка, достижения и рекорд Бездны сохранятся.`, 'Начать');
+      `Забег закончится победой: вы получите ${gain} ♛. Следующая партия начнётся с 1-1 с новой армией, враги станут сильнее, `
+      + `Чёрный король принесёт новое искажение. Бездна и финал этой армии будут недоступны.`, 'Начать');
     if (!ok) return;
-    const got = prestige(s);
+    endRun(s, true, PRESTIGE_UNLOCK);
     this.ctx.save();
-    audio.play('achievement');
-    toast(`Партия ${s.prestige + 1}: +${got} корон!`, 'good');
-    this.show();
-    await playGameIntro(s, () => this.ctx.save());
+    this.showRunEnd();
+  }
+
+  /** The run is over: its summary, then the next run (with the new game's chapter of the Chronicle after a win). */
+  private showRunEnd(): void {
+    if (document.querySelector('.run-end-modal')) return;
+    const won = this.ctx.state.run.over?.won;
+    openRunEnd(this.ctx, () => {
+      this.show();
+      if (won) {
+        toast(`Партия ${this.ctx.state.prestige + 1}`, 'good');
+        void playGameIntro(this.ctx.state, () => this.ctx.save());
+      }
+    });
   }
 
   private renderRelics(): void {
@@ -208,7 +192,7 @@ export class MapScreen implements Screen {
     setText(this.relicCount, `${s.relics.length}/${RELIC_IDS.length}`);
     this.relicList.replaceChildren(s.relics.length
       ? relicStrip(s.relics)
-      : el('p', 'hint', 'Пока нет. Их дают элита, боссы, торговцы и события.'));
+      : el('p', 'hint', 'Пока нет. Их дают элита, боссы, торговцы и события. Действуют до конца забега.'));
   }
 
   private renderPath(): void {
@@ -341,24 +325,12 @@ export class MapScreen implements Screen {
 
   frame(): void {
     const s = this.ctx.state;
-    this.treasuryCard.hidden = !featureOpen(s, 'treasury');
     this.relicsCard.hidden = !featureOpen(s, 'relics');
-    const cap = treasuryCap(s);
-    const rate = incomePerMinute(s);
-    const amount = Math.floor(s.treasury);
-    const before = this.treasuryAmount.textContent;
-    setText(this.treasuryAmount, fmt(amount));
-    if (before !== this.treasuryAmount.textContent && amount > 0 && before !== '') pulse(this.treasuryAmount);
-    this.treasuryFill.style.width = `${cap > 0 ? Math.min(100, (s.treasury / cap) * 100) : 0}%`;
-    setText(this.treasuryInfo, rate > 0
-      ? `+${rate < 100 ? Math.round(rate * 10) / 10 : fmt(rate)}/мин · до ${treasuryCapHours(s)} ч`
-      : 'Пройдите бой, чтобы получать доход');
-    this.collectBtn.disabled = amount < 1;
     this.relicBtn.hidden = s.relicPicks <= 0;
     const abyssOpen = isAbyssOpen(s);
     setText(this.abyssInfo, abyssOpen
       ? `Этаж ${s.abyss.floor} · рекорд ${s.abyss.best} · ◆ ${fmt(s.shards)}`
-      : `🔒 После босса ${ABYSS_UNLOCK}`);
+      : `🔒 После победы в партии · рекорд ${s.abyss.best}`);
     this.abyssBtn.hidden = !abyssOpen;
     this.abyssCard.classList.toggle('locked', !abyssOpen);
     // The edge of the board is a secret until it opens with the Hand's own entrance.
@@ -392,9 +364,7 @@ export class MapScreen implements Screen {
       'Развилка! Выберите, куда вести армию: бой, элита с реликвией, событие, торговец или лагерь. Назад пути нет.'));
     void (abyssOpen && this.ctx.tip('t_abyss', this.abyssBtn,
       'Открыта Бездна! Бесконечные этажи с наградами. Включите авто-спуск, чтобы армия спускалась сама.'));
-    void (this.ctx.tip('t_relic', this.relicBtn, 'Вы заслужили реликвию! Выберите один из трёх постоянных бонусов.')
-      || (rate > 0 && this.ctx.tip('t_treasury', this.treasuryCard,
-        'Захваченные земли приносят золото в казну, даже когда игра закрыта. Забирайте его здесь.')));
+    void this.ctx.tip('t_relic', this.relicBtn, 'Вы заслужили реликвию! Выберите один из трёх бонусов до конца забега.');
     setText(this.relicBtn, `Выбрать реликвию (${s.relicPicks})`);
   }
 }

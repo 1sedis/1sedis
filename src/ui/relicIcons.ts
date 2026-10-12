@@ -107,10 +107,10 @@ const ICONS: Record<RelicId, { map: string[]; a: string; b: string; c: string }>
       '.oaacaaaaao.', '.oaaaccaaao.', '.oaaaacaaao.', '.oaaccaaaao.', '..oaaaaaao..', '...oooooo...',
     ],
   },
-  fertile: {
-    a: '#ffcf4a', b: '#3ea85a', c: '#fff1b8', map: [
-      '.....oo.....', '....oaao....', '...oaccao...', '...oaaaao...', '...oaccao...', '...oaaaao...',
-      '....oaao....', '.....bb.....', '..oo.bb.oo..', '...obbbbo...', '.....bb.....', '.....bb.....',
+  spareBanner: {
+    a: '#ff5d85', b: '#c42a4a', c: '#ffd0dc', map: [
+      '..oo........', '..ocoooooo..', '..ocaaaaaao.', '..ocaccaaao.', '..ocaaaaabo.', '..ocabbbbbo.',
+      '..ocoooooo..', '..oc........', '..oc........', '..oc........', '.oooo.......', '............',
     ],
   },
 };

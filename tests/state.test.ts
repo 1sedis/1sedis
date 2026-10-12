@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createBattle, simulate } from '../src/game/battle';
 import { firstReward } from '../src/game/levels';
 import {
-  accrue, battleSetup, collectTreasury, fieldedCount, incomePerMinute, isLevelOpen, isUnlocked, moveSlot, newGame,
-  placeFromReserve, recordResult, recruit, recruitCost, removeSlot, sanitizeFormation, slotAt, treasuryCap,
+  battleSetup, fieldedCount, isLevelOpen, isUnlocked, moveSlot, newGame,
+  placeFromReserve, recordResult, recruit, recruitCost, removeSlot, sanitizeFormation, slotAt,
   upgradePiece, PAWN_CAP, parseSave,
 } from '../src/game/state';
 
@@ -98,22 +98,6 @@ describe('progress', () => {
     expect(isUnlocked(s, 'knight')).toBe(false);
     s.stars['1-2'] = 1;
     expect(isUnlocked(s, 'knight')).toBe(true);
-  });
-});
-
-describe('treasury', () => {
-  it('earns per cleared level, is capped and can be collected', () => {
-    const s = newGame(0);
-    expect(accrue(s, 60_000)).toBe(0);
-    s.stars['1-1'] = 1;
-    const rate = incomePerMinute(s);
-    expect(accrue(s, 120_000)).toBeCloseTo(rate);
-    accrue(s, 1e12);
-    expect(s.treasury).toBeCloseTo(treasuryCap(s));
-    const gold = s.gold;
-    const got = collectTreasury(s);
-    expect(s.gold).toBe(gold + got);
-    expect(s.treasury).toBeLessThan(1);
   });
 });
 

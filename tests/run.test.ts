@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createBattle } from '../src/game/battle';
 import { CHAPTERS } from '../src/game/levels';
 import {
-  BANNERS, EVENTS, EVENT_IDS, MAP_ROWS, availableNodes, buildMap, buyItem, campRest, campTrain, chooseEvent, currentNode,
-  enterNode, shopItems, type RunNode,
+  EVENTS, EVENT_IDS, MAP_ROWS, SPARE, availableNodes, buildMap, buyItem, campForge, campTrain, chooseEvent, currentNode,
+  enterNode, lives, shopItems, type RunNode,
 } from '../src/game/run';
-import { battleSetup, collectTreasury, isEliteBattle, isLevelOpen, newGame, parseSave, recordResult, type GameState } from '../src/game/state';
+import {
+  battleSetup, isAbyssOpen, isEliteBattle, isLevelOpen, newGame, parseSave, prestige, recordResult, startNextRun, type GameState,
+} from '../src/game/state';
 
 /** Win or lose the battle at a node the quick way. */
 function fight(s: GameState, node: RunNode, win: boolean) {
@@ -64,35 +66,55 @@ describe('run progress', () => {
       }
     }
     expect(s.run.chapter).toBe(2);
-    expect(s.run.banners).toBe(BANNERS);
+    expect(s.run.bosses).toBe(1);
     expect(isLevelOpen(s, '2-1')).toBe(true);
-    expect(s.stats.cleanChapters).toBe(1);
   });
 
-  it('losing costs a banner; the last one starts the chapter over with the old army', () => {
+  it('one loss ends the run; the next starts at 1-1 with a new army and keeps the meta', () => {
     const s = newGame(0);
+    s.crowns = 4;
+    s.shards = 9;
+    s.crownTree = ['doubleStep'];
+    s.run.bosses = 1;
+    s.run.elites = 2;
+    s.army.knight = 3;
     const node = availableNodes(s.run)[0];
-    s.gold = 999; // gold earned after the chapter began is lost on a restart
-    expect(fight(s, node, false)).toMatchObject({ win: false, banners: 2, restarted: false });
+    const out = fight(s, node, false);
+    expect(out).toMatchObject({ win: false, runOver: true, spared: false });
+    expect(s.run.over).toMatchObject({ won: false, bosses: 1, elites: 2, crowns: 4 });
+    expect(s.crowns).toBe(8);
+    expect(availableNodes(s.run)).toHaveLength(1); // the map waits behind the end screen
+    startNextRun(s, 0);
+    expect(s.run.over).toBeNull();
+    expect(s.prestige).toBe(0); // the same game again
+    expect(s.army.knight).toBe(0);
+    expect(s.crowns).toBe(8);
+    expect(s.shards).toBe(9);
+    expect(s.crownTree).toEqual(['doubleStep']);
+    expect(isLevelOpen(s, '1-1')).toBe(true);
+    expect(s.stats.runs).toBe(1);
+  });
+
+  it('a spare banner burns instead of the run', () => {
+    const s = newGame(0);
+    s.relics = [SPARE];
+    expect(lives(s)).toBe(2);
+    const node = availableNodes(s.run)[0];
+    expect(fight(s, node, false)).toMatchObject({ spared: true, runOver: false });
+    expect(s.relics).toEqual([]);
     expect(currentNode(s.run)?.id).toBe(node.id);
-    fight(s, node, false);
-    const seed = s.run.seed;
-    const last = fight(s, node, false);
-    expect(last.restarted).toBe(true);
-    expect(s.run.banners).toBe(BANNERS);
-    expect(s.run.seed).not.toBe(seed);
-    expect(s.run.restarts).toBe(1);
-    expect(s.gold).toBe(newGame(0).gold);
+    expect(fight(s, node, false).runOver).toBe(true);
   });
 
-  it('a restart keeps gold earned off the map', () => {
+  it('a won game opens the Abyss and moves on to the next game', () => {
     const s = newGame(0);
-    const node = availableNodes(s.run)[0];
-    s.treasury = 300;
-    collectTreasury(s);
-    for (let i = 0; i < BANNERS; i++) fight(s, node, false);
-    expect(s.run.restarts).toBe(1);
-    expect(s.gold).toBe(newGame(0).gold + 300);
+    s.run.complete = true;
+    s.run.bosses = 4;
+    expect(isAbyssOpen(s)).toBe(true);
+    expect(prestige(s, 0)).toBe(8 + 3);
+    expect(s.prestige).toBe(1);
+    expect(s.run.complete).toBe(false);
+    expect(isAbyssOpen(s)).toBe(false);
   });
 
   it('elites are stronger and grant a relic', () => {
@@ -134,12 +156,10 @@ describe('camp, merchant, events', () => {
     throw new Error(`no ${kind}`);
   };
 
-  it('a camp gives back a banner or trains a piece', () => {
+  it('a camp sharpens the forge or trains a piece', () => {
     const { s } = at('camp');
-    expect(campRest(s)).toBe(false); // banners are full
-    s.run.banners = 1;
-    expect(campRest(s)).toBe(true);
-    expect(s.run.banners).toBe(2);
+    campForge(s);
+    expect(s.buildings.forge).toBe(1);
     expect(s.run.at).toBeNull();
     const again = at('camp').s;
     const before = again.levels.pawn;
@@ -148,8 +168,9 @@ describe('camp, merchant, events', () => {
     expect(again.levels.pawn).toBe(before + 1);
   });
 
-  it('the merchant sells relics once', () => {
+  it('the merchant sells relics once, the spare banner always', () => {
     const { s, node } = at('shop');
+    expect(shopItems(s, node).filter((i) => i.relic === SPARE)).toHaveLength(1);
     const relic = shopItems(s, node).find((i) => i.relic)!;
     s.gold = 0;
     expect(buyItem(s, node, relic)).toBe(false);
@@ -188,6 +209,6 @@ describe('old saves', () => {
     const s = parseSave(JSON.stringify(old))!;
     expect(s.run.chapter).toBe(2);
     expect(isLevelOpen(s, '2-1')).toBe(true);
-    expect(s.run.snapshot).not.toBeNull();
+    expect(s.run.over).toBeNull();
   });
 });

@@ -1,10 +1,11 @@
 import { getLevel } from '../game/levels';
 import { PIECES, type PieceKind } from '../game/pieces';
 import { RELICS } from '../game/relics';
+import { CHAPTERS, getLevel as levelOf } from '../game/levels';
 import {
-  BANNERS, EVENTS, buyItem, campRest, campTrain, canBuy, chooseEvent, finishNode, shopItems, type RunNode,
+  EVENTS, buyItem, campForge, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type RunNode, type RunOver,
 } from '../game/run';
-import { upgradeCost } from '../game/state';
+import { startNextRun, upgradeCost, type GameState } from '../game/state';
 import { audio } from './audio';
 import type { Ctx } from './context';
 import { el, openModal, toast } from './dom';
@@ -32,22 +33,62 @@ export const NODE_HELP: Record<RunNode['kind'], string> = {
   battle: 'Бой. Победа приносит золото и звёзды.',
   elite: 'Элита: враги на уровень сильнее и с лишним элитным бойцом. За победу — реликвия.',
   event: 'Событие: выбор с последствиями.',
-  shop: 'Торговец: реликвии, знамя и заточка за золото.',
-  camp: 'Лагерь: вернуть знамя или потренировать фигуру.',
+  shop: 'Торговец: реликвии, запасное знамя и заточка за золото.',
+  camp: 'Лагерь: заточить оружие или потренировать фигуру.',
   boss: 'Босс главы. Победа открывает следующую главу.',
 };
 
-/** A row of banner flags: lit ones are left, dark ones were lost. */
-export function bannerRow(left: number): HTMLElement {
+/** Lives as flags: every run has one, a spare banner adds a second. */
+export function livesRow(s: GameState): HTMLElement {
+  const n = lives(s);
   const row = el('span', 'banner-row');
-  row.title = `Знамёна: ${left} из ${BANNERS}. Поражение снимает одно; без знамён глава начнётся заново.`;
-  for (let i = 0; i < BANNERS; i++) {
-    const img = el('img', `banner-flag${i < left ? '' : ' lost'}`);
+  row.title = n > 1
+    ? 'Жизни: 2. Запасное знамя сгорит вместо поражения — бой можно будет переиграть.'
+    : 'Одна жизнь: поражение заканчивает забег. Запасное знамя даёт вторую.';
+  for (let i = 0; i < n; i++) {
+    const img = el('img', 'banner-flag');
     img.src = iconUrl('flag');
     img.alt = '';
     row.append(img);
   }
   return row;
+}
+
+/** The end of a run: how far it got and the crowns it paid. `onNext` runs after the next run starts. */
+export function openRunEnd(ctx: Ctx, onNext: () => void): void {
+  const s = ctx.state;
+  const o: RunOver | null = s.run.over;
+  if (!o) return;
+  const content = el('div', `run-end ${o.won ? 'won' : 'lost'}`);
+  const where = o.at.startsWith('abyss-')
+    ? `в Бездне на этаже ${o.abyss + 1}`
+    : o.won ? 'после победы над Чёрным ферзём' : `в главе ${o.chapter} «${CHAPTERS[o.chapter - 1].name}», бой «${levelOf(o.at).name}»`;
+  content.append(
+    el('h2', 'run-end-title', o.won ? 'Партия выиграна!' : 'Забег окончен'),
+    el('p', 'run-end-where', o.won ? `Забег завершён ${where}.` : `Армия пала ${where}.`),
+  );
+  const stats = el('ul', 'run-end-stats');
+  for (const [label, value] of [
+    ['Побед в боях', o.wins], ['Элитных отрядов', o.elites], ['Боссов', o.bosses], ...(o.abyss ? [['Этажей Бездны', o.abyss]] : []),
+  ] as [string, number][]) {
+    stats.append(el('li', '', `${label}: ${value}`));
+  }
+  content.append(stats, el('div', 'result-reward', `+${o.crowns} ♛ короны`));
+  content.append(el('p', 'hint', o.won
+    ? 'Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.'
+    : `Короны остаются с вами — потратьте их в Древе короны. ${o.crowns ? '' : 'Боссы и элита приносят их больше. '}Новый забег начнётся с 1-1.`));
+  const actions = el('div', 'modal-actions');
+  const next = el('button', 'btn btn-primary', o.won ? 'Новая партия ▶' : 'Новый забег ▶');
+  actions.append(next);
+  content.append(actions);
+  const close = openModal(content, { dismissable: false, cls: 'run-end-modal' });
+  audio.play(o.won ? 'achievement' : 'lose');
+  next.addEventListener('click', () => {
+    startNextRun(s);
+    ctx.save();
+    close();
+    onNext();
+  });
 }
 
 function modal(title: string, text: string): { content: HTMLElement; body: HTMLElement; actions: HTMLElement } {
@@ -102,7 +143,7 @@ function openShop(ctx: Ctx, node: RunNode, onDone: () => void): void {
     body.replaceChildren(gold, ...shopItems(s, node).map((item) => {
       const row = el('div', 'shop-item');
       const icon = item.relic ? relicIcon(item.relic) : el('img', 'shop-icon');
-      if (!item.relic) (icon as HTMLImageElement).src = iconUrl(item.id === 'banner' ? 'flag' : 'sword');
+      if (!item.relic) (icon as HTMLImageElement).src = iconUrl('sword');
       const text = el('div', 'shop-text');
       text.append(el('b', '', item.relic ? RELICS[item.relic].name : item.name), el('span', '', item.relic ? RELICS[item.relic].description : item.text));
       const why = canBuy(s, node, item);
@@ -141,14 +182,13 @@ function openCamp(ctx: Ctx, onDone: () => void): void {
     close();
     onDone();
   };
-  const rest = el('button', 'btn choice-btn');
-  const full = s.run.banners >= BANNERS;
-  rest.append(el('span', 'choice-label', 'Отдохнуть'), el('span', 'choice-hint', full ? 'Знамёна и так полны' : '+1 знамя'));
-  rest.disabled = full;
-  rest.addEventListener('click', () => {
-    if (campRest(s)) finish('Армия отдохнула: +1 знамя');
+  const forge = el('button', 'btn choice-btn');
+  forge.append(el('span', 'choice-label', 'Заточить оружие'), el('span', 'choice-hint', `+1 уровень Кузницы (сейчас ${s.buildings.forge})`));
+  forge.addEventListener('click', () => {
+    campForge(s);
+    finish('Кузница: +1 уровень');
   });
-  body.append(rest, el('div', 'camp-train-title', 'Или тренировка: +1 уровень бесплатно'));
+  body.append(forge, el('div', 'camp-train-title', 'Или тренировка: +1 уровень бесплатно'));
   const grid = el('div', 'camp-train');
   for (const kind of Object.keys(s.army) as PieceKind[]) {
     if (s.army[kind] <= 0) continue;

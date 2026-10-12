@@ -1,6 +1,6 @@
 export type RelicId =
   | 'phalanx' | 'earlyCrown' | 'royalHealer' | 'wideAura' | 'warCry' | 'stunJump'
-  | 'piercing' | 'heavyShot' | 'secondLife' | 'plunder' | 'fertile' | 'reserve'
+  | 'piercing' | 'heavyShot' | 'secondLife' | 'plunder' | 'spareBanner' | 'reserve'
   | 'queensGambit' | 'chainmail' | 'forcedMarch' | 'avengers' | 'sharpBlades' | 'bloodQueen';
 
 export interface RelicDef {
@@ -27,13 +27,10 @@ export const RELICS: Record<RelicId, RelicDef> = {
   sharpBlades: { id: 'sharpBlades', name: 'Точильный камень', description: 'Вся армия получает +12% к атаке.' },
   reserve: { id: 'reserve', name: 'Резерв', description: '+1 фигура в каждом бою.' },
   plunder: { id: 'plunder', name: 'Мародёры', description: '+30% золота за победы.' },
-  fertile: { id: 'fertile', name: 'Щедрые земли', description: '+35% к доходу казны.' },
+  spareBanner: { id: 'spareBanner', name: 'Запасное знамя', description: 'Вторая жизнь: одно поражение не обрывает забег, бой можно переиграть. Знамя сгорает.' },
 };
 
 export const RELIC_IDS = Object.keys(RELICS) as RelicId[];
-
-/** Total stars needed per milestone relic. */
-export const STARS_PER_RELIC = 12;
 
 /** Pick up to three distinct relics the player does not own yet, deterministically from `seed`. */
 export function rollOffer(owned: RelicId[], seed: number): RelicId[] {

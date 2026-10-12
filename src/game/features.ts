@@ -4,12 +4,11 @@ import type { GameState } from './state';
  * Parts of the game that open one by one through chapter 1, so a new player
  * meets one idea at a time. After the first new game everything is open.
  */
-export type Feature = 'moves' | 'treasury' | 'camp' | 'speed' | 'auto' | 'buildings' | 'achievements' | 'relics' | 'synergies';
+export type Feature = 'moves' | 'camp' | 'speed' | 'auto' | 'buildings' | 'achievements' | 'relics' | 'synergies';
 
 /** Each part opens after this many won battles (the first chapter is a fixed lesson, then the map forks). */
 export const FEATURES: Record<Feature, { name: string; wins: number }> = {
   moves: { name: 'Твой ход', wins: 1 },
-  treasury: { name: 'Казна', wins: 1 },
   camp: { name: 'Улучшения', wins: 2 },
   speed: { name: 'Ускорение боя', wins: 3 },
   auto: { name: 'Авторасстановка', wins: 3 },

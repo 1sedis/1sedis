@@ -1,13 +1,12 @@
 import { installIconVars } from './icons';
-import { offlineDescent, type OfflineDescent } from '../game/offline';
 import { ALL_LEVELS, chapterOf } from '../game/levels';
 import {
-  accrue, canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, exportSave, hasSave, importSave, incomePerMinute, loadGame, newGame, saveGame, totalStars,
+  canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, exportSave, hasSave, importSave, loadGame, newGame, saveGame, totalStars,
   type GameState,
 } from '../game/state';
 import { audio } from './audio';
 import type { Ctx, Screen, ScreenId } from './context';
-import { confirmDialog, el, openModal, pulse, setHidden, setText, toast } from './dom';
+import { confirmDialog, el, pulse, setHidden, setText, toast } from './dom';
 import { fmt } from './format';
 import { buildMenu, openSettings } from './menu';
 import { getAchievement } from '../game/achievements';
@@ -20,18 +19,17 @@ import { spriteUrl } from './sprites';
 import { Tutorial } from './tutorial';
 import { playOpening } from './story';
 import { FEATURES, acknowledgeOpen, featureOpen, newlyOpened, openKey } from '../game/features';
+import { lives } from '../game/run';
 
 export class App implements Ctx {
   state: GameState;
   settings: Settings = loadSettings();
-  private offlineGold: number;
-  private descent: OfflineDescent | null = null;
   private screenId: ScreenId = 'menu';
   private screens!: Record<Exclude<ScreenId, 'menu'>, Screen>;
   private menuEl: HTMLElement = el('div');
   private shell = el('div', 'shell');
   private content = el('main', 'content');
-  private chips!: { gold: HTMLElement; stars: HTMLElement; income: HTMLElement };
+  private chips!: { gold: HTMLElement; stars: HTMLElement; lives: HTMLElement };
   private navMap!: HTMLButtonElement;
   private navCamp!: HTMLButtonElement;
   private navBadge = el('span', 'nav-badge');
@@ -44,15 +42,12 @@ export class App implements Ctx {
   private lastGold = -1;
 
   constructor(private root: HTMLElement) {
-    const loaded = loadGame();
-    this.state = loaded.state;
+    this.state = loadGame();
     // Saves from before the step-by-step opening already know everything they have reached.
     if (!this.state.tutorial.includes('features_v1')) {
       acknowledgeOpen(this.state);
       this.state.tutorial.push('features_v1');
     }
-    this.offlineGold = loaded.offlineGold;
-    this.descent = offlineDescent(this.state, loaded.offlineMs);
   }
 
   start(): void {
@@ -87,7 +82,6 @@ export class App implements Ctx {
   }
 
   go(screen: ScreenId, levelId?: string): void {
-    const fromMenu = this.screenId === 'menu';
     if (this.screenId !== screen || levelId) wipe();
     this.tutorial.reset();
     this.screenId = screen;
@@ -104,7 +98,6 @@ export class App implements Ctx {
     for (const [id, s] of Object.entries(this.screens)) s.root.hidden = id !== screen;
     this.screens[screen].show(levelId);
     window.scrollTo(0, 0);
-    if (fromMenu && (this.offlineGold >= 1 || this.descent?.floors)) this.showOfflineGains();
   }
 
   // ---------------- Build ----------------
@@ -135,7 +128,7 @@ export class App implements Ctx {
     this.chips = {
       gold: chip('chip-gold', 'Золото'),
       stars: chip('chip-wave', 'Звёзды'),
-      income: chip('chip-best', 'Доход'),
+      lives: chip('chip-best', 'Жизни'),
     };
     const nav = el('nav', 'topnav');
     this.navMap = el('button', 'nav-btn', 'Карта');
@@ -194,7 +187,6 @@ export class App implements Ctx {
     clearSave();
     this.state = newGame();
     this.state.tutorial.push('features_v1');
-    this.offlineGold = 0;
     this.save();
     // The first minute: the kingdom falls, the king escapes with three pawns — then straight into 1-1.
     if (this.settings.hints) await playOpening();
@@ -225,35 +217,11 @@ export class App implements Ctx {
         if (!next) return false;
         this.state = next;
         acknowledgeOpen(this.state);
-        this.offlineGold = 0;
-        this.descent = null;
         this.save();
         this.renderMenu();
         return true;
       },
     });
-  }
-
-  private showOfflineGains(): void {
-    const gold = Math.floor(this.offlineGold);
-    const d = this.descent;
-    this.offlineGold = 0;
-    this.descent = null;
-    const content = el('div', 'offline');
-    content.append(el('h2', '', 'С возвращением!'));
-    if (gold >= 1) content.append(el('div', 'result-reward', `Казна: +${fmt(gold)} золота`));
-    if (d && d.floors > 0) {
-      content.append(el('div', 'result-unlock shard',
-        `Армия прошла в Бездне ${d.floors} эт.: +${fmt(d.gold)} золота, +${d.shards} ◆`));
-      if (d.relics > 0) content.append(el('div', 'result-unlock relic', 'Страж повержен — ждёт новая реликвия!'));
-      if (d.stoppedAt) content.append(el('p', 'hint', `Остановились на этаже ${d.stoppedAt}: нужна сила посерьёзнее.`));
-    }
-    const actions = el('div', 'modal-actions');
-    const ok = el('button', 'btn btn-primary', 'Отлично');
-    actions.append(ok);
-    content.append(actions);
-    const close = openModal(content);
-    ok.addEventListener('click', close);
   }
 
   // ---------------- Loop ----------------
@@ -263,7 +231,6 @@ export class App implements Ctx {
     const dt = Math.min(now - this.lastFrame, 30 * 60 * 1000);
     this.lastFrame = now;
     if (this.screenId !== 'menu') {
-      accrue(this.state);
       this.screens[this.screenId].frame(dt);
       this.renderTop();
       if (now - this.lastAchCheck > 1000) {
@@ -293,8 +260,7 @@ export class App implements Ctx {
     const on = this.settings.sound || this.settings.music;
     setText(this.soundBtn, on ? '♪ Звук' : '♪ Тихо');
     this.soundBtn.classList.toggle('muted', !on);
-    const rate = incomePerMinute(s);
-    setText(this.chips.income, `${rate < 100 ? Math.round(rate * 10) / 10 : fmt(rate)}/мин`);
+    setText(this.chips.lives, `${lives(s)}${s.crowns ? ` · ♛ ${s.crowns}` : ''}`);
   }
 
   private checkAchievements(): void {

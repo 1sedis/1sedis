@@ -1,18 +1,18 @@
 /**
- * The run: a game (партия) is played chapter by chapter on a branching map,
- * like a roguelite. Every chapter starts at its first level, forks into lanes
- * of battles, elites, events, merchants and camps, and ends at the boss.
+ * The run: a roguelite. A game (партия) is played chapter by chapter on a
+ * branching map: every chapter starts at its first level, forks into lanes of
+ * battles, elites, events, merchants and camps, and ends at the boss.
  *
- * Banners are the stake: a lost battle costs one. Without banners the chapter
- * starts over on a new map with the army the player entered it with.
+ * One life: a lost battle ends the run, unless a spare banner (a relic) burns
+ * in its place. A dead run pays crowns for how far it got, and the next one
+ * starts at 1-1 with a new army. Beating the fourth boss wins the game.
  *
  * The map itself is never stored: it is rebuilt from the seed and the chapter.
  */
 import { CHAPTERS } from './levels';
 import type { PieceKind } from './pieces';
 import { RELIC_IDS, rollOffer, type RelicId } from './relics';
-import type { BuildingId, FormationSlot, GameState } from './state';
-import type { Branch } from './abilities';
+import type { GameState } from './state';
 
 export type NodeKind = 'battle' | 'elite' | 'event' | 'shop' | 'camp' | 'boss';
 
@@ -34,22 +34,22 @@ export interface RunMap {
   nodes: RunNode[];
 }
 
-/** What the player had on entering the chapter: a restart puts it all back. */
-export interface RunSnapshot {
-  gold: number;
-  army: Record<PieceKind, number>;
-  levels: Record<PieceKind, number>;
-  buildings: Record<BuildingId, number>;
-  relics: RelicId[];
-  relicPicks: number;
-  formation: FormationSlot[];
-  abilityBranch: Record<PieceKind, Branch>;
+/** How a run ended, kept until the player starts the next one. */
+export interface RunOver {
+  won: boolean;
+  chapter: number;
+  /** Where it ended: the level of the lost battle, or the Abyss floor. */
+  at: string;
+  wins: number;
+  elites: number;
+  bosses: number;
+  abyss: number;
+  crowns: number;
 }
 
 export interface RunState {
   chapter: number;
   seed: number;
-  banners: number;
   /** Nodes finished in this chapter, in the order they were taken. */
   done: string[];
   /** The node entered and not finished yet (a battle being fought, an open merchant). */
@@ -58,16 +58,14 @@ export interface RunState {
   bought: string[];
   /** The whole story of this game is won (the fourth boss fell). */
   complete: boolean;
-  snapshot: RunSnapshot | null;
-  /** Chapters started over in this game. */
-  restarts: number;
-  /** Banners lost in the current chapter (for "a clean chapter"). */
-  lost: number;
-  /** Gold earned off the map in this chapter (treasury, Abyss, achievements): a restart keeps it. */
-  kept: number;
+  /** The run is over (died, or ended after the story): the summary to show. */
+  over: RunOver | null;
+  /** Battles, elites and bosses won in this run. */
+  wins: number;
+  elites: number;
+  bosses: number;
 }
 
-export const BANNERS = 3;
 /** Rows of a chapter map, the boss row included. */
 export const MAP_ROWS = 8;
 
@@ -224,33 +222,12 @@ export function currentNode(run: RunState): RunNode | undefined {
 // ---------- Life cycle ----------
 
 export function newRun(seed: number): RunState {
-  return { chapter: 1, seed, banners: BANNERS, done: [], at: null, bought: [], complete: false, snapshot: null, restarts: 0, lost: 0, kept: 0 };
+  return { chapter: 1, seed, done: [], at: null, bought: [], complete: false, over: null, wins: 0, elites: 0, bosses: 0 };
 }
 
-export function takeSnapshot(s: GameState): RunSnapshot {
-  return structuredClone({
-    gold: s.gold, army: s.army, levels: s.levels, buildings: s.buildings, relics: s.relics,
-    relicPicks: s.relicPicks, formation: s.formation, abilityBranch: s.abilityBranch,
-  });
-}
-
-/** Start a chapter: a fresh map, full banners, and a snapshot to fall back to. */
+/** Start a chapter on a fresh map. */
 export function startChapter(s: GameState, chapter: number, seed = s.run.seed): void {
-  s.run = { ...s.run, chapter, seed, banners: BANNERS, done: [], at: null, bought: [], lost: 0, kept: 0, snapshot: takeSnapshot(s) };
-}
-
-/**
- * Out of banners: back to the start of the chapter on a new map, with the army,
- * gold and relics as they were. Gold earned off the map stays.
- */
-export function restartChapter(s: GameState): void {
-  const snap = s.run.snapshot;
-  const kept = s.run.kept;
-  if (snap) Object.assign(s, structuredClone(snap));
-  s.gold += kept;
-  s.relicOffer = null;
-  s.run.restarts++;
-  startChapter(s, s.run.chapter, (s.run.seed * 31 + 17) >>> 0);
+  s.run = { ...s.run, chapter, seed, done: [], at: null, bought: [] };
 }
 
 /** Enter a node. Battles then go to the arena; events, merchants and camps open their dialog. */
@@ -271,10 +248,14 @@ export function finishNode(s: GameState): void {
 export function winNode(s: GameState): void {
   const node = currentNode(s.run);
   if (!node) return;
-  if (node.kind === 'elite') s.stats.elites++;
+  s.run.wins++;
+  if (node.kind === 'elite') {
+    s.run.elites++;
+    s.stats.elites++;
+  }
   finishNode(s);
   if (node.kind !== 'boss') return;
-  if (s.run.lost === 0) s.stats.cleanChapters++;
+  s.run.bosses++;
   if (s.run.chapter >= CHAPTERS.length) {
     s.run.complete = true;
     return;
@@ -282,23 +263,57 @@ export function winNode(s: GameState): void {
   startChapter(s, s.run.chapter + 1, (s.run.seed * 7 + s.run.chapter * 101) >>> 0);
 }
 
-/** A lost battle costs a banner. Returns true when that was the last one and the chapter started over. */
-export function loseNode(s: GameState): boolean {
-  s.run.banners--;
-  s.run.lost++;
-  if (s.run.banners > 0) return false;
-  restartChapter(s);
-  return true;
+export const SPARE: RelicId = 'spareBanner';
+
+/** Lives left: the one every run has, plus a spare banner. */
+export function lives(s: GameState): number {
+  return 1 + (s.relics.includes(SPARE) ? 1 : 0);
 }
 
-/** Gold that came from outside the map (treasury, Abyss, achievements). */
-export function keepGold(s: GameState, amount: number): void {
-  s.run.kept += Math.max(0, amount);
+/** A lost battle: a spare banner burns and the battle can be fought again, or the run is over. */
+export function loseNode(s: GameState, at: string, won = false): 'spared' | 'over' {
+  if (s.relics.includes(SPARE)) {
+    s.relics = s.relics.filter((id) => id !== SPARE);
+    return 'spared';
+  }
+  endRun(s, won, at);
+  return 'over';
+}
+
+/** Crowns a run pays: for every boss, every elite, the Abyss and the victory itself. */
+export function crownsForRun(s: GameState, won: boolean): number {
+  return 2 * s.run.bosses + s.run.elites + (won ? 3 : 0) + Math.floor(Math.max(0, s.abyss.floor - 1) / 5);
+}
+
+/** Close the run: pay its crowns and keep a summary for the end screen. */
+export function endRun(s: GameState, won: boolean, at: string): RunOver {
+  const crowns = crownsForRun(s, won);
+  s.crowns += crowns;
+  s.stats.runs++;
+  s.run.over = {
+    won, chapter: s.run.chapter, at, wins: s.run.wins, elites: s.run.elites, bosses: s.run.bosses,
+    abyss: Math.max(0, s.abyss.floor - 1), crowns,
+  };
+  s.run.at = null;
+  return s.run.over;
 }
 
 /** Is this campaign level the one at the current (or an enterable) battle node? */
 export function runLevelOpen(run: RunState, levelId: string): boolean {
   return availableNodes(run).some((n) => n.level === levelId);
+}
+
+// ---------- Recruits ----------
+
+/** A new kind of piece joins trained: at most this many levels below the army's best. */
+export const RECRUIT_GAP = 2;
+
+/** The level the first piece of a kind would join at. */
+export function recruitLevel(s: GameState, kind: PieceKind): number {
+  if (s.army[kind] > 0) return s.levels[kind];
+  const owned = (Object.keys(s.army) as PieceKind[]).filter((k) => k !== 'king' && s.army[k] > 0);
+  const best = Math.max(1, ...owned.map((k) => s.levels[k]));
+  return Math.max(s.levels[kind], best - RECRUIT_GAP);
 }
 
 // ---------- Gold ----------
@@ -309,18 +324,16 @@ export function chapterGold(chapter: number): number {
 }
 
 /** Battles of a run pay more than the old single level did: there are no replays to farm. */
-export const RUN_GOLD = 3;
+export const RUN_GOLD = 3.8;
 export const ELITE_GOLD = 1.6;
 /** Elite enemies are this many levels stronger. */
 export const ELITE_LEVELS = 1;
 
 // ---------- Camp ----------
 
-export function campRest(s: GameState): boolean {
-  if (s.run.banners >= BANNERS) return false;
-  s.run.banners++;
+export function campForge(s: GameState): void {
+  s.buildings.forge++;
   finishNode(s);
-  return true;
 }
 
 export function campTrain(s: GameState, kind: PieceKind): boolean {
@@ -342,9 +355,10 @@ export interface ShopItem {
 
 export function shopItems(s: GameState, node: RunNode): ShopItem[] {
   const g = chapterGold(s.run.chapter);
-  const relics = rollOffer(s.relics, hashText(`${s.run.seed}:${node.id}:${s.run.chapter}`));
+  const relics = rollOffer([...s.relics, SPARE], hashText(`${s.run.seed}:${node.id}:${s.run.chapter}`));
   const items: ShopItem[] = relics.map((id) => ({ id: `relic:${id}`, name: '', text: '', cost: Math.round(g * 2.5), relic: id }));
-  items.push({ id: 'banner', name: 'Знамя', text: '+1 знамя (не больше трёх)', cost: Math.round(g * 1.2) });
+  // The spare banner is always on sale, and dear: it is a second life.
+  items.push({ id: `relic:${SPARE}`, name: '', text: '', cost: Math.round(g * 3.5), relic: SPARE });
   items.push({ id: 'forge', name: 'Заточка', text: '+1 уровень Кузницы', cost: Math.round(g * 1.5) });
   return items;
 }
@@ -352,7 +366,6 @@ export function shopItems(s: GameState, node: RunNode): ShopItem[] {
 export function canBuy(s: GameState, node: RunNode, item: ShopItem): string | null {
   if (s.run.bought.includes(`${node.id}:${item.id}`)) return 'Куплено';
   if (item.relic && s.relics.includes(item.relic)) return 'Уже есть';
-  if (item.id === 'banner' && s.run.banners >= BANNERS) return 'Знамёна полны';
   if (s.gold < item.cost) return 'Не хватает золота';
   return null;
 }
@@ -362,7 +375,6 @@ export function buyItem(s: GameState, node: RunNode, item: ShopItem): boolean {
   s.gold -= item.cost;
   s.run.bought.push(`${node.id}:${item.id}`);
   if (item.relic) s.relics.push(item.relic);
-  if (item.id === 'banner') s.run.banners++;
   if (item.id === 'forge') s.buildings.forge++;
   return true;
 }
@@ -395,7 +407,7 @@ function ownedKinds(s: GameState): PieceKind[] {
 
 /** The relic the player is given by an event (a pick of three is too much for a roll). */
 function giftRelic(s: GameState, roll: number): RelicId | null {
-  const pool = RELIC_IDS.filter((id) => !s.relics.includes(id));
+  const pool = RELIC_IDS.filter((id) => !s.relics.includes(id) && id !== SPARE);
   if (!pool.length) return null;
   const id = pool[Math.floor(roll * pool.length) % pool.length];
   s.relics.push(id);
@@ -430,7 +442,7 @@ export const EVENTS: Record<EventId, EventDef> = {
     title: 'Перебежчик',
     text: 'Чёрный конь бросил строй и просится под ваше знамя. Говорит, Чёрный король не прощает ошибок.',
     choices: [
-      { label: 'Принять', hint: '+1 конь в армию', apply: (s) => { s.army.knight++; return 'Конь встал в строй.'; } },
+      { label: 'Принять', hint: '+1 конь в армию', apply: (s) => { s.levels.knight = recruitLevel(s, 'knight'); s.army.knight++; return 'Конь встал в строй.'; } },
       { label: 'Взять выкуп', hint: '+ немного золота', apply: (s) => { const g = Math.round(chapterGold(s.run.chapter) * 0.6); s.gold += g; return `Конь откупился: +${g} золота`; } },
     ],
   },
@@ -468,9 +480,9 @@ export const EVENTS: Record<EventId, EventDef> = {
     text: 'В хижине у дороги живёт отшельник, когда-то служивший Белому королю.',
     choices: [
       {
-        label: 'Попросить благословения', hint: '+1 знамя',
-        blocked: (s) => (s.run.banners < BANNERS ? null : 'Знамёна полны'),
-        apply: (s) => { s.run.banners++; return 'Отшельник вышил новое знамя.'; },
+        label: 'Попросить знамя', hint: 'Запасное знамя: вторая жизнь',
+        blocked: (s) => (s.relics.includes(SPARE) ? 'Знамя уже есть' : null),
+        apply: (s) => { s.relics.push(SPARE); return 'Отшельник вышил новое знамя. Одно поражение вам простится.'; },
       },
       { label: 'Учиться у него', hint: '+1 уровень короля', apply: (s) => { s.levels.king++; return 'Король вспомнил старые уроки: +1 уровень.'; } },
     ],
@@ -509,16 +521,17 @@ export const EVENTS: Record<EventId, EventDef> = {
   },
   crown: {
     title: 'Проклятая корона',
-    text: 'На пне лежит корона Чёрного короля. Она сильна — но тот, кто её возьмёт, потеряет знамя.',
+    text: 'На пне лежит корона Чёрного короля. Она сильна — но заберёт с собой лучшего из ваших бойцов.',
     choices: [
       {
-        label: 'Взять корону', hint: 'Реликвия, но −1 знамя',
-        blocked: (s) => (s.run.banners > 1 ? null : 'Последнее знамя не отдать'),
+        label: 'Взять корону', hint: 'Реликвия, но −1 лучшая фигура',
+        blocked: (s) => (ownedKinds(s).some((k) => k !== 'pawn') ? null : 'Нужна фигура сильнее пешки'),
         apply: (s, roll) => {
-          s.run.banners--;
-          s.run.lost++;
+          const kind = ownedKinds(s).find((k) => k !== 'pawn')!;
+          s.army[kind]--;
+          s.formation = s.formation.filter((f, _, all) => f.kind !== kind || all.filter((g) => g.kind === kind).indexOf(f) < s.army[kind]);
           const id = giftRelic(s, roll);
-          return id ? 'Корона стала реликвией, а знамя истлело.' : 'Корона рассыпалась в прах вместе со знаменем.';
+          return id ? 'Корона стала реликвией, а лучший боец ушёл во тьму.' : 'Корона рассыпалась в прах.';
         },
       },
       { label: 'Оставить', hint: 'Ничего', apply: () => 'Пусть лежит.' },

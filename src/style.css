@@ -2090,3 +2090,13 @@ body:has(.modal-overlay) .toast-layer { top: auto; bottom: 24px; }
 .camp-piece { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; font-size: 14px; }
 .camp-piece img { width: 40px; height: 40px; image-rendering: pixelated; }
 .run-right { display: inline-flex; align-items: center; gap: 10px; }
+
+/* The end of a run */
+.run-end-modal { width: min(94vw, 440px); text-align: center; }
+.run-end-title { font-size: 32px; margin-bottom: 6px; }
+.run-end.lost .run-end-title { color: var(--coral); text-shadow: 0 3px 0 #5a1426; }
+.run-end.won .run-end-title { color: var(--gold); text-shadow: 0 3px 0 var(--gold-deep); }
+.run-end-where { color: var(--ink) !important; line-height: 1.45; }
+.run-end-stats { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 4px; color: var(--muted); }
+.run-end .modal-actions { justify-content: center; }
+.run-over { color: var(--coral); }

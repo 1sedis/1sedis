@@ -43,7 +43,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   A('level_10', 'Мастер своего дела', 'Улучшите любую фигуру до 10 уровня', 10, 3000, (s) => Math.max(...Object.values(s.levels))),
   A('full_set', 'Полный набор', 'Соберите в армии все 6 видов фигур', 6, 1500,
     (s) => Object.values(s.army).filter((n) => n > 0).length),
-  A('treasurer', 'Казначей', 'Заберите из казны 10 000 золота', 10000, 2000, (s) => s.stats.treasuryCollected),
+  A('runs_5', 'Упорство', 'Начните шестой забег', 5, 2000, (s) => s.stats.runs),
   A('architect', 'Архитектор', 'Достройте Штаб до максимума', 3, 4000, (s) => s.buildings.hq),
   A('abyss_10', 'Глубины', 'Пройдите 10 этажей Бездны', 10, 2000, (s) => s.abyss.best),
   A('abyss_30', 'Бездонный', 'Пройдите 30 этажей Бездны', 30, 15000, (s) => s.abyss.best),

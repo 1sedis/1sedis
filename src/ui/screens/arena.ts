@@ -13,16 +13,16 @@ import { traitUrl } from '../traitIcons';
 import { TRAITS, traitAdjective } from '../../game/elites';
 import { buildReport, pieceName } from '../../game/report';
 import {
-  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, firstReward, getLevel, isAbyss, isFinale, levelIncome,
+  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, firstReward, getLevel, isAbyss, isFinale,
   nextLevelId,
 } from '../../game/levels';
-import { BANNERS, ELITE_GOLD, RUN_GOLD, availableNodes, enterNode } from '../../game/run';
-import { bannerRow } from '../runNodes';
+import { ELITE_GOLD, RUN_GOLD, availableNodes, enterNode, lives } from '../../game/run';
+import { livesRow, openRunEnd } from '../runNodes';
 import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
-  available, battleSetup, clearFormation, goldMultiplier, isEliteBattle, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
+  available, battleSetup, clearFormation, goldMultiplier, isEliteBattle, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isLevelOpen, isPlayerCell,
   moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, upgradePiece, type BattleOutcome,
   type FormationSlot,
 } from '../../game/state';
@@ -381,7 +381,7 @@ export class ArenaScreen implements Screen {
     const elite = isEliteBattle(s, level.id);
     const gold = Math.round(firstReward(level.id) * RUN_GOLD * (elite ? ELITE_GOLD : 1) * goldMultiplier(s) * (s.relics.includes('plunder') ? 1.3 : 1));
     setText(this.rewardText, `Награда: +${fmt(gold)} золота${elite || level.boss ? ' · реликвия' : ''}`
-      + `${isCleared(s, level.id) ? '' : ` · +${levelIncome(level.id)}/мин`} · знамёна ${s.run.banners}/${BANNERS}`);
+      + ` · ${lives(s) > 1 ? 'жизней: 2' : 'одна жизнь'}`);
     setText(this.hintText, level.hint);
     this.relicCard.hidden = s.relics.length === 0;
     this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -645,7 +645,7 @@ export class ArenaScreen implements Screen {
   private showResult(o: BattleOutcome): void {
     const level = getLevel(this.levelId);
     const content = el('div', `result ${o.win ? 'is-win' : 'is-loss'}`);
-    content.append(el('h2', `result-title ${o.win ? 'win' : 'loss'}`, o.win ? 'Победа!' : 'Поражение'));
+    content.append(el('h2', `result-title ${o.win ? 'win' : 'loss'}`, o.win ? 'Победа!' : o.runOver ? 'Забег окончен' : 'Поражение'));
     if (o.win) {
       // Falling pixel confetti over the dialog.
       const confetti = el('div', 'confetti');
@@ -690,7 +690,6 @@ export class ArenaScreen implements Screen {
       if (o.trophy) content.append(el('div', 'result-unlock relic', `Трофей: «${o.trophy.name}» — ${o.trophy.text}`));
       if (o.shards > 0) content.append(el('div', 'result-unlock shard', `+${o.shards} ◆ осколков бездны — крутите за них рулетку в «Улучшениях»`));
       if (o.firstClear) {
-        content.append(el('div', 'result-unlock', `Земля захвачена: +${levelIncome(this.levelId)} золота/мин в казну`));
         const unlocked = (Object.keys(UNLOCKED_BY) as PieceKind[]).find((k) => UNLOCKED_BY[k] === this.levelId);
         if (unlocked) content.append(el('div', 'result-unlock', `Новая фигура: ${PIECES[unlocked].name}! Наймите в лагере.`));
       }
@@ -698,27 +697,26 @@ export class ArenaScreen implements Screen {
         const s = this.ctx.state;
         content.append(el('div', 'result-unlock', s.run.complete
           ? 'Чёрный ферзь пал — кампания этой партии пройдена!'
-          : `Глава пройдена! Впереди глава ${s.run.chapter}: ${CHAPTERS[s.run.chapter - 1].name}. Знамёна снова полны.`));
+          : `Глава пройдена! Впереди глава ${s.run.chapter}: ${CHAPTERS[s.run.chapter - 1].name}.`));
       }
     } else {
-      if (o.reward > 0 && !o.restarted) {
+      if (o.reward > 0 && !o.runOver) {
         content.append(el('div', 'result-reward small',
           `+${fmt(o.reward)} золота за ${Math.round(o.damageShare * 100)}% урона врагу`));
       }
       // Right under the conditions, so it is seen before the long report.
-      if (o.restarted) {
-        list.after(el('div', 'result-unlock loss-banners',
-          'Знамёна кончились. Глава начинается заново на новой карте — с той армией, с которой вы в неё вошли.'));
-      } else if (o.banners !== undefined && !isAbyss(this.levelId) && !isFinale(this.levelId)) {
-        const line = el('div', 'result-unlock loss-banners', `Потеряно знамя. Осталось: ${o.banners} из ${BANNERS}. `);
-        line.append(bannerRow(o.banners));
+      if (o.runOver) {
+        list.after(el('div', 'result-unlock loss-banners run-over', 'Король пал — забег окончен.'));
+      } else if (o.spared) {
+        const line = el('div', 'result-unlock loss-banners', 'Запасное знамя сгорело вместо вас — бой можно переиграть. Осталась одна жизнь. ');
+        line.append(livesRow(this.ctx.state));
         list.after(line);
       }
     }
 
     const actions = el('div', 'modal-actions result-actions');
     const close = openModal(content, { dismissable: false, cls: 'result-modal' });
-    if (!o.win) content.append(this.adviceView(close));
+    if (!o.win && !o.runOver) content.append(this.adviceView(close));
     const button = (label: string, cls: string, fn: () => void) => {
       const b = el('button', `btn ${cls}`, label);
       b.addEventListener('click', () => {
@@ -728,20 +726,29 @@ export class ArenaScreen implements Screen {
       actions.append(b);
     };
     const campaign = !isAbyss(this.levelId) && !isFinale(this.levelId);
-    if (!campaign || (!o.win && !o.restarted)) {
+    if (o.runOver) {
+      // A dead run: one way on — the summary, then a new run from 1-1.
+      button('Итоги забега ▶', 'btn-primary', () => {
+        this.enterPrep();
+        openRunEnd(this.ctx, () => this.ctx.go('map'));
+      });
+      content.append(actions);
+      return;
+    }
+    if (!campaign || (!o.win && !o.spared)) {
       button('Карта', 'btn-ghost', () => {
         this.enterPrep();
         this.ctx.go('map');
       });
     }
     if (campaign) {
-      // The run map decides where to go next; a loss with banners left retries the same battle.
+      // The run map decides where to go next; a loss saved by a spare banner retries the same battle.
       button('Улучшения', '', () => {
         this.enterPrep();
         this.ctx.go('camp');
       });
       const ahead = availableNodes(this.ctx.state.run);
-      if (!o.win && !o.restarted) button('Ещё раз', 'btn-primary', () => this.enterPrep());
+      if (!o.win) button('Ещё раз', 'btn-primary', () => this.enterPrep());
       else if (o.win && !o.chapterDone && ahead.length === 1 && ahead[0].level) {
         // No fork ahead (the first lessons): straight on to the next battle.
         button('Дальше ▶', 'btn-primary', () => {
@@ -796,7 +803,7 @@ export class ArenaScreen implements Screen {
       this.enterPrep();
     });
     box.append(buy);
-    if (!affordable) box.append(el('div', 'advice-sub advice-wide', 'Заберите золото из казны на карте или переиграйте пройденные бои.'));
+    if (!affordable) box.append(el('div', 'advice-sub advice-wide', 'Золото дают победы на карте — элита платит больше.'));
     return box;
   }
 

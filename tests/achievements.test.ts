@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENTS } from '../src/game/achievements';
 import { createBattle, simulate } from '../src/game/battle';
 import {
-  battleSetup, checkAchievements, claimAchievement, claimableAchievements, collectTreasury, newGame, placeFromReserve, recordResult,
+  battleSetup, checkAchievements, claimAchievement, claimableAchievements, newGame, placeFromReserve, recordResult,
 } from '../src/game/state';
 
 describe('achievements', () => {
@@ -23,17 +23,16 @@ describe('achievements', () => {
     expect(fresh).toContain('first_win');
     expect(checkAchievements(s)).toEqual([]);
     expect(claimableAchievements(s)).toBe(fresh.length);
-    const gold = s.gold;
-    expect(claimAchievement(s, 'first_win')).toBe(50);
-    expect(s.gold).toBe(gold + 50);
+    const shards = s.shards;
+    // Rewards are shards now: gold belongs to the run.
+    expect(claimAchievement(s, 'first_win')).toBe(2);
+    expect(s.shards).toBe(shards + 2);
     expect(claimAchievement(s, 'first_win')).toBe(0);
   });
 
-  it('counts treasury collections', () => {
+  it('counts runs', () => {
     const s = newGame(0);
-    s.treasury = 12000.7;
-    collectTreasury(s);
-    expect(s.stats.treasuryCollected).toBe(12000);
-    expect(checkAchievements(s)).toContain('treasurer');
+    s.stats.runs = 5;
+    expect(checkAchievements(s)).toContain('runs_5');
   });
 });

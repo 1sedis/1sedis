@@ -68,10 +68,10 @@ describe('crown tree', () => {
     buyNode(s, 'trophies');
     buyNode(s, 'heritage');
     for (let c = 1; c <= 4; c++) for (let n = 1; n <= 9; n++) s.stars[`${c}-${n}`] = 1;
+    s.run.complete = true;
     prestige(s, 0);
     expect(s.crownTree).toEqual(['trophies', 'heritage']);
-    expect(s.gold).toBe(1500);
-    expect(s.buildings.treasury).toBe(3);
+    expect(s.relics).toEqual(['spareBanner']);
   });
 
   it('heralds lower synergy needs', () => {

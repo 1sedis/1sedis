@@ -1,7 +1,7 @@
 import { BOARD_SIZE, MOVES_PER_BATTLE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
-  ABYSS_UNLOCK, ALL_LEVELS, CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
-  isAbyss, levelIncome, replayReward, isFinale, finalePhase,
+  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
+  isAbyss, replayReward, isFinale, finalePhase,
 } from './levels';
 import type { Branch } from './abilities';
 import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId } from './crownTree';
@@ -16,14 +16,14 @@ import { shardsForFloor } from './altar';
 import { SPIN_COST, altarRefund, emptyRoulette, rollBuff, rouletteBonuses, type BuffDef, type RouletteState } from './roulette';
 import { RELICS, rollOffer, type RelicId } from './relics';
 import {
-  ELITE_GOLD, ELITE_LEVELS, RUN_GOLD, availableNodes, currentNode, keepGold, loseNode, newRun, runLevelOpen,
+  ELITE_GOLD, ELITE_LEVELS, RUN_GOLD, availableNodes, recruitLevel, crownsForRun, currentNode, endRun, loseNode, newRun, runLevelOpen,
   startChapter, winNode, type RunState,
 } from './run';
 
 /** Rows the player may deploy on (bottom three rows). */
 export const PLAYER_ROWS = [5, 6, 7];
 
-export type BuildingId = 'treasury' | 'hq' | 'forge';
+export type BuildingId = 'hq' | 'forge';
 
 export interface BuildingDef {
   id: BuildingId;
@@ -35,12 +35,11 @@ export interface BuildingDef {
 }
 
 export const BUILDINGS: Record<BuildingId, BuildingDef> = {
-  treasury: { id: 'treasury', name: 'Казна', description: '+25% к доходу земель и +2 ч к запасу казны', baseCost: 150, growth: 2.1, maxLevel: 10 },
   hq: { id: 'hq', name: 'Штаб', description: '+1 фигура в каждом бою', baseCost: 400, growth: 3.5, maxLevel: 3 },
   forge: { id: 'forge', name: 'Кузница', description: '+6% к атаке и здоровью всей армии', baseCost: 200, growth: 1.8, maxLevel: 25 },
 };
 
-export const BUILDING_ORDER: BuildingId[] = ['treasury', 'hq', 'forge'];
+export const BUILDING_ORDER: BuildingId[] = ['hq', 'forge'];
 
 const UPGRADE_BASE: Record<PieceKind, number> = {
   king: 60, pawn: 30, knight: 80, bishop: 110, rook: 160, queen: 400, archbishop: 300, chancellor: 340, ghost: 260,
@@ -62,10 +61,6 @@ export interface GameState {
   formation: FormationSlot[];
   /** Chosen ability per piece type: 0 = the first, 1 = the alternative. */
   abilityBranch: Record<PieceKind, Branch>;
-  /** Uncollected treasury gold. */
-  treasury: number;
-  /** Wall-clock time of the last treasury accrual. */
-  lastTick: number;
   relics: RelicId[];
   /** Relic choices earned but not made yet. */
   relicPicks: number;
@@ -93,12 +88,12 @@ export interface GameState {
   roulette: RouletteState;
   /** The finale: phases cleared (a checkpoint kept across games) and whether the Hand is beaten. */
   finale: { phase: number; beaten: boolean };
-  /** This game's run: the chapter map, the path taken and the banners left. */
+  /** The current run: the chapter map, the path taken and how it ended. */
   run: RunState;
   stats: {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
-    elites: number; events: number; cleanChapters: number;
+    elites: number; events: number; cleanChapters: number; runs: number;
   };
 }
 
@@ -113,7 +108,7 @@ export function newGame(now = Date.now()): GameState {
     army: { ...perKind(0), king: 1, pawn: 3 },
     levels: perKind(1),
     abilityBranch: perKind(0) as Record<PieceKind, Branch>,
-    buildings: { treasury: 0, hq: 0, forge: 0 },
+    buildings: { hq: 0, forge: 0 },
     stars: {},
     // The third pawn waits in the reserve: placing it is the first thing the game teaches.
     formation: [
@@ -121,8 +116,6 @@ export function newGame(now = Date.now()): GameState {
       { kind: 'pawn', x: 2, y: 5 },
       { kind: 'pawn', x: 4, y: 5 },
     ],
-    treasury: 0,
-    lastTick: now,
     relics: [],
     relicPicks: 0,
     relicOffer: null,
@@ -141,7 +134,7 @@ export function newGame(now = Date.now()): GameState {
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
       flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
-      elites: 0, events: 0, cleanChapters: 0,
+      elites: 0, events: 0, cleanChapters: 0, runs: 0,
     },
   };
   startChapter(s, 1);
@@ -156,8 +149,9 @@ export function isCleared(s: GameState, id: string): boolean {
   return (s.stars[id] ?? 0) > 0;
 }
 
+/** The Abyss is the endless road after a won story: it opens once the fourth boss of this run falls. */
 export function isAbyssOpen(s: GameState): boolean {
-  return isCleared(s, ABYSS_UNLOCK);
+  return s.run.complete && !s.run.over;
 }
 
 /** The finale opens in game 3 after the Black Queen (and stays open after it), or at Abyss floor 30. */
@@ -223,11 +217,6 @@ export function resetTree(s: GameState): boolean {
   return true;
 }
 
-/** Bosses beaten in this game (for "Дань"). */
-function bossesCleared(s: GameState): number {
-  return ['1-9', '2-9', '3-9', '4-9'].filter((id) => isCleared(s, id)).length;
-}
-
 export function spinCost(s: GameState): number {
   return hasNode(s, 'luck') ? 4 : SPIN_COST;
 }
@@ -242,8 +231,11 @@ export function recruitCost(s: GameState, kind: PieceKind): number {
   return Math.round(PIECES[kind].cost * 1.2 ** s.army[kind]);
 }
 
+/** Upgrades grow gently: a run has only its own gold, and several piece types to raise. */
+export const UPGRADE_GROWTH = 1.45;
+
 export function upgradeCost(s: GameState, kind: PieceKind): number {
-  return Math.round(UPGRADE_BASE[kind] * 1.65 ** (s.levels[kind] - 1));
+  return Math.round(UPGRADE_BASE[kind] * UPGRADE_GROWTH ** (s.levels[kind] - 1));
 }
 
 export function buildingCost(s: GameState, id: BuildingId): number {
@@ -263,7 +255,7 @@ export function forgeMultiplier(s: GameState): number {
   return 1 + 0.06 * s.buildings.forge;
 }
 
-/** Gold from battles and the treasury: +50% per new game, plus roulette gold. */
+/** Gold from battles: +50% per new game, plus roulette gold. */
 export function goldMultiplier(s: GameState): number {
   return (1 + 0.5 * s.prestige) * rouletteBonuses(s.roulette).gold;
 }
@@ -278,45 +270,12 @@ export function spinRoulette(s: GameState, count = 1, rand: () => number = Math.
 
 /**
  * Enemy levels added by the current prestige. The campaign ramps up by chapter
- * (+0.5 per game in chapter 1, +1 in chapter 2, +1.5 from chapter 3 on) so a fresh army can still
+ * (+0.5 per game in the first two chapters, +1 from chapter 3 on: the distortions already make the later chapters harder) so a fresh army can still
  * win the first fields; the Abyss always gets the full +2.
  */
 export function prestigeEnemyBonus(s: GameState, levelId?: string): number {
   if (!levelId || isAbyss(levelId)) return 2 * s.prestige;
-  return Math.round(0.5 * Math.min(3, chapterOf(levelId).id) * s.prestige);
-}
-
-export function incomePerMinute(s: GameState): number {
-  const base = ALL_LEVELS.filter((l) => isCleared(s, l.id)).reduce((sum, l) => sum + levelIncome(l.id), 0);
-  const tribute = hasNode(s, 'tribute') ? 1 + 0.25 * bossesCleared(s) : 1;
-  return base * (1 + 0.25 * s.buildings.treasury) * (hasRelic(s, 'fertile') ? 1.35 : 1) * tribute * goldMultiplier(s);
-}
-
-export function treasuryCapHours(s: GameState): number {
-  return 6 + 2 * s.buildings.treasury;
-}
-
-export function treasuryCap(s: GameState): number {
-  return incomePerMinute(s) * 60 * treasuryCapHours(s);
-}
-
-/** Accrue treasury income up to `now`. Returns the gold added. */
-export function accrue(s: GameState, now = Date.now()): number {
-  const dt = Math.max(0, now - s.lastTick);
-  s.lastTick = now;
-  const before = s.treasury;
-  s.treasury = Math.min(treasuryCap(s), s.treasury + (incomePerMinute(s) * dt) / 60_000);
-  return Math.max(0, s.treasury - before);
-}
-
-export function collectTreasury(s: GameState): number {
-  const amount = Math.floor(s.treasury);
-  s.gold += amount;
-  s.treasury -= amount;
-  s.stats.goldEarned += amount;
-  s.stats.treasuryCollected += amount;
-  keepGold(s, amount);
-  return amount;
+  return Math.round((chapterOf(levelId).id <= 2 ? 0.5 : 1) * s.prestige);
 }
 
 /** True when the player can afford at least one recruit, upgrade or building. */
@@ -362,6 +321,7 @@ export function recruit(s: GameState, kind: PieceKind): boolean {
   const cost = recruitCost(s, kind);
   if (s.gold < cost) return false;
   s.gold -= cost;
+  s.levels[kind] = recruitLevel(s, kind);
   s.army[kind]++;
   return true;
 }
@@ -495,15 +455,14 @@ export function terrainFor(s: GameState, levelId: string): Terrain[] {
 
 /**
  * Enemy level in the finale: the Hand knows your strength. The mean level of
- * your five strongest pieces (the king aside), counting every copy, so a few
- * neglected pieces cannot drag it down.
+ * the whole army (the king aside), counting every copy. Cheap filler cannot
+ * drag it down: every copy of a kind shares its level, and a new kind joins
+ * trained (see `recruitLevel`).
  */
 export function finaleLevel(s: GameState): number {
   const levels = (Object.keys(s.army) as PieceKind[])
     .filter((k) => k !== 'king')
-    .flatMap((k) => new Array<number>(s.army[k]).fill(s.levels[k]))
-    .sort((a, c) => c - a)
-    .slice(0, 5);
+    .flatMap((k) => new Array<number>(s.army[k]).fill(s.levels[k]));
   return levels.length ? Math.round(levels.reduce((a, c) => a + c, 0) / levels.length) : 1;
 }
 
@@ -521,7 +480,7 @@ function finaleSetup(s: GameState, levelId: string, base: BattleSetup): BattleSe
   if (phase === 1) {
     return {
       ...base,
-      enemies: placements.map((p) => ({ ...p, level: lv + 3, trait: FINALE_TRAITS[p.kind] })),
+      enemies: placements.map((p) => ({ ...p, level: lv + 2, trait: FINALE_TRAITS[p.kind] })),
       enemyAbilityShift: AWAKENING_SHIFT, enemyKingHp: BLACK_KING_HP, enemyKingAtk: BLACK_KING_ATK,
     };
   }
@@ -629,9 +588,9 @@ export interface BattleOutcome {
   trophy?: BuffDef;
   /** The Hand fell for the first time: roll the credits. */
   ending?: boolean;
-  /** Run map: banners left after this battle, and whether the chapter had to start over. */
-  banners?: number;
-  restarted?: boolean;
+  /** Run map: a spare banner burned for this loss (fight again), or the run is over. */
+  spared?: boolean;
+  runOver?: boolean;
   /** The win finished the chapter (or the whole story of this game). */
   chapterDone?: boolean;
   elite?: boolean;
@@ -665,6 +624,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   if (win) {
     // Every battle of the run is fought once: it pays like a first clear, elites more.
     reward = firstReward(levelId) * RUN_GOLD * (elite ? ELITE_GOLD : 1);
+    if ((elite || level.boss) && hasNode(s, 'tribute')) reward *= 2;
     if (hasRelic(s, 'plunder')) reward *= 1.3;
     reward = Math.round(reward * goldMultiplier(s));
   } else {
@@ -679,15 +639,19 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   const trophy = firstClear && hasNode(s, 'trophies') ? rollBuff(s.roulette, Math.random, legendMult(s)) : undefined;
   // The run map: a win moves on, a loss costs a banner.
   const atNode = currentNode(s.run)?.level === levelId;
-  let restarted = false;
+  let spared = false;
+  let runOver = false;
   let chapterDone = false;
   if (atNode && win) {
     chapterDone = !!level.boss;
     winNode(s);
-  } else if (atNode) restarted = loseNode(s);
+  } else if (atNode) {
+    spared = loseNode(s, levelId) === 'spared';
+    runOver = !spared;
+  }
   return {
     win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0, damageShare, trophy,
-    banners: s.run.banners, restarted, chapterDone, elite,
+    spared, runOver, chapterDone, elite,
   };
 }
 
@@ -722,13 +686,16 @@ function recordAbyss(
     if (floor % 10 === 0) relicsEarned = 1;
     s.relicPicks += relicsEarned;
     s.gold += reward;
-  } else {
-    reward = Math.round(abyssReward(floor) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
-    s.gold += reward;
   }
-  keepGold(s, reward);
   countBattle(s, b, win, reward);
-  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards, damageShare };
+  // The Abyss is the end of a won run: the first loss closes it (a spare banner still saves once).
+  let spared = false;
+  let runOver = false;
+  if (!win) {
+    spared = loseNode(s, levelId, true) === 'spared';
+    runOver = !spared;
+  }
+  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards, damageShare, spared, runOver };
 }
 
 /** Crowns for beating the Hand the first time. */
@@ -758,43 +725,50 @@ function recordFinale(
 
 export const PRESTIGE_UNLOCK = '4-9';
 
+/** A won run (the fourth boss fell) can be closed for the next game at any time. */
 export function canPrestige(s: GameState): boolean {
-  return isCleared(s, PRESTIGE_UNLOCK);
+  return s.run.complete && !s.run.over;
 }
 
-/** Crowns a new game would grant now: stars, abyss depth and a bonus for finishing. */
+/** Crowns for closing the won run now. */
 export function crownsForPrestige(s: GameState): number {
-  return Math.floor(totalStars(s) / 6) + Math.floor(s.abyss.best / 5) + 3;
+  return crownsForRun(s, true);
 }
 
-/** Start a new, harder game keeping crowns, achievements, stats, tips and the abyss record. Returns crowns gained. */
+/** Close a won run by choice and start the next, harder game. Returns crowns gained. */
 export function prestige(s: GameState, now = Date.now()): number {
   if (!canPrestige(s)) return 0;
-  const gained = crownsForPrestige(s);
+  const over = endRun(s, true, PRESTIGE_UNLOCK);
+  startNextRun(s, now);
+  return over.crowns;
+}
+
+/**
+ * Start the next run from 1-1 with a new army. After a won run the next game
+ * begins (stronger enemies, a new distortion); after a lost one the same game
+ * is played again. Crowns, the Crown Tree, the roulette, achievements, stats,
+ * tips and the finale's progress carry over.
+ */
+export function startNextRun(s: GameState, now = Date.now()): void {
+  const won = s.run.over?.won ?? false;
   const fresh = newGame(now);
-  fresh.crowns = s.crowns + gained;
-  fresh.prestige = s.prestige + 1;
+  fresh.crowns = s.crowns;
+  fresh.prestige = s.prestige + (won ? 1 : 0);
   fresh.achievements = s.achievements;
   fresh.achievementsClaimed = s.achievementsClaimed;
   fresh.tutorial = s.tutorial;
   fresh.abilityBranch = s.abilityBranch;
   fresh.stats = s.stats;
-  fresh.abyss = { floor: 1, best: s.abyss.best };
+  fresh.abyss = { floor: 1, best: s.abyss.best, guardian: s.abyss.guardian };
   fresh.shards = s.shards;
   fresh.roulette = s.roulette;
   fresh.finale = s.finale;
   fresh.crownTree = s.crownTree;
-  fresh.abyss.guardian = s.abyss.guardian;
-  if (s.crownTree.includes('heritage')) {
-    fresh.gold = 1500;
-    fresh.buildings.treasury = 3;
-  }
+  if (s.crownTree.includes('heritage')) fresh.relics.push('spareBanner');
   if (s.crownTree.includes('vault')) fresh.relicPicks += 1;
-  fresh.run.seed = (s.run.seed * 13 + 7) >>> 0;
-  // The chapter snapshot is taken after the inheritance, so a restart keeps it.
+  fresh.run.seed = (s.run.seed * 13 + 7 + s.stats.runs) >>> 0;
   startChapter(fresh, 1);
   Object.assign(s, fresh);
-  return gained;
 }
 
 // ---------- Relics ----------
@@ -831,14 +805,19 @@ export function checkAchievements(s: GameState): string[] {
   return fresh;
 }
 
+/** Abyss shards an achievement pays, by how hard it is. */
+export function achievementShards(goldValue: number): number {
+  return goldValue <= 500 ? 2 : goldValue <= 2000 ? 4 : goldValue <= 6000 ? 8 : goldValue <= 20000 ? 15 : 25;
+}
+
 export function claimAchievement(s: GameState, id: string): number {
   const def = getAchievement(id);
   if (!def || !s.achievements.includes(id) || s.achievementsClaimed.includes(id)) return 0;
   s.achievementsClaimed.push(id);
-  s.gold += def.reward;
-  keepGold(s, def.reward);
-  s.stats.goldEarned += def.reward;
-  return def.reward;
+  // Shards, not gold: gold belongs to the run, and a big reward would decide it.
+  const shards = achievementShards(def.reward);
+  s.shards += shards;
+  return shards;
 }
 
 export function claimableAchievements(s: GameState): number {
@@ -857,7 +836,6 @@ export function saveGame(s: GameState): void {
   }
 }
 
-/** Load the save (or a new game) and accrue offline treasury income. */
 /** Merge saved data over a fresh game so new fields get defaults. Null when the data is not a save. */
 function pawnRefund(count: number): number {
   let gold = 0;
@@ -890,6 +868,12 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       altar: undefined,
     } as GameState;
     if (!data.run) migrateToRun(merged);
+    // The treasury is gone (a run earns gold on its map only); relics that no longer exist are dropped.
+    const old = merged as GameState & { treasury?: number; lastTick?: number };
+    delete old.treasury;
+    delete old.lastTick;
+    delete (merged.buildings as Record<string, number>).treasury;
+    merged.relics = merged.relics.filter((id) => RELICS[id]);
     return merged;
   } catch {
     return null;
@@ -903,7 +887,7 @@ function migrateToRun(s: GameState): void {
   if (!chapter) s.run.complete = true;
 }
 
-export function loadGame(now = Date.now()): { state: GameState; offlineGold: number; offlineMs: number } {
+export function loadGame(now = Date.now()): GameState {
   let state = newGame(now);
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -911,9 +895,7 @@ export function loadGame(now = Date.now()): { state: GameState; offlineGold: num
   } catch {
     // Storage unavailable: keep the new game.
   }
-  const offlineMs = Math.max(0, now - state.lastTick);
-  const offlineGold = accrue(state, now);
-  return { state, offlineGold, offlineMs };
+  return state;
 }
 
 const CODE_PREFIX = 'PG2:';

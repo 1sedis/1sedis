@@ -1,17 +1,17 @@
 import { test } from 'vitest';
 import { MOVES_PER_BATTLE, createBattle, legalMoves, playMove, resolveDecision, simulate, stepBattle, MAX_TICKS, type Battle } from '../src/game/battle';
 import { bestFormation } from '../src/game/autoformation';
-import { abyssId, FINALE_LEVELS } from '../src/game/levels';
+import { FINALE_LEVELS } from '../src/game/levels';
 import {
-  BANNERS, EVENTS, availableNodes, buyItem, campRest, campTrain, canBuy, chooseEvent, enterNode, finishNode, shopItems,
+  EVENTS, availableNodes, recruitLevel, buyItem, campForge, campTrain, canBuy, chooseEvent, enterNode, finishNode, lives, shopItems,
   type RunNode,
 } from '../src/game/run';
 import { PIECES, RANGED, levelMultiplier, type PieceKind } from '../src/game/pieces';
 import { NODES, nodeCost, nodeState } from '../src/game/crownTree';
 import type { RelicId } from '../src/game/relics';
 import {
-  BUILDINGS, accrue, battleSetup, buildingCost, buyBuilding, buyNode, chooseRelic, collectTreasury, commandLimit,
-  forgeMultiplier, gameNumber, incomePerMinute, isAbyssOpen, isUnlocked, newGame, prestige, armyCap, recordResult,
+  BUILDINGS, battleSetup, buildingCost, buyBuilding, buyNode, chooseRelic, commandLimit,
+  forgeMultiplier, gameNumber, isUnlocked, newGame, prestige, startNextRun, armyCap, recordResult,
   recruit, recruitCost, relicOffer, spinCost, spinRoulette, upgradeCost, upgradePiece, type BuildingId, type GameState,
 } from '../src/game/state';
 
@@ -98,17 +98,11 @@ function options(s: GameState, limit: number): { cost: number; score: number; bu
     if (k === 'king' || s.army[k] > 0) trial(upgradeCost(s, k), (c) => { c.levels[k]++; }, () => upgradePiece(s, k));
     const total = (Object.keys(s.army) as PieceKind[]).filter((x) => x !== 'king').reduce((n, x) => n + s.army[x], 0);
     if (k !== 'king' && total < limit + 3 && !capped(s, k) && s.army[k] < armyCap(s, k)) {
-      trial(recruitCost(s, k), (c) => { c.army[k]++; }, () => recruit(s, k));
+      trial(recruitCost(s, k), (c) => { c.levels[k] = recruitLevel(c, k); c.army[k]++; }, () => recruit(s, k));
     }
   }
   for (const id of ['forge', 'hq'] as BuildingId[]) {
     if (s.buildings[id] < BUILDINGS[id].maxLevel) trial(buildingCost(s, id), (c) => { c.buildings[id]++; }, () => buyBuilding(s, id));
-  }
-  // The treasury pays for itself: worth it when it returns its price within half an hour.
-  if (s.buildings.treasury < BUILDINGS.treasury.maxLevel) {
-    const cost = buildingCost(s, 'treasury');
-    const gain = incomePerMinute(s) * 0.25 / (1 + 0.25 * s.buildings.treasury);
-    if (gain * 30 > cost) out.push({ cost, score: Infinity, buy: () => buyBuilding(s, 'treasury') });
   }
   return out.filter((o) => o.score > 0).sort((a, b) => b.score - a.score);
 }
@@ -120,7 +114,6 @@ test('story bot', () => {
   let t = 0;
   const log: string[] = [];
   let timeouts = 0;
-  let abyssDips = 0;
 
   const fight = (id: string): boolean => {
     bestFormation(s, id, commandLimit(s, id));
@@ -134,8 +127,6 @@ test('story bot', () => {
   };
 
   const tend = (limit: number) => {
-    accrue(s, t * 1000);
-    collectTreasury(s);
     for (let offer = relicOffer(s); offer; offer = relicOffer(s)) {
       chooseRelic(s, [...offer].sort((a, b) => RELIC_RANK.indexOf(a) - RELIC_RANK.indexOf(b))[0]);
     }
@@ -150,15 +141,6 @@ test('story bot', () => {
     }
   };
 
-  /** Wait for the next purchase when nothing is affordable. */
-  const wait = (limit: number) => {
-    const next = options(s, limit).sort((a, b) => a.cost - b.cost)[0];
-    if (!next || s.gold >= next.cost) return;
-    accrue(s, t * 1000);
-    const need = next.cost - s.gold - s.treasury;
-    if (need > 0) t += (need / Math.max(0.01, incomePerMinute(s))) * 60;
-  };
-
   const clear = (id: string, label: string) => {
     const start = t;
     let attempts = 0;
@@ -168,18 +150,8 @@ test('story bot', () => {
       tend(limit);
       attempts++;
       if (fight(id)) break;
-      // On the run map a loss may have used the last banner: the chapter started over.
+      // On the run map a loss ends the run (unless a spare banner burned).
       if (onMap && !s.run.at) break;
-      // Stuck (down to the last banner on the map): a few Abyss floors for gold and shards, then back.
-      if ((onMap ? s.run.banners === 1 : attempts % 3 === 0) && isAbyssOpen(s)) {
-        for (let i = 0; i < 5; i++) {
-          abyssDips++;
-          tend(commandLimit(s, abyssId(s.abyss.floor)));
-          if (!fight(abyssId(s.abyss.floor))) break;
-        }
-      }
-      // WAIT=1: a player who waits for the treasury between attempts.
-      if (!onMap || process.env.WAIT) wait(limit);
       if (attempts > 400) break;
     }
     return { minutes: (t - start) / 60, attempts, label };
@@ -190,11 +162,11 @@ test('story bot', () => {
     .filter((k) => s.army[k] > 0 && k !== 'king')
     .sort((a, b) => pieceValue(b, s.levels[b]) * s.army[b] - pieceValue(a, s.levels[a]) * s.army[a])[0] ?? 'king';
 
-  /** Choose the next node: rest when banners are low, elites when strong, plain battles otherwise. */
+  /** Choose the next node: elites with a spare life, merchants with gold, plain battles otherwise. */
   const pick = (nodes: RunNode[]): RunNode => {
     const rank = (n: RunNode) => {
-      if (n.kind === 'camp') return s.run.banners < BANNERS ? 0 : 3;
-      if (n.kind === 'elite') return s.run.banners >= 2 ? 1 : 6;
+      if (n.kind === 'camp') return 3;
+      if (n.kind === 'elite') return lives(s) >= 2 || process.env.BOLD ? 1 : 6;
       if (n.kind === 'shop') return s.gold > 400 ? 2 : 5;
       if (n.kind === 'event') return 4;
       return 3;
@@ -202,11 +174,17 @@ test('story bot', () => {
     return [...nodes].sort((a, b) => rank(a) - rank(b))[0];
   };
 
-  /** Play the run map of this game to the end. */
-  const playRun = (chapters: Record<number, number>, hard: string[]) => {
-    for (let guard = 0; !s.run.complete && guard < 2000; guard++) {
+  /** Play runs of this game until one wins it. Returns the number of runs. */
+  const playRun = (chapters: Record<number, number>, hard: string[]): number => {
+    let runs = 1;
+    for (let guard = 0; !s.run.complete && guard < 4000 && runs <= 40; guard++) {
+      if (s.run.over) {
+        hard.push(`смерть гл.${s.run.over.chapter} на ${s.run.over.at} (+${s.run.over.crowns}♛)`);
+        startNextRun(s, t * 1000);
+        runs++;
+        continue;
+      }
       const chapter = s.run.chapter;
-      const restarts = s.run.restarts;
       const start = t;
       const node = s.run.at ? availableNodes(s.run)[0] : pick(availableNodes(s.run));
       enterNode(s, node.id);
@@ -215,7 +193,8 @@ test('story bot', () => {
         const r = clear(node.level, node.level);
         if (r.attempts > 3) hard.push(`${node.level}${node.kind === 'elite' ? '!' : ''}:${r.attempts}`);
       } else if (node.kind === 'camp') {
-        if (!campRest(s)) campTrain(s, bestKind());
+        if (s.buildings.forge < 6) campForge(s);
+        else campTrain(s, bestKind());
       } else if (node.kind === 'event') {
         const choices = EVENTS[node.event!].choices;
         // A careful player: takes the choice without a gamble on banners or pawns when one exists.
@@ -223,23 +202,24 @@ test('story bot', () => {
         if (!order.some((i) => chooseEvent(s, i)) && choices.length) finishNode(s);
       } else if (node.kind === 'shop') {
         const items = shopItems(s, node).sort((a, b) => (a.relic ? RELIC_RANK.indexOf(a.relic) : 99) - (b.relic ? RELIC_RANK.indexOf(b.relic) : 99));
-        for (const item of items) if (!canBuy(s, node, item) && (item.relic || (item.id === 'banner' && s.run.banners < 2))) buyItem(s, node, item);
+        // The spare banner first: a second life is worth more than any relic.
+        items.sort((a, b) => Number(b.relic === 'spareBanner') - Number(a.relic === 'spareBanner'));
+        for (const item of items) if (!canBuy(s, node, item) && item.relic) buyItem(s, node, item);
         finishNode(s);
       }
       chapters[chapter] = (chapters[chapter] ?? 0) + (t - start) / 60;
-      if (s.run.restarts > restarts) hard.push(`рестарт гл.${chapter} на ${node.level}${node.kind === 'elite' ? '!' : ''}`);
     }
+    return runs;
   };
 
   for (let game = 1; game <= 3; game++) {
     const start = t;
     const chapters: Record<number, number> = {};
     const hard: string[] = [];
-    const restartsBefore = s.run.restarts;
-    playRun(chapters, hard);
-    hard.push(`всего рестартов: ${s.run.restarts - restartsBefore}`);
+    const runs = playRun(chapters, hard);
+    hard.push(`забегов: ${runs}`);
     const chText = Object.entries(chapters).map(([c, m]) => `ch${c} ${m.toFixed(0)}м`).join(' · ');
-    log.push(`Партия ${game}: ${((t - start) / 3600).toFixed(1)} ч (${chText}) · трудные: ${hard.join(' ') || '—'}`);
+    log.push(`Партия ${game}: ${((t - start) / 3600).toFixed(1)} ч (${chText}) · ${hard.join(' · ') || '—'}`);
     log.push(`  армия ${JSON.stringify(Object.fromEntries(Object.entries(s.army).filter(([, n]) => n > 0)))}`
       + ` · уровни ${JSON.stringify(Object.fromEntries(Object.entries(s.levels).filter(([k]) => s.army[k as PieceKind] > 0)))}`
       + ` · кузница ${s.buildings.forge} · реликвий ${s.relics.length} · Бездна ${s.abyss.best}`);
@@ -251,7 +231,7 @@ test('story bot', () => {
   const finaleStart = t;
   const phases = FINALE_LEVELS.map((l) => clear(l.id, l.name));
   log.push(`Финал: ${((t - finaleStart) / 60).toFixed(0)} мин · ${phases.map((p) => `${p.label} ${p.attempts} поп.`).join(', ')}`);
-  log.push(`ИТОГО до конца истории: ${(t / 3600).toFixed(1)} ч · таймаутов ${timeouts} · заходов в Бездну ${abyssDips}`);
+  log.push(`ИТОГО до конца истории: ${(t / 3600).toFixed(1)} ч · таймаутов ${timeouts}`);
   log.push(`древо: ${s.crownTree.join(', ')} · рулетка: ${Object.keys(s.roulette.owned).length} баффов`);
   console.log(log.join('\n'));
 }, 1_800_000);

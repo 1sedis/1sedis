@@ -33,7 +33,7 @@ export const BRANCH_ORDER: BranchId[] = ['gambit', 'court', 'shadow'];
 
 /** Crown cost and the first game (1 = before any new game) per tier. */
 export const TIER_COST = [1, 2, 3, 5];
-export const TIER_FROM_GAME = [2, 2, 3, 4];
+export const TIER_FROM_GAME = [1, 2, 3, 4];
 
 const N = (id: NodeId, branch: BranchId, tier: number, name: string, text: string, piece?: PieceKind): CrownNode =>
   ({ id, branch, tier, name, text, piece });
@@ -49,9 +49,9 @@ export const NODES: CrownNode[] = [
   N('archbishop', 'gambit', 3, 'Архиепископ', 'Новая фигура: ходит и бьёт как слон и как конь.', 'archbishop'),
   N('chancellor', 'gambit', 3, 'Канцлер', 'Новая фигура: ходит и бьёт как ладья и как конь.', 'chancellor'),
   N('trophies', 'court', 0, 'Трофеи', 'Первая победа на каждом уровне даёт бесплатную крутку рулетки.'),
-  N('tribute', 'court', 0, 'Дань', 'Каждый побеждённый в партии босс поднимает доход казны на 25%.'),
-  N('vault', 'court', 1, 'Сокровищница', 'Каждая партия начинается с выбора реликвии.'),
-  N('heritage', 'court', 1, 'Наследство', 'Партия начинается с 1 500 золота и Казной 3-го уровня.'),
+  N('tribute', 'court', 0, 'Дань', 'Боссы и элита платят вдвое больше золота.'),
+  N('vault', 'court', 1, 'Сокровищница', 'Каждый забег начинается с выбора реликвии.'),
+  N('heritage', 'court', 1, 'Наследство', 'Каждый забег начинается с Запасным знаменем — второй жизнью.'),
   N('heralds', 'court', 2, 'Герольды', 'Синергиям нужно на одну фигуру меньше.'),
   N('banner', 'court', 2, 'Знамя', '+1 фигура в каждом бою.'),
   N('twoQueens', 'court', 3, 'Две королевы', 'В армии можно держать двух ферзей.'),
