@@ -14,13 +14,15 @@ import { TRAITS, traitAdjective } from '../../game/elites';
 import { buildReport, pieceName } from '../../game/report';
 import {
   CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, firstReward, getLevel, isAbyss, isFinale, levelIncome,
-  nextLevelId, replayReward,
+  nextLevelId,
 } from '../../game/levels';
+import { BANNERS, ELITE_GOLD, RUN_GOLD, availableNodes, enterNode } from '../../game/run';
+import { bannerRow } from '../runNodes';
 import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
-  available, battleSetup, clearFormation, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
+  available, battleSetup, clearFormation, goldMultiplier, isEliteBattle, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isCleared, isLevelOpen, isPlayerCell,
   moveSlot, placeFromReserve, recordResult, removeSlot, sanitizeFormation, slotAt, upgradePiece, type BattleOutcome,
   type FormationSlot,
 } from '../../game/state';
@@ -292,7 +294,8 @@ export class ArenaScreen implements Screen {
     const chapter = chapterOf(this.levelId);
     const abyss = isAbyss(this.levelId);
     const finale = isFinale(this.levelId);
-    setText(this.title, abyss ? `Бездна · ${level.name}` : finale ? `Финал · ${level.name}` : `${level.id} · ${level.name}`);
+    const eliteTitle = isEliteBattle(s, this.levelId) ? 'Элита · ' : '';
+    setText(this.title, abyss ? `Бездна · ${level.name}` : finale ? `Финал · ${level.name}` : `${eliteTitle}${level.id} · ${level.name}`);
     setText(this.subtitle, abyss
       ? `Рекорд: этаж ${s.abyss.best}`
       : finale
@@ -375,9 +378,10 @@ export class ArenaScreen implements Screen {
       const li = el('li', best > i ? 'done' : '', `★ ${text}`);
       this.conditions.append(li);
     }
-    setText(this.rewardText, isCleared(s, level.id)
-      ? `Повтор: +${fmt(replayReward(level.id))} золота`
-      : `Награда: +${fmt(firstReward(level.id))} золота · +${levelIncome(level.id)}/мин`);
+    const elite = isEliteBattle(s, level.id);
+    const gold = Math.round(firstReward(level.id) * RUN_GOLD * (elite ? ELITE_GOLD : 1) * goldMultiplier(s) * (s.relics.includes('plunder') ? 1.3 : 1));
+    setText(this.rewardText, `Награда: +${fmt(gold)} золота${elite || level.boss ? ' · реликвия' : ''}`
+      + `${isCleared(s, level.id) ? '' : ` · +${levelIncome(level.id)}/мин`} · знамёна ${s.run.banners}/${BANNERS}`);
     setText(this.hintText, level.hint);
     this.relicCard.hidden = s.relics.length === 0;
     this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -689,13 +693,26 @@ export class ArenaScreen implements Screen {
         content.append(el('div', 'result-unlock', `Земля захвачена: +${levelIncome(this.levelId)} золота/мин в казну`));
         const unlocked = (Object.keys(UNLOCKED_BY) as PieceKind[]).find((k) => UNLOCKED_BY[k] === this.levelId);
         if (unlocked) content.append(el('div', 'result-unlock', `Новая фигура: ${PIECES[unlocked].name}! Наймите в лагере.`));
-        const nextChapter = CHAPTERS.find((c) => c.levels[0].id === nextLevelId(this.levelId) && c.id !== chapterOf(this.levelId).id);
-        if (nextChapter) content.append(el('div', 'result-unlock', `Открыта глава ${nextChapter.id}: ${nextChapter.name}`));
+      }
+      if (o.chapterDone) {
+        const s = this.ctx.state;
+        content.append(el('div', 'result-unlock', s.run.complete
+          ? 'Чёрный ферзь пал — кампания этой партии пройдена!'
+          : `Глава пройдена! Впереди глава ${s.run.chapter}: ${CHAPTERS[s.run.chapter - 1].name}. Знамёна снова полны.`));
       }
     } else {
-      if (o.reward > 0) {
+      if (o.reward > 0 && !o.restarted) {
         content.append(el('div', 'result-reward small',
           `+${fmt(o.reward)} золота за ${Math.round(o.damageShare * 100)}% урона врагу`));
+      }
+      // Right under the conditions, so it is seen before the long report.
+      if (o.restarted) {
+        list.after(el('div', 'result-unlock loss-banners',
+          'Знамёна кончились. Глава начинается заново на новой карте — с той армией, с которой вы в неё вошли.'));
+      } else if (o.banners !== undefined && !isAbyss(this.levelId) && !isFinale(this.levelId)) {
+        const line = el('div', 'result-unlock loss-banners', `Потеряно знамя. Осталось: ${o.banners} из ${BANNERS}. `);
+        line.append(bannerRow(o.banners));
+        list.after(line);
       }
     }
 
@@ -710,11 +727,32 @@ export class ArenaScreen implements Screen {
       });
       actions.append(b);
     };
-    button('Карта', 'btn-ghost', () => {
-      this.enterPrep();
-      this.ctx.go('map');
-    });
-    if (o.win) {
+    const campaign = !isAbyss(this.levelId) && !isFinale(this.levelId);
+    if (!campaign || (!o.win && !o.restarted)) {
+      button('Карта', 'btn-ghost', () => {
+        this.enterPrep();
+        this.ctx.go('map');
+      });
+    }
+    if (campaign) {
+      // The run map decides where to go next; a loss with banners left retries the same battle.
+      button('Улучшения', '', () => {
+        this.enterPrep();
+        this.ctx.go('camp');
+      });
+      const ahead = availableNodes(this.ctx.state.run);
+      if (!o.win && !o.restarted) button('Ещё раз', 'btn-primary', () => this.enterPrep());
+      else if (o.win && !o.chapterDone && ahead.length === 1 && ahead[0].level) {
+        // No fork ahead (the first lessons): straight on to the next battle.
+        button('Дальше ▶', 'btn-primary', () => {
+          enterNode(this.ctx.state, ahead[0].id);
+          this.show(ahead[0].level!);
+        });
+      } else button('К карте ▶', 'btn-primary', () => {
+        this.enterPrep();
+        this.ctx.go('map');
+      });
+    } else if (o.win) {
       button('Улучшения', '', () => {
         this.enterPrep();
         this.ctx.go('camp');

@@ -1,8 +1,12 @@
 import { test } from 'vitest';
 import { MOVES_PER_BATTLE, createBattle, legalMoves, playMove, resolveDecision, simulate, stepBattle, MAX_TICKS, type Battle } from '../src/game/battle';
 import { bestFormation } from '../src/game/autoformation';
-import { ALL_LEVELS, abyssId, chapterOf, FINALE_LEVELS } from '../src/game/levels';
-import { PIECES, levelMultiplier, type PieceKind } from '../src/game/pieces';
+import { abyssId, FINALE_LEVELS } from '../src/game/levels';
+import {
+  BANNERS, EVENTS, availableNodes, buyItem, campRest, campTrain, canBuy, chooseEvent, enterNode, finishNode, shopItems,
+  type RunNode,
+} from '../src/game/run';
+import { PIECES, RANGED, levelMultiplier, type PieceKind } from '../src/game/pieces';
 import { NODES, nodeCost, nodeState } from '../src/game/crownTree';
 import type { RelicId } from '../src/game/relics';
 import {
@@ -64,7 +68,8 @@ const capped = (s: GameState, k: PieceKind) => !!process.env.CHESS && s.army[k] 
 /** Rough fighting value of one piece: health times damage, both growing with level. */
 function pieceValue(kind: PieceKind, level: number): number {
   const d = PIECES[kind];
-  return d.hp * d.atk * levelMultiplier(level) ** 2;
+  // Shooters deal their damage from safety behind the line: a player values them more.
+  return d.hp * d.atk * levelMultiplier(level) ** 2 * (RANGED.has(kind) ? 2 : 1);
 }
 
 /** Value of the army that fits on the board for a level. */
@@ -92,7 +97,7 @@ function options(s: GameState, limit: number): { cost: number; score: number; bu
     if (!isUnlocked(s, k)) continue;
     if (k === 'king' || s.army[k] > 0) trial(upgradeCost(s, k), (c) => { c.levels[k]++; }, () => upgradePiece(s, k));
     const total = (Object.keys(s.army) as PieceKind[]).filter((x) => x !== 'king').reduce((n, x) => n + s.army[x], 0);
-    if (k !== 'king' && total < limit + 1 && !capped(s, k) && s.army[k] < armyCap(s, k)) {
+    if (k !== 'king' && total < limit + 3 && !capped(s, k) && s.army[k] < armyCap(s, k)) {
       trial(recruitCost(s, k), (c) => { c.army[k]++; }, () => recruit(s, k));
     }
   }
@@ -158,34 +163,81 @@ test('story bot', () => {
     const start = t;
     let attempts = 0;
     const limit = commandLimit(s, id);
+    const onMap = !!s.run.at;
     for (;;) {
       tend(limit);
       attempts++;
       if (fight(id)) break;
-      // Stuck: a few Abyss floors for gold and shards, then back.
-      if (attempts % 3 === 0 && isAbyssOpen(s)) {
+      // On the run map a loss may have used the last banner: the chapter started over.
+      if (onMap && !s.run.at) break;
+      // Stuck (down to the last banner on the map): a few Abyss floors for gold and shards, then back.
+      if ((onMap ? s.run.banners === 1 : attempts % 3 === 0) && isAbyssOpen(s)) {
         for (let i = 0; i < 5; i++) {
           abyssDips++;
           tend(commandLimit(s, abyssId(s.abyss.floor)));
           if (!fight(abyssId(s.abyss.floor))) break;
         }
       }
-      wait(limit);
+      // WAIT=1: a player who waits for the treasury between attempts.
+      if (!onMap || process.env.WAIT) wait(limit);
       if (attempts > 400) break;
     }
     return { minutes: (t - start) / 60, attempts, label };
+  };
+
+  /** The value of the army for choosing a piece to train at a camp. */
+  const bestKind = (): PieceKind => (Object.keys(s.army) as PieceKind[])
+    .filter((k) => s.army[k] > 0 && k !== 'king')
+    .sort((a, b) => pieceValue(b, s.levels[b]) * s.army[b] - pieceValue(a, s.levels[a]) * s.army[a])[0] ?? 'king';
+
+  /** Choose the next node: rest when banners are low, elites when strong, plain battles otherwise. */
+  const pick = (nodes: RunNode[]): RunNode => {
+    const rank = (n: RunNode) => {
+      if (n.kind === 'camp') return s.run.banners < BANNERS ? 0 : 3;
+      if (n.kind === 'elite') return s.run.banners >= 2 ? 1 : 6;
+      if (n.kind === 'shop') return s.gold > 400 ? 2 : 5;
+      if (n.kind === 'event') return 4;
+      return 3;
+    };
+    return [...nodes].sort((a, b) => rank(a) - rank(b))[0];
+  };
+
+  /** Play the run map of this game to the end. */
+  const playRun = (chapters: Record<number, number>, hard: string[]) => {
+    for (let guard = 0; !s.run.complete && guard < 2000; guard++) {
+      const chapter = s.run.chapter;
+      const restarts = s.run.restarts;
+      const start = t;
+      const node = s.run.at ? availableNodes(s.run)[0] : pick(availableNodes(s.run));
+      enterNode(s, node.id);
+      t += 5;
+      if (node.level) {
+        const r = clear(node.level, node.level);
+        if (r.attempts > 3) hard.push(`${node.level}${node.kind === 'elite' ? '!' : ''}:${r.attempts}`);
+      } else if (node.kind === 'camp') {
+        if (!campRest(s)) campTrain(s, bestKind());
+      } else if (node.kind === 'event') {
+        const choices = EVENTS[node.event!].choices;
+        // A careful player: takes the choice without a gamble on banners or pawns when one exists.
+        const order = node.event === 'dice' || node.event === 'crown' ? [1, 0] : [0, 1];
+        if (!order.some((i) => chooseEvent(s, i)) && choices.length) finishNode(s);
+      } else if (node.kind === 'shop') {
+        const items = shopItems(s, node).sort((a, b) => (a.relic ? RELIC_RANK.indexOf(a.relic) : 99) - (b.relic ? RELIC_RANK.indexOf(b.relic) : 99));
+        for (const item of items) if (!canBuy(s, node, item) && (item.relic || (item.id === 'banner' && s.run.banners < 2))) buyItem(s, node, item);
+        finishNode(s);
+      }
+      chapters[chapter] = (chapters[chapter] ?? 0) + (t - start) / 60;
+      if (s.run.restarts > restarts) hard.push(`рестарт гл.${chapter} на ${node.level}${node.kind === 'elite' ? '!' : ''}`);
+    }
   };
 
   for (let game = 1; game <= 3; game++) {
     const start = t;
     const chapters: Record<number, number> = {};
     const hard: string[] = [];
-    for (const level of ALL_LEVELS) {
-      const r = clear(level.id, level.id);
-      const ch = chapterOf(level.id).id;
-      chapters[ch] = (chapters[ch] ?? 0) + r.minutes;
-      if (r.attempts > 5) hard.push(`${level.id}:${r.attempts}`);
-    }
+    const restartsBefore = s.run.restarts;
+    playRun(chapters, hard);
+    hard.push(`всего рестартов: ${s.run.restarts - restartsBefore}`);
     const chText = Object.entries(chapters).map(([c, m]) => `ch${c} ${m.toFixed(0)}м`).join(' · ');
     log.push(`Партия ${game}: ${((t - start) / 3600).toFixed(1)} ч (${chText}) · трудные: ${hard.join(' ') || '—'}`);
     log.push(`  армия ${JSON.stringify(Object.fromEntries(Object.entries(s.army).filter(([, n]) => n > 0)))}`

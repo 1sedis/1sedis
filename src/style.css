@@ -2037,3 +2037,56 @@ body.staging #app, body.staging .toast-layer { visibility: hidden; }
 .ach-claim-all { margin-left: auto; }
 /* With a window open, news slides to the bottom so it never covers the window's title. */
 body:has(.modal-overlay) .toast-layer { top: auto; bottom: 24px; }
+
+/* ---------- Run map ---------- */
+.run-info { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+  padding: 8px 12px; background: var(--bg-2); color: var(--muted); }
+.banner-row { display: inline-flex; gap: 6px; align-items: center; }
+.banner-flag { width: 24px; height: 24px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 #0008); }
+.banner-flag.lost { filter: grayscale(1) brightness(0.45); opacity: 0.6; }
+.level-path.run-path { grid-auto-rows: auto; row-gap: 22px; }
+.run-node { min-height: 112px; justify-content: flex-start; }
+.run-node .level-tile { width: 64px; height: 64px; }
+.run-node.boss .level-tile { width: 84px; height: 84px; }
+.node-icon { width: 36px !important; height: 36px !important; image-rendering: pixelated; }
+.run-node.kind-elite .level-tile { --frame: var(--coral); background: #3a1830; }
+.run-node.kind-event .level-tile { background: #241c4d; }
+.run-node.kind-shop .level-tile { background: #3a2a14; }
+.run-node.kind-camp .level-tile { background: #3a1e14; }
+.run-node.cleared .level-tile { --frame: var(--mint-deep); }
+.run-node.locked { opacity: 0.8; }
+.run-node.cleared .level-tile .node-icon { opacity: 0.6; }
+.run-node.cleared .level-num { opacity: 0.7; }
+.run-edges { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: visible; }
+.run-edges line { stroke-width: 6; stroke-linecap: square; }
+.run-edges line.taken { stroke: var(--mint); opacity: 0.85; }
+.run-edges line.next { stroke: var(--gold); stroke-dasharray: 8 8; animation: edge-march 0.8s linear infinite; }
+@keyframes edge-march { to { stroke-dashoffset: -16; } }
+.run-node { z-index: 1; }
+@media (width <= 560px) {
+  .run-node { min-height: 100px; }
+  .run-node .level-tile { width: 54px; height: 54px; font-size: 16px; }
+  .run-node.boss .level-tile { width: 70px; height: 70px; }
+  .level-path.run-path { row-gap: 16px; column-gap: 8px; }
+  .run-node .level-name { font-size: 14px; }
+}
+
+/* Event, merchant and camp dialogs */
+.node-modal { width: min(94vw, 480px); max-height: 90vh; overflow-y: auto; }
+.node-text { color: var(--ink) !important; line-height: 1.45; }
+.node-body { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.choice-btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 14px; }
+.choice-label { font-size: 18px; }
+.choice-hint { font-size: 14px; color: var(--muted); }
+.choice-btn:disabled .choice-hint { color: var(--coral); }
+.event-outcome { font-size: 18px; color: var(--gold); line-height: 1.4; }
+.shop-gold { color: var(--gold); }
+.shop-item { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 8px; background: var(--bg-2); }
+.shop-text { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--muted); }
+.shop-text b { color: var(--ink); font-weight: 400; font-size: 16px; }
+.shop-icon { width: 36px; height: 36px; image-rendering: pixelated; }
+.camp-train-title { margin-top: 6px; color: var(--muted); }
+.camp-train { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.camp-piece { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; font-size: 14px; }
+.camp-piece img { width: 40px; height: 40px; image-rendering: pixelated; }
+.run-right { display: inline-flex; align-items: center; gap: 10px; }

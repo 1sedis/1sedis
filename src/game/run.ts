@@ -63,6 +63,8 @@ export interface RunState {
   restarts: number;
   /** Banners lost in the current chapter (for "a clean chapter"). */
   lost: number;
+  /** Gold earned off the map in this chapter (treasury, Abyss, achievements): a restart keeps it. */
+  kept: number;
 }
 
 export const BANNERS = 3;
@@ -222,7 +224,7 @@ export function currentNode(run: RunState): RunNode | undefined {
 // ---------- Life cycle ----------
 
 export function newRun(seed: number): RunState {
-  return { chapter: 1, seed, banners: BANNERS, done: [], at: null, bought: [], complete: false, snapshot: null, restarts: 0, lost: 0 };
+  return { chapter: 1, seed, banners: BANNERS, done: [], at: null, bought: [], complete: false, snapshot: null, restarts: 0, lost: 0, kept: 0 };
 }
 
 export function takeSnapshot(s: GameState): RunSnapshot {
@@ -234,13 +236,18 @@ export function takeSnapshot(s: GameState): RunSnapshot {
 
 /** Start a chapter: a fresh map, full banners, and a snapshot to fall back to. */
 export function startChapter(s: GameState, chapter: number, seed = s.run.seed): void {
-  s.run = { ...s.run, chapter, seed, banners: BANNERS, done: [], at: null, bought: [], lost: 0, snapshot: takeSnapshot(s) };
+  s.run = { ...s.run, chapter, seed, banners: BANNERS, done: [], at: null, bought: [], lost: 0, kept: 0, snapshot: takeSnapshot(s) };
 }
 
-/** Out of banners: back to the start of the chapter on a new map, with the army as it was. */
+/**
+ * Out of banners: back to the start of the chapter on a new map, with the army,
+ * gold and relics as they were. Gold earned off the map stays.
+ */
 export function restartChapter(s: GameState): void {
   const snap = s.run.snapshot;
+  const kept = s.run.kept;
   if (snap) Object.assign(s, structuredClone(snap));
+  s.gold += kept;
   s.relicOffer = null;
   s.run.restarts++;
   startChapter(s, s.run.chapter, (s.run.seed * 31 + 17) >>> 0);
@@ -284,6 +291,11 @@ export function loseNode(s: GameState): boolean {
   return true;
 }
 
+/** Gold that came from outside the map (treasury, Abyss, achievements). */
+export function keepGold(s: GameState, amount: number): void {
+  s.run.kept += Math.max(0, amount);
+}
+
 /** Is this campaign level the one at the current (or an enterable) battle node? */
 export function runLevelOpen(run: RunState, levelId: string): boolean {
   return availableNodes(run).some((n) => n.level === levelId);
@@ -297,7 +309,7 @@ export function chapterGold(chapter: number): number {
 }
 
 /** Battles of a run pay more than the old single level did: there are no replays to farm. */
-export const RUN_GOLD = 2.2;
+export const RUN_GOLD = 3;
 export const ELITE_GOLD = 1.6;
 /** Elite enemies are this many levels stronger. */
 export const ELITE_LEVELS = 1;

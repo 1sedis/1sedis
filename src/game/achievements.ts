@@ -1,4 +1,3 @@
-import { ALL_LEVELS, CHAPTERS } from './levels';
 import { RELIC_IDS } from './relics';
 import type { GameState } from './state';
 
@@ -14,8 +13,6 @@ export interface AchievementDef {
 
 const stars = (s: GameState) => Object.values(s.stars).reduce((a, b) => a + b, 0);
 const cleared = (id: string) => (s: GameState) => ((s.stars[id] ?? 0) > 0 ? 1 : 0);
-const chapterStars = (n: number) => (s: GameState) =>
-  CHAPTERS[n - 1].levels.reduce((sum, l) => sum + (s.stars[l.id] ?? 0), 0);
 
 const A = (id: string, name: string, description: string, goal: number, reward: number, progress: (s: GameState) => number): AchievementDef =>
   ({ id, name, description, goal, reward, progress });
@@ -37,9 +34,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   A('boss_2', 'Укротитель', 'Победите Чёрного всадника', 1, 1500, cleared('2-9')),
   A('boss_3', 'Штурм крепости', 'Победите Башню-крепость', 1, 5000, cleared('3-9')),
   A('boss_4', 'Шах и мат', 'Победите Чёрного ферзя', 1, 20000, cleared('4-9')),
-  A('chapter1_full', 'Пешечный перфекционист', 'Соберите все звёзды главы 1', 27, 1000, chapterStars(1)),
-  A('stars_54', 'Звездочёт', 'Соберите 54 звезды', 54, 3000, stars),
-  A('stars_all', 'Все звёзды', `Соберите все ${ALL_LEVELS.length * 3} звёзд`, ALL_LEVELS.length * 3, 30000, stars),
+  A('clean_chapter', 'Ни шагу назад', 'Пройдите главу, не потеряв ни одного знамени', 1, 1000, (s) => s.stats.cleanChapters),
+  A('stars_54', 'Звездочёт', 'Соберите 54 звезды за партию', 54, 3000, stars),
+  A('elites_10', 'Гроза элиты', 'Победите 10 элитных отрядов', 10, 8000, (s) => s.stats.elites),
+  A('events_10', 'Странник', 'Пройдите 10 событий на карте', 10, 1500, (s) => s.stats.events),
   A('relics_5', 'Коллекционер', 'Соберите 5 реликвий', 5, 2500, (s) => s.relics.length),
   A('relics_all', 'Хранитель сокровищ', 'Соберите все реликвии', RELIC_IDS.length, 25000, (s) => s.relics.length),
   A('level_10', 'Мастер своего дела', 'Улучшите любую фигуру до 10 уровня', 10, 3000, (s) => Math.max(...Object.values(s.levels))),

@@ -201,7 +201,10 @@ const SCALE = 4;
  * Draw the chapter scene into `canvas`, sized to cover `width`×`height` CSS
  * pixels. `nodes` are node centres in CSS pixels, in path order.
  */
-export function drawChapterScene(canvas: HTMLCanvasElement, chapter: number, width: number, height: number, nodes: [number, number][]): void {
+export function drawChapterScene(
+  canvas: HTMLCanvasElement, chapter: number, width: number, height: number, nodes: [number, number][],
+  edges?: [[number, number], [number, number]][],
+): void {
   const theme = THEMES[chapter] ?? THEMES[1];
   const W = Math.max(1, Math.ceil(width / SCALE));
   const H = Math.max(1, Math.ceil(height / SCALE));
@@ -223,7 +226,10 @@ export function drawChapterScene(canvas: HTMLCanvasElement, chapter: number, wid
   const pts = nodes.map(([x, y]) => [Math.round(x / SCALE), Math.round(y / SCALE)] as [number, number]);
   const half = 4;
   const segs: [number, number, number, number][] = [];
-  for (let i = 0; i + 1 < pts.length; i++) segs.push([...pts[i], ...pts[i + 1]]);
+  const sc = ([x, y]: [number, number]) => [Math.round(x / SCALE), Math.round(y / SCALE)] as [number, number];
+  // Roads along the given paths, or one road through the nodes in order.
+  if (edges) for (const [a, b] of edges) segs.push([...sc(a), ...sc(b)]);
+  else for (let i = 0; i + 1 < pts.length; i++) segs.push([...pts[i], ...pts[i + 1]]);
   const onRoad = (x: number, y: number, r: number) => segs.some(([ax, ay, bx, by]) => segDist(x, y, ax, ay, bx, by) <= r);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {

@@ -71,9 +71,10 @@ describe('prestige', () => {
     const finale = battleSetup(s, '4-1').enemies[0].level;
     s.prestige = 2;
     s.crowns = 10;
-    // The bonus ramps by chapter: +0.5 per game in the fields, +1 per game from chapter 2 on.
+    // The bonus ramps by chapter: +0.5 per game in the fields, +1 in chapter 2, +1.5 from chapter 3 on.
     expect(battleSetup(s, '1-1').enemies[0].level).toBe(before + 1);
-    expect(battleSetup(s, '4-1').enemies[0].level).toBe(finale + 2);
+    expect(battleSetup(s, '2-1').enemies[0].level).toBe(battleSetup(newGame(0), '2-1').enemies[0].level + 2);
+    expect(battleSetup(s, '4-1').enemies[0].level).toBe(finale + 3);
     // Crowns are spent in the Crown Tree now; only the new-game bonus raises gold.
     expect(goldMultiplier(s)).toBeCloseTo(2);
   });

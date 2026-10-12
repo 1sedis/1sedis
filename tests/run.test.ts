@@ -5,7 +5,7 @@ import {
   BANNERS, EVENTS, EVENT_IDS, MAP_ROWS, availableNodes, buildMap, buyItem, campRest, campTrain, chooseEvent, currentNode,
   enterNode, shopItems, type RunNode,
 } from '../src/game/run';
-import { battleSetup, isEliteBattle, isLevelOpen, newGame, parseSave, recordResult, type GameState } from '../src/game/state';
+import { battleSetup, collectTreasury, isEliteBattle, isLevelOpen, newGame, parseSave, recordResult, type GameState } from '../src/game/state';
 
 /** Win or lose the battle at a node the quick way. */
 function fight(s: GameState, node: RunNode, win: boolean) {
@@ -83,6 +83,16 @@ describe('run progress', () => {
     expect(s.run.seed).not.toBe(seed);
     expect(s.run.restarts).toBe(1);
     expect(s.gold).toBe(newGame(0).gold);
+  });
+
+  it('a restart keeps gold earned off the map', () => {
+    const s = newGame(0);
+    const node = availableNodes(s.run)[0];
+    s.treasury = 300;
+    collectTreasury(s);
+    for (let i = 0; i < BANNERS; i++) fight(s, node, false);
+    expect(s.run.restarts).toBe(1);
+    expect(s.gold).toBe(newGame(0).gold + 300);
   });
 
   it('elites are stronger and grant a relic', () => {

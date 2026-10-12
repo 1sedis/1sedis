@@ -16,7 +16,7 @@ import { shardsForFloor } from './altar';
 import { SPIN_COST, altarRefund, emptyRoulette, rollBuff, rouletteBonuses, type BuffDef, type RouletteState } from './roulette';
 import { RELICS, rollOffer, type RelicId } from './relics';
 import {
-  ELITE_GOLD, ELITE_LEVELS, RUN_GOLD, availableNodes, currentNode, loseNode, newRun, runLevelOpen,
+  ELITE_GOLD, ELITE_LEVELS, RUN_GOLD, availableNodes, currentNode, keepGold, loseNode, newRun, runLevelOpen,
   startChapter, winNode, type RunState,
 } from './run';
 
@@ -278,12 +278,12 @@ export function spinRoulette(s: GameState, count = 1, rand: () => number = Math.
 
 /**
  * Enemy levels added by the current prestige. The campaign ramps up by chapter
- * (+0.5 per game in chapter 1, +1 from chapter 2 on: the distortions already make the later chapters harder) so a fresh army can still
+ * (+0.5 per game in chapter 1, +1 in chapter 2, +1.5 from chapter 3 on) so a fresh army can still
  * win the first fields; the Abyss always gets the full +2.
  */
 export function prestigeEnemyBonus(s: GameState, levelId?: string): number {
   if (!levelId || isAbyss(levelId)) return 2 * s.prestige;
-  return Math.round(0.5 * Math.min(2, chapterOf(levelId).id) * s.prestige);
+  return Math.round(0.5 * Math.min(3, chapterOf(levelId).id) * s.prestige);
 }
 
 export function incomePerMinute(s: GameState): number {
@@ -315,6 +315,7 @@ export function collectTreasury(s: GameState): number {
   s.treasury -= amount;
   s.stats.goldEarned += amount;
   s.stats.treasuryCollected += amount;
+  keepGold(s, amount);
   return amount;
 }
 
@@ -725,6 +726,7 @@ function recordAbyss(
     reward = Math.round(abyssReward(floor) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
     s.gold += reward;
   }
+  keepGold(s, reward);
   countBattle(s, b, win, reward);
   return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards, damageShare };
 }
@@ -834,6 +836,7 @@ export function claimAchievement(s: GameState, id: string): number {
   if (!def || !s.achievements.includes(id) || s.achievementsClaimed.includes(id)) return 0;
   s.achievementsClaimed.push(id);
   s.gold += def.reward;
+  keepGold(s, def.reward);
   s.stats.goldEarned += def.reward;
   return def.reward;
 }
