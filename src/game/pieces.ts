@@ -34,12 +34,12 @@ export const PIECES: Record<PieceKind, PieceDef> = {
   },
   knight: {
     kind: 'knight', name: t('Конь'), role: t('Убийца'),
-    hp: 110, atk: 16, attackCd: 9, moveCd: 8, range: 0, cost: 60,
+    hp: 110, atk: 16, attackCd: 9, moveCd: 8, range: 0, cost: 50,
     description: t('Прыгает через фигуры буквой «Г» и охотится на стрелков и короля.'),
   },
   bishop: {
     kind: 'bishop', name: t('Слон'), role: t('Стрелок'),
-    hp: 70, atk: 18, attackCd: 12, moveCd: 9, range: 4, cost: 90,
+    hp: 85, atk: 18, attackCd: 12, moveCd: 9, range: 4, cost: 70,
     description: t('Стреляет по диагонали на 4 клетки. Хрупкий — держите за пешками.'),
   },
   rook: {

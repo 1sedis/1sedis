@@ -261,7 +261,7 @@ describe('starting armies', () => {
     expect(s.army.knight).toBe(2);
     expect(s.formation.filter((f) => f.kind === 'knight')).toHaveLength(2);
     const setup = battleSetup(s, '1-1');
-    expect(setup.allyKind?.knight?.atk).toBeCloseTo(1.25);
+    expect(setup.allyKind?.knight?.atk).toBeCloseTo(1.3);
   });
 
   it('a locked army cannot be chosen', () => {

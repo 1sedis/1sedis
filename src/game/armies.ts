@@ -34,18 +34,18 @@ export const ARMIES: Record<ArmyId, ArmyDef> = {
     kind: { pawn: { atk: 1, hp: 1.2 } },
   },
   cavalry: {
-    id: 'cavalry', name: t('Конница'), rule: t('Кони бьют на 25% сильнее.'),
+    id: 'cavalry', name: t('Конница'), rule: t('Кони бьют на 30% сильнее и крепче на 10%.'),
     pieces: { pawn: 1, knight: 2 }, gold: 30, unlock: t('Победите Пешечного капитана'), unlockedBy: '1-9',
-    kind: { knight: { atk: 1.25, hp: 1 } },
+    kind: { knight: { atk: 1.3, hp: 1.1 } },
   },
   archers: {
-    id: 'archers', name: t('Лучники'), rule: t('Слоны и ладьи бьют на 20% сильнее.'),
-    pieces: { pawn: 2, bishop: 1 }, gold: 30, unlock: t('Победите Чёрного всадника'), unlockedBy: '2-9',
-    kind: { bishop: { atk: 1.2, hp: 1 }, rook: { atk: 1.2, hp: 1 } },
+    id: 'archers', name: t('Лучники'), rule: t('Слоны и ладьи бьют на 30% сильнее и крепче на 15%.'),
+    pieces: { pawn: 1, bishop: 2 }, gold: 30, unlock: t('Победите Чёрного всадника'), unlockedBy: '2-9',
+    kind: { bishop: { atk: 1.3, hp: 1.15 }, rook: { atk: 1.3, hp: 1.15 } },
   },
   fortress: {
     id: 'fortress', name: t('Твердыня'), rule: t('Король крепче на 60%, пешки начинают бой со щитом в 20% здоровья.'),
-    pieces: { pawn: 2, rook: 1 }, gold: 0, unlock: t('Победите Башню-крепость'), unlockedBy: '3-9',
+    pieces: { pawn: 2, rook: 1 }, gold: 40, unlock: t('Победите Башню-крепость'), unlockedBy: '3-9',
     kingHp: 1.6, pawnShield: 0.2,
   },
   warrior: {
