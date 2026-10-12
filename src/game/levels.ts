@@ -200,14 +200,8 @@ export function enemyPlacements(level: LevelDef): Placement[] {
   return result;
 }
 
-/**
- * How much richer each next level's battle is. Kept low so prices stay readable at the end of a run;
- * upgrade and building prices grow by the same measure (see UPGRADE_GROWTH), so the pace is unchanged.
- */
-export const REWARD_GROWTH = 1.08;
-
 export function firstReward(id: string): number {
-  return Math.round(30 * REWARD_GROWTH ** levelIndex(id));
+  return Math.round(30 * 1.15 ** levelIndex(id));
 }
 
 export function replayReward(id: string): number {
