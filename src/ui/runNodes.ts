@@ -7,6 +7,7 @@ import {
   EVENTS, buyItem, campForge, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type RunNode, type RunOver,
 } from '../game/run';
 import { startNextRun, upgradeCost, type GameState } from '../game/state';
+import { ARMIES, ARMY_ORDER, type ArmyId } from '../game/armies';
 import { audio } from './audio';
 import type { Ctx } from './context';
 import { el, openModal, toast } from './dom';
@@ -55,6 +56,42 @@ export function livesRow(s: GameState): HTMLElement {
   return row;
 }
 
+/** Choose the starting army of the next run (straight on when only one is open). */
+export function pickArmy(ctx: Ctx, onPick: (army: ArmyId) => void): void {
+  const s = ctx.state;
+  if (s.armies.length <= 1) {
+    onPick(s.armies[0] ?? 'guard');
+    return;
+  }
+  const content = el('div', 'army-picker');
+  content.append(el('h2', '', 'Выберите армию'), el('p', 'hint', 'С ней начнётся следующий забег. Новые армии открываются за боссов.'));
+  const grid = el('div', 'army-grid');
+  const close = openModal(content, { dismissable: false, cls: 'army-modal' });
+  for (const id of ARMY_ORDER) {
+    const def = ARMIES[id];
+    const open = s.armies.includes(id);
+    const card = el('button', `army-card${open ? '' : ' locked'}${s.run.army === id ? ' last' : ''}`);
+    card.disabled = !open;
+    const pics = el('div', 'army-pics');
+    const add = (kind: PieceKind) => {
+      const img = el('img');
+      img.src = spriteUrl(kind, 'ally');
+      img.alt = '';
+      pics.append(img);
+    };
+    add('king');
+    for (const [kind, n] of Object.entries(def.pieces) as [PieceKind, number][]) for (let i = 0; i < n; i++) add(kind);
+    card.append(el('div', 'army-name', def.name), pics, el('div', 'army-rule', open ? def.rule : `🔒 ${def.unlock}`),
+      el('div', 'army-gold', open ? `Золото: ${def.gold}` : ''));
+    card.addEventListener('click', () => {
+      close();
+      onPick(id);
+    });
+    grid.append(card);
+  }
+  content.append(grid);
+}
+
 /** The end of a run: how far it got and the crowns it paid. `onNext` runs after the next run starts. */
 export function openRunEnd(ctx: Ctx, onNext: () => void): void {
   const s = ctx.state;
@@ -85,10 +122,12 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
   const close = openModal(content, { dismissable: false, cls: 'run-end-modal' });
   audio.play(o.won ? 'achievement' : 'lose');
   next.addEventListener('click', () => {
-    startNextRun(s);
-    ctx.save();
     close();
-    onNext();
+    pickArmy(ctx, (army) => {
+      startNextRun(s, Date.now(), army);
+      ctx.save();
+      onNext();
+    });
   });
 }
 

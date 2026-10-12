@@ -2152,3 +2152,18 @@ body:has(.modal-overlay) .toast-layer { top: auto; bottom: 24px; }
   .gift-choice .buff-card.big .buff-icon { width: 48px; height: 48px; }
   .gift-choice .buff-card.big .buff-name { font-size: 20px; }
 }
+.result-line { color: var(--muted); margin: 6px 0 10px; text-align: center; }
+
+/* Starting armies */
+.army-modal { width: min(94vw, 720px); max-height: 92vh; overflow-y: auto; }
+.army-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+.army-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 0; cursor: pointer; font: inherit;
+  color: var(--ink); background: var(--bg-2); box-shadow: inset 0 0 0 3px var(--line); text-align: center; }
+.army-card:hover:not(:disabled) { box-shadow: inset 0 0 0 3px var(--gold), 0 0 14px #ffcf4a55; transform: translateY(-3px); }
+.army-card.last { box-shadow: inset 0 0 0 3px var(--mint); }
+.army-card.locked { opacity: 0.55; cursor: default; }
+.army-name { font-size: 18px; color: var(--gold); }
+.army-pics { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; min-height: 36px; }
+.army-pics img { width: 32px; height: 32px; image-rendering: pixelated; }
+.army-rule { font-size: 14px; color: var(--muted); line-height: 1.35; }
+.army-gold { font-size: 13px; color: var(--gold-deep, #b8861e); }

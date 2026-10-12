@@ -2,6 +2,7 @@ import { CHAPTERS, finaleId, enemyPlacements } from '../../game/levels';
 import { MAP_ROWS, availableNodes, endRun, enterNode, runMap, type RunNode } from '../../game/run';
 import { NODE_HELP, NODE_ICON, livesRow, nodeLabel, openNodeDialog, openRunEnd } from '../runNodes';
 import { iconUrl } from '../icons';
+import { ARMIES } from '../../game/armies';
 import { bossArtUrl, hasBossArt } from '../bossArt';
 import { bossFor } from '../../game/bosses';
 import { RELIC_IDS } from '../../game/relics';
@@ -9,7 +10,7 @@ import {
   PRESTIGE_UNLOCK, canPrestige, crownsForPrestige, gameNumber, isFinaleOpen,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
-import { confirmDialog, el, infoBtn, setText, stars, toast } from '../dom';
+import { confirmDialog, el, infoBtn, setText, toast } from '../dom';
 import { audio } from '../audio';
 import { openRelicPicker, relicStrip } from '../relics';
 import { spriteUrl } from '../sprites';
@@ -124,7 +125,7 @@ export class MapScreen implements Screen {
     setText(this.chapterSub, `${chapter.subtitle} · до ${chapter.limit} фигур в бою`);
     const info = el('span', 'run-chapter', s.run.complete
       ? `Партия ${s.prestige + 1} · кампания пройдена`
-      : `Партия ${s.prestige + 1} · глава ${chapter.id} из ${CHAPTERS.length}`);
+      : `Партия ${s.prestige + 1} · глава ${chapter.id} из ${CHAPTERS.length} · ${ARMIES[s.run.army ?? 'guard'].name}`);
     const help = infoBtn('Карта главы',
       'Каждая глава — карта с развилками. Выбирайте путь: от узла можно идти только по дорогам вниз.\n'
       + '⚔ Бой — золото и звёзды. ☠ Элита — враги сильнее, зато реликвия. ? Событие — выбор с последствиями. '
@@ -224,8 +225,7 @@ export class MapScreen implements Screen {
         img.alt = '';
         tile.append(img);
       }
-      const got = node.level ? s.stars[node.level] ?? 0 : 0;
-      btn.append(tile, el('div', 'level-name', nodeLabel(node)), el('div', 'level-stars', done && node.level ? stars(got) : ''));
+      btn.append(tile, el('div', 'level-name', nodeLabel(node)));
       if (node.id === last || (!last && node.row === 0)) {
         const king = el('img', 'map-king');
         king.src = spriteUrl('king', 'ally');

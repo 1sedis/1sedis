@@ -1,7 +1,7 @@
 import { installIconVars } from './icons';
-import { ALL_LEVELS, chapterOf } from '../game/levels';
+import { chapterOf } from '../game/levels';
 import {
-  canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, exportSave, hasSave, importSave, loadGame, newGame, saveGame, totalStars,
+  canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, exportSave, hasSave, importSave, loadGame, newGame, saveGame,
   type GameState,
 } from '../game/state';
 import { audio } from './audio';
@@ -127,7 +127,7 @@ export class App implements Ctx {
     };
     this.chips = {
       gold: chip('chip-gold', 'Золото'),
-      stars: chip('chip-wave', 'Звёзды'),
+      stars: chip('chip-wave', 'Глава'),
       lives: chip('chip-best', 'Жизни'),
     };
     const nav = el('nav', 'topnav');
@@ -165,7 +165,7 @@ export class App implements Ctx {
   private renderMenu(): void {
     const s = this.state;
     const id = currentLevelId(s);
-    const summary = `Глава ${chapterOf(id).id} · ★ ${totalStars(s)}/${ALL_LEVELS.length * 3} · ${fmt(s.gold)} золота`
+    const summary = `Партия ${s.prestige + 1} · глава ${chapterOf(id).id} · ${fmt(s.gold)} золота`
       + (s.crowns ? ` · ♛ ${s.crowns}` : '');
     const menu = buildMenu({
       hasSave: hasSave(),
@@ -249,7 +249,7 @@ export class App implements Ctx {
     setText(this.chips.gold, fmt(s.gold));
     if (s.gold > this.lastGold && this.lastGold >= 0) pulse(this.chips.gold);
     this.lastGold = s.gold;
-    setText(this.chips.stars, `${totalStars(s)}/${ALL_LEVELS.length * 3}`);
+    setText(this.chips.stars, `${s.run.chapter}/4`);
     this.navMap.classList.toggle('active', this.screenId === 'map');
     this.navCamp.classList.toggle('active', this.screenId === 'camp');
     setHidden(this.navBadge, this.screenId === 'camp' || !canAffordUpgrade(s));

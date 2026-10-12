@@ -14,6 +14,7 @@ import type { PieceKind } from './pieces';
 import { RELIC_IDS, rollOffer, type RelicId } from './relics';
 import type { GameState } from './state';
 import type { EliteRule } from './battle';
+import { ARMY_ORDER, ARMIES, type ArmyId } from './armies';
 
 const RULES: EliteRule[] = ['undying', 'frenzy', 'waves', 'darkness', 'mirror'];
 
@@ -71,6 +72,8 @@ export interface RunState {
   bosses: number;
   /** The last boss beaten in this run ("Страж на службе" brings it along). */
   guardian?: PieceKind;
+  /** The starting army of this run. */
+  army?: ArmyId;
 }
 
 /** Rows of a chapter map, the boss row included. */
@@ -280,6 +283,11 @@ export function winNode(s: GameState): void {
   finishNode(s);
   if (node.kind !== 'boss') return;
   s.run.bosses++;
+  // Beaten bosses open starting armies; a won game opens the warrior king.
+  for (const id of ARMY_ORDER) {
+    const opens = ARMIES[id].unlockedBy === node.level || (id === 'warrior' && s.run.chapter >= CHAPTERS.length);
+    if (opens && !s.armies.includes(id)) s.armies.push(id);
+  }
   if (s.run.chapter >= CHAPTERS.length) {
     s.run.complete = true;
     return;

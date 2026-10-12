@@ -11,6 +11,7 @@ import { featureOpen } from './features';
 import { levelTerrain, levelTerrainRows, parseTerrain, walkable, withDarkness, type Terrain } from './terrain';
 import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionsFor, type DistortionId } from './distortions';
 import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
+import { ARMIES, START_SQUARES, type ArmyId } from './armies';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { shardsForFloor } from './altar';
 import {
@@ -58,7 +59,7 @@ export interface GameState {
   /** Upgrade level per kind (1 = base). */
   levels: Record<PieceKind, number>;
   buildings: Record<BuildingId, number>;
-  /** Best stars earned per level id. */
+  /** Levels won in this game (1 = cleared); unlocks pieces and opens the finale. */
   stars: Record<string, number>;
   /** Last used formation, reused between battles. */
   formation: FormationSlot[];
@@ -93,6 +94,8 @@ export interface GameState {
   finale: { phase: number; beaten: boolean };
   /** The current run: the chapter map, the path taken and how it ended. */
   run: RunState;
+  /** Starting armies opened so far (kept forever). */
+  armies: ArmyId[];
   stats: {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
@@ -134,6 +137,7 @@ export function newGame(now = Date.now()): GameState {
     roulette: emptyRoulette(),
     finale: { phase: 0, beaten: false },
     run: newRun((now % 1_000_000_007) >>> 0),
+    armies: ['guard'],
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
       flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
@@ -189,9 +193,25 @@ export function totalStars(s: GameState): number {
 }
 
 export function isUnlocked(s: GameState, kind: PieceKind): boolean {
+  // A starting army may bring a piece before its level opens it.
+  if (kind !== 'king' && s.army[kind] > 0) return true;
   if (PRESTIGE_PIECES.includes(kind)) return s.crownTree.some((id) => NODE_BY_ID[id].piece === kind);
   const by = UNLOCKED_BY[kind];
   return by === null || isCleared(s, by);
+}
+
+/** Give a fresh run the pieces, gold and formation of a starting army. */
+export function applyArmy(s: GameState, id: ArmyId): void {
+  const def = ARMIES[id];
+  s.run.army = id;
+  if (id === 'guard') return; // the new-game default: three pawns, one waiting in the reserve
+  for (const k of Object.keys(s.army) as PieceKind[]) if (k !== 'king') s.army[k] = def.pieces[k] ?? 0;
+  s.gold = def.gold;
+  s.formation = [{ kind: 'king', x: 3, y: 7 }];
+  let i = 0;
+  for (const [kind, n] of Object.entries(def.pieces) as [PieceKind, number][]) {
+    for (let c = 0; c < n && i < START_SQUARES.length; c++, i++) s.formation.push({ kind, x: START_SQUARES[i][0], y: START_SQUARES[i][1] });
+  }
 }
 
 // ---------- Crown Tree ----------
@@ -541,6 +561,7 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s);
   const rb = rouletteBonuses(s.roulette);
+  const army = ARMIES[s.run.army ?? 'guard'];
   const bonus = prestigeEnemyBonus(s, levelId);
   const distortions = levelDistortions(s, levelId);
   const elite = isEliteBattle(s, levelId);
@@ -576,9 +597,9 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
     allies, enemies,
     allyHpMult: m * rb.hp,
     allyAtkMult: m * rb.atk,
-    allyKingHpMult: rb.kingHp,
-    allyKind: rb.kind,
-    allyPawnShield: rb.pawnShield,
+    allyKingHpMult: rb.kingHp * (army.kingHp ?? 1),
+    allyKind: mergeKind(rb.kind, army.kind),
+    allyPawnShield: rb.pawnShield + (army.pawnShield ?? 0),
     allyCrit: rb.crit,
     allyOpening: rb.opening,
     legends: rb.legends,
@@ -586,12 +607,24 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
     allyBranches: { ...s.abilityBranch },
     terrain: terrainRowsFor(s, levelId),
     bossId: bossFor(levelId),
-    perks: s.crownTree.filter((id) => BATTLE_PERKS.has(id)),
+    perks: [...s.crownTree.filter((id) => BATTLE_PERKS.has(id)), ...(army.warlord ? ['warlord' as NodeId] : [])],
     enemyAbilityShift: distortions.includes('awakening') ? AWAKENING_SHIFT : 0,
     enemyKingHp: distortions.includes('blackKing') ? BLACK_KING_HP : 1,
     enemyKingAtk: distortions.includes('blackKing') ? BLACK_KING_ATK : 1,
     eliteRule: rule,
   };
+}
+
+/** Multiply two per-kind bonus tables together. */
+function mergeKind(
+  a: Partial<Record<PieceKind, { atk: number; hp: number }>>, b: Partial<Record<PieceKind, { atk: number; hp: number }>> = {},
+): Partial<Record<PieceKind, { atk: number; hp: number }>> {
+  const out = { ...a };
+  for (const [k, v] of Object.entries(b) as [PieceKind, { atk: number; hp: number }][]) {
+    const cur = out[k] ?? { atk: 1, hp: 1 };
+    out[k] = { atk: cur.atk * v.atk, hp: cur.hp * v.hp };
+  }
+  return out;
 }
 
 // ---------- Results ----------
@@ -657,7 +690,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   } else {
     reward = Math.round(replayReward(levelId) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
   }
-  s.stars[levelId] = Math.max(prev, stars);
+  s.stars[levelId] = Math.max(prev, win ? 1 : 0);
   // A relic for every boss and every elite.
   const relicsEarned = win && (elite || (firstClear && level.boss)) ? 1 : 0;
   s.relicPicks += relicsEarned;
@@ -779,9 +812,11 @@ export function prestige(s: GameState, now = Date.now()): number {
  * is played again. Crowns, the Crown Tree, the roulette, achievements, stats,
  * tips and the finale's progress carry over.
  */
-export function startNextRun(s: GameState, now = Date.now()): void {
+export function startNextRun(s: GameState, now = Date.now(), army: ArmyId = s.run.army ?? 'guard'): void {
   const won = s.run.over?.won ?? false;
   const fresh = newGame(now);
+  fresh.armies = s.armies;
+  applyArmy(fresh, s.armies.includes(army) ? army : 'guard');
   fresh.crowns = s.crowns;
   fresh.prestige = s.prestige + (won ? 1 : 0);
   fresh.achievements = s.achievements;
@@ -900,6 +935,7 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       abyss: { ...state.abyss, ...data.abyss },
       finale: { ...state.finale, ...data.finale },
       run: data.run ? { ...state.run, ...data.run } : state.run,
+      armies: data.armies?.length ? [...data.armies] : state.armies,
       crownTree: [...(data.crownTree ?? [])],
       roulette: { ...state.roulette, ...data.roulette, owned: { ...data.roulette?.owned } },
       // The old Altar became the roulette: give back every shard spent on it.
@@ -923,6 +959,10 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       merged.crowns += crowns;
     }
     delete flagged._oldRoulette;
+    // Starting armies came later: open the ones whose bosses this save has beaten.
+    const opened: [string, ArmyId][] = [['boss_1', 'cavalry'], ['boss_2', 'archers'], ['boss_3', 'fortress']];
+    for (const [ach, id] of opened) if (merged.achievements.includes(ach) && !merged.armies.includes(id)) merged.armies.push(id);
+    if (merged.prestige > 0 && !merged.armies.includes('warrior')) merged.armies.push('warrior');
     merged.crowns += Math.floor(merged.shards / 10);
     merged.shards = 0;
     return merged;

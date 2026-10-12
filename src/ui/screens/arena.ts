@@ -99,7 +99,6 @@ export class ArenaScreen implements Screen {
   private battlePanel = el('div', 'side-stack');
   private limitText = el('b');
   private enemyText = el('div', 'info-line');
-  private conditions = el('ul', 'conditions');
   private rewardText = el('div', 'info-line');
   private hintText = el('p', 'hint-text');
   private relicCard = el('div', 'task-relics');
@@ -207,7 +206,7 @@ export class ArenaScreen implements Screen {
       + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
       + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));
     this.hintText.classList.add('task-hint');
-    infoCard.append(taskHead, this.enemyText, this.distortionRow, this.bossInfo, this.eliteRow, this.conditions, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
+    infoCard.append(taskHead, this.enemyText, this.distortionRow, this.bossInfo, this.eliteRow, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
 
     const kingsCard = el('div', 'card');
@@ -355,9 +354,6 @@ export class ArenaScreen implements Screen {
     }
     const enemies = this.enemies();
     setText(this.enemyText, `Враги: ${enemies.length} · ур. ${enemies[0]?.level ?? level.level}${level.boss ? ` · ${level.boss}` : ''}`);
-    const best = s.stars[level.id] ?? 0;
-    this.conditions.innerHTML = '';
-    this.conditions.hidden = abyss || finale;
     this.autoBtn2.hidden = !abyss;
     if (finale) {
       const phase = finalePhase(this.levelId);
@@ -376,14 +372,6 @@ export class ArenaScreen implements Screen {
       this.relicCard.hidden = s.relics.length === 0;
       this.relicSlot.replaceChildren(relicStrip(s.relics));
       return;
-    }
-    for (const [i, text] of [
-      'Победа',
-      'Король ≥ 50%',
-      `Потери ≤ ${level.maxLosses}`,
-    ].entries()) {
-      const li = el('li', best > i ? 'done' : '', `★ ${text}`);
-      this.conditions.append(li);
     }
     const elite = isEliteBattle(s, level.id);
     const gold = Math.round(firstReward(level.id) * RUN_GOLD * (elite ? ELITE_GOLD : 1) * goldMultiplier(s) * (s.relics.includes('plunder') ? 1.3 : 1));
@@ -654,7 +642,6 @@ export class ArenaScreen implements Screen {
   }
 
   private showResult(o: BattleOutcome): void {
-    const level = getLevel(this.levelId);
     const content = el('div', `result ${o.win ? 'is-win' : 'is-loss'}`);
     content.append(el('h2', `result-title ${o.win ? 'win' : 'loss'}`, o.win ? 'Победа!' : o.runOver ? 'Забег окончен' : 'Поражение'));
     if (o.win) {
@@ -672,22 +659,9 @@ export class ArenaScreen implements Screen {
       }
       content.append(confetti);
     }
-    const starRow = el('div', 'result-stars');
-    if (o.win) starRow.append(el('div', 'result-rays'));
-    for (let i = 0; i < 3; i++) {
-      const st = el('span', i < o.stars ? 'on' : '', '★');
-      st.style.animationDelay = `${0.15 + i * 0.2}s`;
-      if (i < o.stars) audio.play('star', 0.15 + i * 0.2);
-      starRow.append(st);
-    }
-    content.append(starRow);
-    const list = el('ul', 'conditions');
-    const items: [boolean, string][] = [
-      [o.conditions.win, 'Победа'],
-      [o.conditions.king, 'Король ≥ 50%'],
-      [o.conditions.losses, `Потери ${this.battle?.allyLosses ?? 0} из ${level.maxLosses}`],
-    ];
-    for (const [ok, text] of items) list.append(el('li', ok ? 'done' : 'fail', `${ok ? '✓' : '✗'} ${text}`));
+    // A strip under the title: losses and time, and where run news is put.
+    const list = el('div', 'result-line',
+      this.battle ? `Потери: ${this.battle.allyLosses} · время боя: ${Math.round(this.battle.tick / 10)} с` : '');
     content.append(list);
     if (this.battle) content.append(this.reportView(o.win));
 

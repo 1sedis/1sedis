@@ -211,3 +211,32 @@ describe('old saves', () => {
     expect(s.run.over).toBeNull();
   });
 });
+
+describe('starting armies', () => {
+  it('open with bosses and shape the next run', () => {
+    const s = newGame(0);
+    expect(s.armies).toEqual(['guard']);
+    s.run.chapter = 1;
+    const boss = buildMap(1, s.run.seed).nodes.find((n) => n.kind === 'boss')!;
+    s.run.done = buildMap(1, s.run.seed).nodes.filter((n) => n.next.includes(boss.id)).slice(0, 1).map((n) => n.id);
+    enterNode(s, boss.id);
+    const b = createBattle(battleSetup(s, '1-9'));
+    b.result = 'win';
+    recordResult(s, '1-9', b);
+    expect(s.armies).toContain('cavalry');
+    s.run.over = { won: false, chapter: 2, at: '2-1', wins: 0, elites: 0, bosses: 1, abyss: 0, crowns: 1 };
+    startNextRun(s, 0, 'cavalry');
+    expect(s.run.army).toBe('cavalry');
+    expect(s.army.knight).toBe(2);
+    expect(s.formation.filter((f) => f.kind === 'knight')).toHaveLength(2);
+    const setup = battleSetup(s, '1-1');
+    expect(setup.allyKind?.knight?.atk).toBeCloseTo(1.25);
+  });
+
+  it('a locked army cannot be chosen', () => {
+    const s = newGame(0);
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    startNextRun(s, 0, 'warrior');
+    expect(s.run.army).toBe('guard');
+  });
+});
