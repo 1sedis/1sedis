@@ -12,9 +12,10 @@ import { fmt } from '../format';
 import { audio } from '../audio';
 import { spriteUrl, type Tier } from '../sprites';
 import { openCodex } from '../codex';
+import { t } from '../../i18n';
 
 const ARMY_ORDER: PieceKind[] = ['king', 'pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
-const SHORT_BUILDING: Record<BuildingId, string> = { hq: '+1 фигура в бою', forge: '+6% к силе армии' };
+const SHORT_BUILDING: Record<BuildingId, string> = { hq: t('+1 фигура в бою'), forge: t('+6% к силе армии') };
 
 interface ArmyRow {
   kind: PieceKind;
@@ -37,26 +38,25 @@ export class CampScreen implements Screen {
 
   constructor(private ctx: Ctx) {
     const top = el('div', 'arena-top');
-    const back = el('button', 'btn btn-ghost', '← Карта');
+    const back = el('button', 'btn btn-ghost', t('← Карта'));
     back.addEventListener('click', () => this.ctx.go('map'));
     const titles = el('div', 'arena-titles');
-    titles.append(el('h1', 'arena-title', 'Улучшения'));
-    const codexBtn = el('button', 'btn btn-small', 'Справочник');
+    titles.append(el('h1', 'arena-title', t('Улучшения')));
+    const codexBtn = el('button', 'btn btn-small', t('Справочник'));
     codexBtn.addEventListener('click', () => openCodex(this.ctx.state));
     top.append(back, titles, codexBtn);
 
     const army = el('div', 'card camp-army');
     const armyHead = el('div', 'panel-head');
-    armyHead.append(el('span', 'panel-title', 'Армия'), infoBtn('Армия',
-      'Нанимайте фигуры и повышайте уровень типа: он действует на все фигуры этого типа, +18% к силе за уровень.\n'
-      + `На ${ABILITY_LEVELS[0]}-м уровне фигура получает приём и стальную броню, на ${ABILITY_LEVELS[1]}-м приём усиливается, броня становится золотой.`));
+    armyHead.append(el('span', 'panel-title', t('Армия')), infoBtn(t('Армия'),
+      t('Нанимайте фигуры и повышайте уровень типа: он действует на все фигуры этого типа, +18% к силе за уровень.\nНа {lv1}-м уровне фигура получает приём и стальную броню, на {lv2}-м приём усиливается, броня становится золотой.', { lv1: ABILITY_LEVELS[0], lv2: ABILITY_LEVELS[1] })));
     army.append(armyHead);
     for (const kind of ARMY_ORDER) army.append(this.buildArmyRow(kind));
 
     const buildings = el('div', 'card camp-buildings');
     this.buildingsCard = buildings;
     const bHead = el('div', 'panel-head');
-    bHead.append(el('span', 'panel-title', 'Постройки'), infoBtn('Постройки',
+    bHead.append(el('span', 'panel-title', t('Постройки')), infoBtn(t('Постройки'),
       BUILDING_ORDER.map((id) => `${BUILDINGS[id].name}: ${BUILDINGS[id].description}.`).join('\n')));
     buildings.append(bHead);
     for (const id of BUILDING_ORDER) buildings.append(this.buildBuildingRow(id));
@@ -87,7 +87,7 @@ export class CampScreen implements Screen {
         if (st.abilityBranch[kind] === branch) return;
         st.abilityBranch[kind] = branch;
         this.ctx.save();
-        toast(`${def.name}: приём «${abilityOf(kind, branch).name}»`, 'good');
+        toast(t('{name}: приём «{ab}»', { name: def.name, ab: abilityOf(kind, branch).name }), 'good');
       });
       return chip;
     });
@@ -116,8 +116,8 @@ export class CampScreen implements Screen {
           setTimeout(() => icon.classList.remove('evolve'), 900);
           const ab = abilityOf(kind, this.ctx.state.abilityBranch[kind]);
           toast(tier === 1
-            ? `${PIECES[kind].name} в стальной броне и выучил приём «${ab.name}»!`
-            : `${PIECES[kind].name} в золотой броне, «${ab.name}» усилен!`, 'good');
+            ? t('{name} в стальной броне и выучил приём «{ab}»!', { name: PIECES[kind].name, ab: ab.name })
+            : t('{name} в золотой броне, «{ab}» усилен!', { name: PIECES[kind].name, ab: ab.name }), 'good');
         } else audio.play('levelup');
         this.ctx.save();
       }
@@ -159,14 +159,14 @@ export class CampScreen implements Screen {
     const unlock = UNLOCKED_BY[kind];
     const branch = (b: Branch) => {
       const ab = abilityOf(kind, b);
-      return `${this.ctx.state.abilityBranch[kind] === b ? '▶' : '·'} «${ab.name}»: ${ab.tiers[0]} С ур. ${lv2}: ${ab.tiers[1]}`;
+      return t('{mark} «{name}»: {t1} С ур. {lv}: {t2}', { mark: this.ctx.state.abilityBranch[kind] === b ? '▶' : '·', name: ab.name, t1: ab.tiers[0], lv: lv2, t2: ab.tiers[1] });
     };
     return [
       `${def.role}. ${def.description}`,
-      `Приём с ур. ${lv1} — выберите один из двух, менять можно в любой момент:`,
+      t('Приём с ур. {lv} — выберите один из двух, менять можно в любой момент:', { lv: lv1 }),
       branch(0),
       branch(1),
-      ...(isUnlocked(this.ctx.state, kind) || !unlock ? [] : [`🔒 Откроется после боя ${unlock} «${getLevel(unlock).name}».`]),
+      ...(isUnlocked(this.ctx.state, kind) || !unlock ? [] : [t('🔒 Откроется после боя {id} «{name}».', { id: unlock, name: getLevel(unlock).name })]),
     ].join('\n');
   }
 
@@ -187,14 +187,14 @@ export class CampScreen implements Screen {
       const tier = abilityTier(lvl);
       const stats = unlocked
         ? `❤ ${fmt(def.hp * m)}  ⚔ ${fmt(def.atk * m)}${def.range ? `  ◎ ${def.range}` : ''}  `
-        : `🔒 после ${UNLOCKED_BY[row.kind]}  `;
+        : `${t('🔒 после {id}', { id: String(UNLOCKED_BY[row.kind]) })}  `;
       setText(row.stats, stats.trim());
-      setText(row.meta, unlocked ? `ур. ${lvl}${row.kind === 'king' ? '' : ` · ×${s.army[row.kind]}`}` : '');
+      setText(row.meta, unlocked ? `${t('ур. {lv}', { lv: lvl })}${row.kind === 'king' ? '' : ` · ×${s.army[row.kind]}`}` : '');
       const chosen = s.abilityBranch[row.kind];
       row.ability.forEach((chip, i) => {
         const ab = abilityOf(row.kind, i as Branch);
         setText(chip, `${tier === 2 ? '★★' : '★'} ${ab.name}`);
-        chip.title = `${tier === 0 ? `С ур. ${ABILITY_LEVELS[0]}: ` : ''}${ab.tiers[Math.max(0, tier - 1)]}`;
+        chip.title = `${tier === 0 ? t('С ур. {lv}: ', { lv: ABILITY_LEVELS[0] }) : ''}${ab.tiers[Math.max(0, tier - 1)]}`;
         chip.classList.toggle('chosen', i === chosen);
         chip.classList.toggle('learned', tier > 0 && i === chosen);
         chip.hidden = !unlocked;
@@ -207,26 +207,26 @@ export class CampScreen implements Screen {
       const cap = armyCap(s, row.kind);
       const maxed = s.army[row.kind] >= cap;
       const rCost = recruitCost(s, row.kind);
-      setText(row.recruitBtn, !unlocked ? '🔒' : maxed ? (cap === 1 ? 'Есть' : `Все ${cap}`) : `Нанять · ${fmt(rCost)}`);
+      setText(row.recruitBtn, !unlocked ? '🔒' : maxed ? (cap === 1 ? t('Есть') : t('Все {n}', { n: cap })) : t('Нанять · {cost}', { cost: fmt(rCost) }));
       row.recruitBtn.disabled = !unlocked || maxed || s.gold < rCost;
 
       const uCost = upgradeCost(s, row.kind);
-      setText(row.upgradeBtn, unlocked ? `Ур. ${lvl + 1} · ${fmt(uCost)}` : '🔒');
+      setText(row.upgradeBtn, unlocked ? t('Ур. {lv} · {cost}', { lv: lvl + 1, cost: fmt(uCost) }) : '🔒');
       row.upgradeBtn.disabled = !unlocked || s.gold < uCost;
     }
     const pawnRow = this.armyRows.find((r) => r.kind === 'pawn');
     const knightRow = this.armyRows.find((r) => r.kind === 'knight');
     void (this.ctx.tip('t_camp_up', pawnRow?.upgradeBtn,
-      'Уровень усиливает все фигуры этого типа. На 5-м уровне фигура выучит особый приём.')
+      t('Уровень усиливает все фигуры этого типа. На 5-м уровне фигура выучит особый приём.'))
       || (isUnlocked(s, 'knight') && s.army.knight === 0 && this.ctx.tip('t_knight', knightRow?.recruitBtn,
-        'Конь открыт! Наймите его: он прыгает через строй и охотится на стрелков и короля.')));
+        t('Конь открыт! Наймите его: он прыгает через строй и охотится на стрелков и короля.'))));
     for (const row of this.buildingRows) {
       const def = BUILDINGS[row.id];
       const lvl = s.buildings[row.id];
       const maxed = lvl >= def.maxLevel;
       setText(row.level, `${lvl}/${def.maxLevel}`);
       const cost = buildingCost(s, row.id);
-      setText(row.btn, maxed ? 'Макс.' : fmt(cost));
+      setText(row.btn, maxed ? t('Макс.') : fmt(cost));
       row.btn.disabled = maxed || s.gold < cost;
     }
   }

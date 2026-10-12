@@ -1,4 +1,5 @@
 import type { PieceKind } from './pieces';
+import { t } from '../i18n';
 
 /**
  * Starting armies: every run begins with one of them. Each has its own
@@ -28,28 +29,28 @@ export interface ArmyDef {
 
 export const ARMIES: Record<ArmyId, ArmyDef> = {
   guard: {
-    id: 'guard', name: 'Королевская стража', rule: 'Пешки крепче на 20%.',
-    pieces: { pawn: 3 }, gold: 60, unlock: 'Открыта с начала', unlockedBy: null,
+    id: 'guard', name: t('Королевская стража'), rule: t('Пешки крепче на 20%.'),
+    pieces: { pawn: 3 }, gold: 60, unlock: t('Открыта с начала'), unlockedBy: null,
     kind: { pawn: { atk: 1, hp: 1.2 } },
   },
   cavalry: {
-    id: 'cavalry', name: 'Конница', rule: 'Кони бьют на 25% сильнее.',
-    pieces: { pawn: 1, knight: 2 }, gold: 30, unlock: 'Победите Пешечного капитана', unlockedBy: '1-9',
+    id: 'cavalry', name: t('Конница'), rule: t('Кони бьют на 25% сильнее.'),
+    pieces: { pawn: 1, knight: 2 }, gold: 30, unlock: t('Победите Пешечного капитана'), unlockedBy: '1-9',
     kind: { knight: { atk: 1.25, hp: 1 } },
   },
   archers: {
-    id: 'archers', name: 'Лучники', rule: 'Слоны и ладьи бьют на 20% сильнее.',
-    pieces: { pawn: 2, bishop: 1 }, gold: 30, unlock: 'Победите Чёрного всадника', unlockedBy: '2-9',
+    id: 'archers', name: t('Лучники'), rule: t('Слоны и ладьи бьют на 20% сильнее.'),
+    pieces: { pawn: 2, bishop: 1 }, gold: 30, unlock: t('Победите Чёрного всадника'), unlockedBy: '2-9',
     kind: { bishop: { atk: 1.2, hp: 1 }, rook: { atk: 1.2, hp: 1 } },
   },
   fortress: {
-    id: 'fortress', name: 'Твердыня', rule: 'Король крепче на 60%, пешки начинают бой со щитом в 20% здоровья.',
-    pieces: { pawn: 2, rook: 1 }, gold: 0, unlock: 'Победите Башню-крепость', unlockedBy: '3-9',
+    id: 'fortress', name: t('Твердыня'), rule: t('Король крепче на 60%, пешки начинают бой со щитом в 20% здоровья.'),
+    pieces: { pawn: 2, rook: 1 }, gold: 0, unlock: t('Победите Башню-крепость'), unlockedBy: '3-9',
     kingHp: 1.6, pawnShield: 0.2,
   },
   warrior: {
-    id: 'warrior', name: 'Король-воин', rule: 'Только король и золото. Король сам идёт в атаку, бьёт по площади и вдвое крепче.',
-    pieces: {}, gold: 180, unlock: 'Выиграйте партию', unlockedBy: null,
+    id: 'warrior', name: t('Король-воин'), rule: t('Только король и золото. Король сам идёт в атаку, бьёт по площади и вдвое крепче.'),
+    pieces: {}, gold: 180, unlock: t('Выиграйте партию'), unlockedBy: null,
     kingHp: 2, warlord: true, kind: { king: { atk: 1.5, hp: 1 } },
   },
 };

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { PieceKind } from './pieces';
 
 /**
@@ -25,10 +26,10 @@ export interface BuffDef {
 }
 
 export const RARITY: Record<Rarity, { name: string; weight: number; color: string }> = {
-  common: { name: 'Обычный', weight: 55, color: '#a8b0c8' },
-  rare: { name: 'Редкий', weight: 30, color: '#4aa8ff' },
-  epic: { name: 'Эпический', weight: 12, color: '#b06bff' },
-  legendary: { name: 'Легендарный', weight: 3, color: '#ffcf4a' },
+  common: { name: t('Обычный'), weight: 55, color: '#a8b0c8' },
+  rare: { name: t('Редкий'), weight: 30, color: '#4aa8ff' },
+  epic: { name: t('Эпический'), weight: 12, color: '#b06bff' },
+  legendary: { name: t('Легендарный'), weight: 3, color: '#ffcf4a' },
 };
 
 /** Crowns per spin. */
@@ -38,34 +39,34 @@ export const EPIC_PITY = 5;
 export const LEGEND_PITY = 12;
 
 const KINDS: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'];
-const KIND_NAME: Record<PieceKind, string> = { king: 'короля', pawn: 'пешек', knight: 'коней', bishop: 'слонов', rook: 'ладей', queen: 'ферзей',
-  archbishop: 'архиепископов', chancellor: 'канцлеров', ghost: 'призраков' };
+const KIND_NAME: Record<PieceKind, string> = { king: t('короля'), pawn: t('пешек'), knight: t('коней'), bishop: t('слонов'), rook: t('ладей'), queen: t('ферзей'),
+  archbishop: t('архиепископов'), chancellor: t('канцлеров'), ghost: t('призраков') };
 
 const B = (id: string, rarity: Rarity, name: string, text: string, icon: BuffDef['icon'], max = 3, legend?: LegendId): BuffDef =>
   ({ id, rarity, name, text, icon, max, legend });
 
 export const BUFFS: BuffDef[] = [
-  B('c_steel', 'common', 'Острая сталь', '+8% к атаке армии', 'army'),
-  B('c_mail', 'common', 'Крепкие латы', '+8% к здоровью армии', 'army'),
-  B('c_purse', 'common', 'Кошель короны', 'забег начинается с +60 золота', 'gold'),
-  B('c_horn', 'common', 'Боевой рог', 'первые 5 с боя армия бьёт на 20% сильнее', 'army'),
-  B('c_levy', 'common', 'Ополчение', 'забег начинается с лишней пешкой', 'pawn'),
-  B('r_knight', 'rare', 'Рыцарь в запасе', 'забег начинается с конём', 'knight'),
-  B('r_shield', 'rare', 'Щиты пешек', 'пешки начинают бой со щитом в 15% здоровья', 'pawn'),
-  B('r_eye', 'rare', 'Глаз сокола', '+6% к шансу крита', 'army'),
-  B('r_loot', 'rare', 'Трофеи', 'элита и боссы платят на 40% больше золота', 'gold'),
-  B('r_crown', 'rare', 'Корона из тени', '+25% к здоровью короля', 'king'),
-  B('e_tempo', 'epic', 'Лишний ход', '+1 ход в боях с элитой и боссами', 'army', 2),
-  B('e_chest', 'epic', 'Сундук', 'забег начинается с выбора реликвии', 'gold', 2),
-  B('e_forge', 'epic', 'Горн', 'забег начинается с Кузницей +2', 'army'),
-  ...KINDS.map((k) => B(`e_power_${k}`, 'epic', 'Сила короны', `+25% к атаке и здоровью ${KIND_NAME[k]}`, k)),
-  B('l_phoenix', 'legendary', 'Пешки-фениксы', 'павшая пешка один раз за бой возрождается в тылу с половиной здоровья', 'pawn', 1, 'phoenix'),
-  B('l_chain', 'legendary', 'Цепной прыжок', 'сразив врага, конь тут же прыгает и бьёт снова', 'knight', 1, 'chain'),
-  B('l_beam', 'legendary', 'Пронзающий луч', 'выстрел слона бьёт всех врагов на диагонали', 'bishop', 1, 'beam'),
-  B('l_ram', 'legendary', 'Таран', 'выстрел ладьи пробивает камни и бьёт ещё и врага за целью', 'rook', 1, 'ram'),
-  B('l_double', 'legendary', 'Теневой двойник', 'в начале боя рядом с ферзём встаёт его тень с половиной сил', 'queen', 1, 'double'),
-  B('l_wrath', 'legendary', 'Гнев короля', 'король бьёт вдвое сильнее и задевает всех соседних врагов', 'king', 1, 'wrath'),
-  B('l_bloodlust', 'legendary', 'Кровожадность', 'каждое убийство лечит убийцу на 30% здоровья', 'army', 1, 'bloodlust'),
+  B('c_steel', 'common', t('Острая сталь'), t('+8% к атаке армии'), 'army'),
+  B('c_mail', 'common', t('Крепкие латы'), t('+8% к здоровью армии'), 'army'),
+  B('c_purse', 'common', t('Кошель короны'), t('забег начинается с +60 золота'), 'gold'),
+  B('c_horn', 'common', t('Боевой рог'), t('первые 5 с боя армия бьёт на 20% сильнее'), 'army'),
+  B('c_levy', 'common', t('Ополчение'), t('забег начинается с лишней пешкой'), 'pawn'),
+  B('r_knight', 'rare', t('Рыцарь в запасе'), t('забег начинается с конём'), 'knight'),
+  B('r_shield', 'rare', t('Щиты пешек'), t('пешки начинают бой со щитом в 15% здоровья'), 'pawn'),
+  B('r_eye', 'rare', t('Глаз сокола'), t('+6% к шансу крита'), 'army'),
+  B('r_loot', 'rare', t('Трофеи'), t('элита и боссы платят на 40% больше золота'), 'gold'),
+  B('r_crown', 'rare', t('Корона из тени'), t('+25% к здоровью короля'), 'king'),
+  B('e_tempo', 'epic', t('Лишний ход'), t('+1 ход в боях с элитой и боссами'), 'army', 2),
+  B('e_chest', 'epic', t('Сундук'), t('забег начинается с выбора реликвии'), 'gold', 2),
+  B('e_forge', 'epic', t('Горн'), t('забег начинается с Кузницей +2'), 'army'),
+  ...KINDS.map((k) => B(`e_power_${k}`, 'epic', t('Сила короны'), t('+25% к атаке и здоровью {kinds}', { kinds: KIND_NAME[k] }), k)),
+  B('l_phoenix', 'legendary', t('Пешки-фениксы'), t('павшая пешка один раз за бой возрождается в тылу с половиной здоровья'), 'pawn', 1, 'phoenix'),
+  B('l_chain', 'legendary', t('Цепной прыжок'), t('сразив врага, конь тут же прыгает и бьёт снова'), 'knight', 1, 'chain'),
+  B('l_beam', 'legendary', t('Пронзающий луч'), t('выстрел слона бьёт всех врагов на диагонали'), 'bishop', 1, 'beam'),
+  B('l_ram', 'legendary', t('Таран'), t('выстрел ладьи пробивает камни и бьёт ещё и врага за целью'), 'rook', 1, 'ram'),
+  B('l_double', 'legendary', t('Теневой двойник'), t('в начале боя рядом с ферзём встаёт его тень с половиной сил'), 'queen', 1, 'double'),
+  B('l_wrath', 'legendary', t('Гнев короля'), t('король бьёт вдвое сильнее и задевает всех соседних врагов'), 'king', 1, 'wrath'),
+  B('l_bloodlust', 'legendary', t('Кровожадность'), t('каждое убийство лечит убийцу на 30% здоровья'), 'army', 1, 'bloodlust'),
 ];
 
 export const BUFF_BY_ID: Record<string, BuffDef> = Object.fromEntries(BUFFS.map((b) => [b.id, b]));

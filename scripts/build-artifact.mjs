@@ -13,7 +13,7 @@ const css = readFileSync(`${dir}/${cssFile}`, 'utf8');
 const safeJs = js.replace(/<\/script/gi, '<\\/script');
 const safeCss = css.replace(/<\/style/gi, '<\\/style');
 
-const html = `<title>Пиксельный гамбит</title>
+const html = `<title>Pixel Gambit · Пиксельный гамбит</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tiny5&display=swap">

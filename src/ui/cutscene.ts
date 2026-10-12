@@ -2,6 +2,7 @@ import type { PieceKind } from '../game/pieces';
 import type { Trait } from '../game/elites';
 import { BoardView, type UnitView } from './board';
 import { el } from './dom';
+import { t } from '../i18n';
 import { audio, type Sfx, type TrackId } from './audio';
 import { handUrl } from './handArt';
 import { spriteUrl, type Team, type Tier } from './sprites';
@@ -72,7 +73,7 @@ interface Actor {
   y: number;
 }
 
-const NAMES: Partial<Record<string, string>> = { hand: 'Рука над доской', 'giant-hand': 'Рука над доской' };
+const NAMES: Partial<Record<string, string>> = { hand: t('Рука над доской'), 'giant-hand': t('Рука над доской') };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -96,7 +97,7 @@ export class Stage {
 
   constructor(private board: BoardView, cast: UnitView[] = []) {
     this.layer.addEventListener('click', () => this.tap?.());
-    const skip = el('button', 'scene-skip', 'Пропустить ▶▶');
+    const skip = el('button', 'scene-skip', t('Пропустить ▶▶'));
     skip.addEventListener('click', (e) => {
       e.stopPropagation();
       this.skip();
@@ -235,8 +236,8 @@ export class Stage {
 
   private nameOf(a: Actor): string {
     if (NAMES[a.id]) return NAMES[a.id]!;
-    if (a.kind === 'hand') return 'Рука над доской';
-    if (a.kind === 'king') return a.team === 'enemy' ? 'Чёрный король' : 'Белый король';
+    if (a.kind === 'hand') return t('Рука над доской');
+    if (a.kind === 'king') return a.team === 'enemy' ? t('Чёрный король') : t('Белый король');
     return '';
   }
 

@@ -22,6 +22,7 @@ import { playCredits } from '../finale';
 import { handUrl } from '../handArt';
 import { DISTORTIONS, distortionsFor } from '../../game/distortions';
 import { featureOpen } from '../../game/features';
+import { t } from '../../i18n';
 
 const REVEAL_KEY = 'story_final_reveal';
 
@@ -43,16 +44,16 @@ export class MapScreen implements Screen {
   private relicsCard!: HTMLElement;
   private prestigeCard = el('div', 'card prestige-card');
   private prestigeInfo = el('div', 'treasury-info');
-  private prestigeBtn = el('button', 'btn btn-up', 'Новая партия');
-  private treeBtn = el('button', 'btn btn-buy tree-btn', '♛ Древо короны');
-  private wheelBtn = el('button', 'btn btn-up wheel-btn', '◎ Колесо короны');
-  private chronicleBtn = el('button', 'btn btn-small chronicle-btn', 'Летопись');
+  private prestigeBtn = el('button', 'btn btn-up', t('Новая партия'));
+  private treeBtn = el('button', 'btn btn-buy tree-btn', t('♛ Древо короны'));
+  private wheelBtn = el('button', 'btn btn-up wheel-btn', t('◎ Колесо короны'));
+  private chronicleBtn = el('button', 'btn btn-small chronicle-btn', t('Летопись'));
   private distortionInfo = el('div', 'distortion-info treasury-info');
   private finaleCard = el('div', 'card finale-card');
   private finaleInfo = el('div', 'treasury-info');
   private finalePips = el('div', 'finale-pips');
   private finaleBtn = el('button', 'btn btn-danger finale-btn');
-  private creditsBtn = el('button', 'btn btn-small', 'Титры');
+  private creditsBtn = el('button', 'btn btn-small', t('Титры'));
 
   constructor(private ctx: Ctx) {
     const main = el('div', 'map-main card');
@@ -70,15 +71,14 @@ export class MapScreen implements Screen {
     const relics = el('div', 'card relics-card');
     this.relicsCard = relics;
     const rHead = el('div', 'panel-head');
-    rHead.append(el('span', 'panel-title', 'Реликвии'), this.relicCount, infoBtn('Реликвии',
-      'Бонусы, меняющие правила боя, до конца забега.\nЗа каждого босса и каждую элиту вы выбираете одну из трёх; ещё их продаёт торговец и дарят события. Наведите на значок или нажмите на него, чтобы прочитать описание.'));
+    rHead.append(el('span', 'panel-title', t('Реликвии')), this.relicCount, infoBtn(t('Реликвии'),
+      t('Бонусы, меняющие правила боя, до конца забега.\nЗа каждого босса и каждую элиту вы выбираете одну из трёх; ещё их продаёт торговец и дарят события. Наведите на значок или нажмите на него, чтобы прочитать описание.')));
     this.relicBtn.addEventListener('click', () => openRelicPicker(this.ctx, () => this.renderRelics()));
     relics.append(rHead, this.relicList, this.relicBtn);
 
     const pHead = el('div', 'panel-head');
-    pHead.append(el('span', 'panel-title', 'Короны'), infoBtn('Короны и партии',
-      'Каждый забег, даже проигранный, приносит короны: по 1 за босса и 2 за победу в партии; ещё их дают достижения.\n'
-      + 'Короны тратятся в «Древе короны» на доктрины или в «Колесе короны» на вечные дары (2 ♛ за крутку).\nГлубокие ярусы Древа открываются в следующих партиях.\nПобеда над Чёрным ферзём выигрывает партию: следующая будет труднее, Чёрный король принесёт новое искажение. Проигранный забег повторяет ту же партию с 1-1.'));
+    pHead.append(el('span', 'panel-title', t('Короны')), infoBtn(t('Короны и партии'),
+      t('Каждый забег, даже проигранный, приносит короны: по 1 за босса и 2 за победу в партии; ещё их дают достижения.\nКороны тратятся в «Древе короны» на доктрины или в «Колесе короны» на вечные дары (2 ♛ за крутку).\nГлубокие ярусы Древа открываются в следующих партиях.\nПобеда над Чёрным ферзём выигрывает партию: следующая будет труднее, Чёрный король принесёт новое искажение. Проигранный забег повторяет ту же партию с 1-1.')));
     this.prestigeBtn.addEventListener('click', () => void this.onPrestige());
     this.treeBtn.addEventListener('click', () => openCrownTree(this.ctx));
     this.wheelBtn.addEventListener('click', () => openWheel(this.ctx, () => this.renderRelics()));
@@ -87,8 +87,8 @@ export class MapScreen implements Screen {
     this.prestigeCard.append(pHead, this.prestigeInfo, this.distortionInfo, this.prestigeBtn, this.treeBtn, this.wheelBtn, this.chronicleBtn);
 
     const fHead = el('div', 'panel-head');
-    fHead.append(el('span', 'panel-title', 'Край доски'), infoBtn('Край доски',
-      'Конец истории: три боя подряд, один страшнее другого.\nВраги подстраиваются под силу вашей армии — помогут кузница, реликвии, древо и рулетка. Выигранные бои сохраняются, а поражение здесь забег не заканчивает.'));
+    fHead.append(el('span', 'panel-title', t('Край доски')), infoBtn(t('Край доски'),
+      t('Конец истории: три боя подряд, один страшнее другого.\nВраги подстраиваются под силу вашей армии — помогут кузница, реликвии, древо и рулетка. Выигранные бои сохраняются, а поражение здесь забег не заканчивает.')));
     const fImg = el('img', 'finale-img');
     fImg.src = handUrl();
     fImg.alt = '';
@@ -122,16 +122,12 @@ export class MapScreen implements Screen {
     this.chapterBoss.src = hasBossArt(art) ? bossArtUrl(art) : spriteUrl(enemyPlacements(boss).find((p) => p.boss)?.kind ?? 'king', 'enemy');
     this.chapterBoss.title = boss.boss ?? '';
     setText(this.chapterTitle, chapter.name);
-    setText(this.chapterSub, `${chapter.subtitle} · до ${chapter.limit} фигур в бою`);
+    setText(this.chapterSub, t('{sub} · до {n} фигур в бою', { sub: chapter.subtitle, n: chapter.limit }));
     const info = el('span', 'run-chapter', s.run.complete
-      ? `Партия ${s.prestige + 1} · кампания пройдена`
-      : `Партия ${s.prestige + 1} · глава ${chapter.id} из ${CHAPTERS.length} · ${ARMIES[s.run.army ?? 'guard'].name}`);
-    const help = infoBtn('Карта главы',
-      'Каждая глава — карта с развилками. Выбирайте путь: от узла можно идти только по дорогам вниз.\n'
-      + '⚔ Бой — золото. ☠ Элита — враги сильнее, зато реликвия. ? Событие — выбор с последствиями. '
-      + 'Торговец продаёт реликвии и запасное знамя, в лагере можно заточить оружие или потренировать фигуру. В конце — босс.\n'
-      + 'Жизнь одна: поражение заканчивает забег, и новый начнётся с 1-1 — с новой армией, но с коронами за пройденный путь. '
-      + 'Запасное знамя (реликвия) даёт вторую жизнь.');
+      ? t('Партия {g} · кампания пройдена', { g: s.prestige + 1 })
+      : t('Партия {g} · глава {ch} из {total} · {army}', { g: s.prestige + 1, ch: chapter.id, total: CHAPTERS.length, army: ARMIES[s.run.army ?? 'guard'].name }));
+    const help = infoBtn(t('Карта главы'),
+      t('Каждая глава — карта с развилками. Выбирайте путь: от узла можно идти только по дорогам вниз.\n⚔ Бой — золото. ☠ Элита — враги сильнее, зато реликвия. ? Событие — выбор с последствиями. Торговец продаёт реликвии и запасное знамя, в лагере можно заточить оружие или потренировать фигуру. В конце — босс.\nЖизнь одна: поражение заканчивает забег, и новый начнётся с 1-1 — с новой армией, но с коронами за пройденный путь. Запасное знамя (реликвия) даёт вторую жизнь.'));
     const right = el('span', 'run-right');
     right.append(livesRow(s), help);
     this.runInfo.replaceChildren(info, right);
@@ -169,9 +165,8 @@ export class MapScreen implements Screen {
     const s = this.ctx.state;
     if (!canPrestige(s)) return;
     const gain = crownsForPrestige(s);
-    const ok = await confirmDialog('Новая партия',
-      `Забег закончится победой: вы получите ${gain} ♛. Следующая партия начнётся с 1-1 с новой армией, враги станут сильнее, `
-      + `Чёрный король принесёт новое искажение. Финал этой армией будет недоступен.`, 'Начать');
+    const ok = await confirmDialog(t('Новая партия'),
+      t('Забег закончится победой: вы получите {gain} ♛. Следующая партия начнётся с 1-1 с новой армией, враги станут сильнее, Чёрный король принесёт новое искажение. Финал этой армией будет недоступен.', { gain }), t('Начать'));
     if (!ok) return;
     endRun(s, true, PRESTIGE_UNLOCK);
     this.ctx.save();
@@ -185,7 +180,7 @@ export class MapScreen implements Screen {
     openRunEnd(this.ctx, () => {
       this.show();
       if (won) {
-        toast(`Партия ${this.ctx.state.prestige + 1}`, 'good');
+        toast(t('Партия {g}', { g: this.ctx.state.prestige + 1 }), 'good');
         void playGameIntro(this.ctx.state, () => this.ctx.save());
       }
     });
@@ -196,7 +191,7 @@ export class MapScreen implements Screen {
     setText(this.relicCount, `${s.relics.length}/${RELIC_IDS.length}`);
     this.relicList.replaceChildren(s.relics.length
       ? relicStrip(s.relics)
-      : el('p', 'hint', 'Пока нет. Их дают элита, боссы, торговцы и события. Действуют до конца забега.'));
+      : el('p', 'hint', t('Пока нет. Их дают элита, боссы, торговцы и события. Действуют до конца забега.')));
   }
 
   private renderPath(): void {
@@ -338,19 +333,19 @@ export class MapScreen implements Screen {
     this.finaleCard.hidden = !fOpen || !revealed;
     this.finaleCard.classList.toggle('beaten', s.finale.beaten);
     setText(this.finaleInfo, s.finale.beaten
-      ? 'Рука опущена. Доска больше не переворачивается.'
-      : `Над доской кто-то есть… Пройдено боёв: ${s.finale.phase} из 3`);
+      ? t('Рука опущена. Доска больше не переворачивается.')
+      : t('Над доской кто-то есть… Пройдено боёв: {n} из 3', { n: s.finale.phase }));
     [...this.finalePips.children].forEach((p, i) => p.classList.toggle('on', s.finale.beaten || i < s.finale.phase));
-    setText(this.finaleBtn, s.finale.beaten ? 'Сразиться снова' : s.finale.phase ? `Фаза ${s.finale.phase + 1}` : 'Подняться к краю');
+    setText(this.finaleBtn, s.finale.beaten ? t('Сразиться снова') : s.finale.phase ? t('Фаза {n}', { n: s.finale.phase + 1 }) : t('Подняться к краю'));
     this.creditsBtn.hidden = !s.finale.beaten;
     const ready = canPrestige(s);
     setText(this.prestigeInfo, ready
-      ? `Получите +${crownsForPrestige(s)} ♛ · свободно ${s.crowns} ♛`
-      : `Свободно ${s.crowns} ♛ · партия ${s.prestige + 1}`);
+      ? t('Получите +{gain} ♛ · свободно {crowns} ♛', { gain: crownsForPrestige(s), crowns: s.crowns })
+      : t('Свободно {crowns} ♛ · партия {g}', { crowns: s.crowns, g: s.prestige + 1 }));
     this.prestigeBtn.hidden = !ready;
     this.treeBtn.hidden = s.prestige === 0 && s.crowns === 0 && s.crownTree.length === 0;
     this.wheelBtn.hidden = this.treeBtn.hidden && s.roulette.spins === 0;
-    setText(this.wheelBtn, s.roulette.offer ? '◎ Колесо: выберите дар!' : s.roulette.free ? '◎ Колесо: бесплатная крутка!' : '◎ Колесо короны');
+    setText(this.wheelBtn, s.roulette.offer ? t('◎ Колесо: выберите дар!') : s.roulette.free ? t('◎ Колесо: бесплатная крутка!') : t('◎ Колесо короны'));
     this.wheelBtn.classList.toggle('just-opened', !!s.roulette.offer || s.roulette.free > 0);
     // Not shown until there is something to say: the final boss is beaten or the tree is in play.
     this.prestigeCard.hidden = !ready && this.treeBtn.hidden;
@@ -358,12 +353,12 @@ export class MapScreen implements Screen {
     const early = distortionsFor(gameNumber(s), 1);
     const late = distortionsFor(gameNumber(s), 3).filter((id) => !early.includes(id));
     this.distortionInfo.hidden = early.length + late.length === 0;
-    setText(this.distortionInfo, [...early.map((id) => `◆ ${DISTORTIONS[id].name}`), ...late.map((id) => `◆ ${DISTORTIONS[id].name} (с 3-й главы)`)].join('\n'));
+    setText(this.distortionInfo, [...early.map((id) => `◆ ${DISTORTIONS[id].name}`), ...late.map((id) => t('◆ {name} (с 3-й главы)', { name: DISTORTIONS[id].name }))].join('\n'));
     this.chronicleBtn.hidden = !s.tutorial.some((k) => /^lore_\d+$/.test(k));
     const forks = this.path.querySelectorAll<HTMLElement>('.run-node.current');
     void (forks.length > 1 && this.ctx.tip('t_fork', forks[0],
-      'Развилка! Выберите, куда вести армию: бой, элита с реликвией, событие, торговец или лагерь. Назад пути нет.'));
-    void this.ctx.tip('t_relic', this.relicBtn, 'Вы заслужили реликвию! Выберите один из трёх бонусов до конца забега.');
-    setText(this.relicBtn, `Выбрать реликвию (${s.relicPicks})`);
+      t('Развилка! Выберите, куда вести армию: бой, элита с реликвией, событие, торговец или лагерь. Назад пути нет.')));
+    void this.ctx.tip('t_relic', this.relicBtn, t('Вы заслужили реликвию! Выберите один из трёх бонусов до конца забега.'));
+    setText(this.relicBtn, t('Выбрать реликвию ({n})', { n: s.relicPicks }));
   }
 }

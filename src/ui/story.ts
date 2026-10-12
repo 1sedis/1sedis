@@ -1,6 +1,7 @@
 import { CHRONICLE, LORE, STORY, chronicleAt, loreKey, storyKey } from '../game/story';
 import { gameNumber, type GameState } from '../game/state';
 import { el, openModal } from './dom';
+import { t } from '../i18n';
 import type { BoardView, UnitView } from './board';
 import { Stage, playStageOverlay } from './cutscene';
 import { levelScene, loreScene, openingScene, revealScene } from './scenes';
@@ -54,15 +55,15 @@ export function playReveal(s: GameState, save: () => void): Promise<void> {
 /** Re-read the Chronicle: every chapter told so far (with a replay), and the ending once it is reached. */
 export function openChronicle(s: GameState, save: () => void, onCredits?: () => void): void {
   const content = el('div', 'chronicle');
-  content.append(el('h2', '', 'Летопись'));
+  content.append(el('h2', '', t('Летопись')));
   const told = CHRONICLE.filter((b) => s.tutorial.includes(loreKey(b.lore)));
-  if (!told.length) content.append(el('p', 'muted', 'Летопись начнётся во второй партии.'));
+  if (!told.length) content.append(el('p', 'muted', t('Летопись начнётся во второй партии.')));
   for (const beat of told) {
     const lore = LORE[beat.lore];
     const item = el('div', 'chronicle-item');
-    item.append(el('div', 'chronicle-title', `${beat.at === 'finale' ? 'Край доски' : `Партия ${beat.game}`} · ${lore.title}`));
+    item.append(el('div', 'chronicle-title', `${beat.at === 'finale' ? t('Край доски') : t('Партия {n}', { n: beat.game })} · ${lore.title}`));
     for (const line of lore.lines) item.append(el('p', '', line));
-    const watch = el('button', 'btn btn-small chronicle-watch', '▶ Смотреть');
+    const watch = el('button', 'btn btn-small chronicle-watch', t('▶ Смотреть'));
     watch.addEventListener('click', () => {
       done();
       void playLore(s, beat.lore, beat.game, save);
@@ -72,14 +73,14 @@ export function openChronicle(s: GameState, save: () => void, onCredits?: () => 
   }
   if (onCredits) {
     const item = el('div', 'chronicle-item chronicle-ending');
-    item.append(el('div', 'chronicle-title', 'Финал · Доска, которая стоит'));
-    item.append(el('p', '', 'Рука над доской опущена. Белый и Чёрный король стоят рядом, и доска больше не переворачивается.'));
+    item.append(el('div', 'chronicle-title', t('Финал · Доска, которая стоит')));
+    item.append(el('p', '', t('Рука над доской опущена. Белый и Чёрный король стоят рядом, и доска больше не переворачивается.')));
     content.append(item);
   }
-  const close = el('button', 'btn btn-small', 'Закрыть');
+  const close = el('button', 'btn btn-small', t('Закрыть'));
   const actions = el('div', 'modal-actions');
   if (onCredits) {
-    const credits = el('button', 'btn btn-small', 'Титры');
+    const credits = el('button', 'btn btn-small', t('Титры'));
     credits.addEventListener('click', () => {
       done();
       onCredits();

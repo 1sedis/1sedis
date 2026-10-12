@@ -11,6 +11,7 @@ import { handUrl } from './handArt';
 import { bossArtUrl, hasBossArt } from './bossArt';
 import type { BossId } from '../game/bosses';
 import type { Trait } from '../game/elites';
+import { t } from '../i18n';
 
 export interface UnitView {
   key: string;
@@ -345,7 +346,7 @@ export class BoardView {
     img.src = info.sprite;
     img.alt = '';
     this.introEl.replaceChildren(
-      el('div', 'boss-intro-tag', 'Босс'), img, el('div', 'boss-intro-name', info.name),
+      el('div', 'boss-intro-tag', t('Босс')), img, el('div', 'boss-intro-name', info.name),
       el('div', 'boss-intro-skill', `★ ${info.skill}   ☠ ${info.rage}`),
     );
     restart(this.introEl, 'show');
@@ -421,7 +422,7 @@ export class BoardView {
         // At high speed only crits and blows to kings and bosses get a number.
         if (this.fxLevel > 0 || e.crit || e.big) {
           if (e.crit || e.big || this.room()) {
-            const text = e.amount < 1 ? 'блок' : fmt(Math.round(e.amount)) + (e.crit ? '!' : '');
+            const text = e.amount < 1 ? t('блок') : fmt(Math.round(e.amount)) + (e.crit ? '!' : '');
             this.place(el('div', `fx-dmg ${e.side}${e.crit ? ' crit' : ''}`, text), e.x, e.y);
           }
         }
@@ -433,10 +434,10 @@ export class BoardView {
       } else if (e.type === 'heal') {
         this.place(el('div', 'fx-dmg heal', `+${fmt(Math.round(e.amount))}`), e.x, e.y);
       } else if (e.type === 'save') {
-        this.place(el('div', 'fx-promote', 'Вторая жизнь!'), e.x, e.y);
+        this.place(el('div', 'fx-promote', t('Вторая жизнь!')), e.x, e.y);
         this.burst(e, 14);
       } else if (e.type === 'promote') {
-        this.place(el('div', 'fx-promote', 'Ферзь!'), e.x, e.y);
+        this.place(el('div', 'fx-promote', t('Ферзь!')), e.x, e.y);
         this.burst(e, 14);
       } else if (e.type === 'blast' || e.type === 'terrain') {
         for (const i of e.cells ?? []) {

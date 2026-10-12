@@ -5,6 +5,7 @@ import type { Ctx, Screen } from '../context';
 import { el, pulse, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { iconUrl, type IconId } from '../icons';
+import { t } from '../../i18n';
 
 interface Row {
   def: AchievementDef;
@@ -38,16 +39,16 @@ export class AchievementsScreen implements Screen {
 
   constructor(private ctx: Ctx) {
     const top = el('div', 'arena-top');
-    const back = el('button', 'btn btn-ghost', '← Карта');
+    const back = el('button', 'btn btn-ghost', t('← Карта'));
     back.addEventListener('click', () => this.ctx.go('map'));
     const titles = el('div', 'arena-titles');
-    titles.append(el('h1', 'arena-title', 'Достижения'), this.summary);
+    titles.append(el('h1', 'arena-title', t('Достижения')), this.summary);
     this.claimAllBtn.addEventListener('click', () => {
       let total = 0;
       for (const r of this.rows) if (r.state === 'ready') total += claimAchievement(this.ctx.state, r.def.id);
       if (total > 0) {
         audio.play('coins');
-        toast(`Награды за достижения: +${fmt(total)} золота`, 'good');
+        toast(t('Награды за достижения: +{gold} золота', { gold: fmt(total) }), 'good');
         this.ctx.save();
       }
     });
@@ -67,13 +68,13 @@ export class AchievementsScreen implements Screen {
       track.append(bar);
       body.append(head, el('div', 'ach-desc', def.description), track);
       const reward = el('div', 'ach-reward', `+${fmt(def.reward)}`);
-      const btn = el('button', 'btn btn-buy ach-btn', 'Забрать');
+      const btn = el('button', 'btn btn-buy ach-btn', t('Забрать'));
       btn.addEventListener('click', () => {
         const got = claimAchievement(this.ctx.state, def.id);
         if (got > 0) {
           audio.play('coins');
           pulse(btn);
-          toast(`«${def.name}»: +${fmt(got)} золота`, 'good');
+          toast(t('«{name}»: +{gold} золота', { name: def.name, gold: fmt(got) }), 'good');
           this.ctx.save();
         }
       });
@@ -113,7 +114,7 @@ export class AchievementsScreen implements Screen {
       this.list.replaceChildren(...sorted.map((r) => r.root));
     }
     this.claimAllBtn.hidden = ready < 2;
-    setText(this.claimAllBtn, `Забрать всё · ${ready}`);
-    setText(this.summary, `Открыто ${done} из ${this.rows.length}${ready ? ` · забрать: ${ready}` : ''}`);
+    setText(this.claimAllBtn, t('Забрать всё · {n}', { n: ready }));
+    setText(this.summary, t('Открыто {done} из {total}', { done, total: this.rows.length }) + (ready ? t(' · забрать: {n}', { n: ready }) : ''));
   }
 }

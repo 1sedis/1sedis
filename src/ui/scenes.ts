@@ -2,6 +2,7 @@ import { DISTORTIONS, distortionsFor, type DistortionId } from '../game/distorti
 import { LORE } from '../game/story';
 import type { UnitView } from './board';
 import type { Step } from './cutscene';
+import { t } from '../i18n';
 
 /** Cell index of (x, y). */
 const C = (x: number, y: number) => y * 8 + x;
@@ -17,44 +18,44 @@ export function levelScene(levelId: string): Step[] | null {
     case '1-1':
       return [
         { t: 'hop', id: bk },
-        say(bk, 'Ещё один полководец Белого короля? Как трогательно.'),
+        say(bk, t('Ещё один полководец Белого короля? Как трогательно.')),
         { t: 'teamHop', team: 'enemy', kinds: ['pawn'] },
-        say(bk, 'Мои пешки растопчут тебя на первой же клетке.'),
-        say('wk', 'Посмотрим.'),
+        say(bk, t('Мои пешки растопчут тебя на первой же клетке.')),
+        say('wk', t('Посмотрим.')),
       ];
     case '1-9':
-      return [say(bk, 'Капитан! Покажи этому выскочке, что такое настоящий строй.'), { t: 'roar', id: 'boss' }];
+      return [say(bk, t('Капитан! Покажи этому выскочке, что такое настоящий строй.')), { t: 'roar', id: 'boss' }];
     case '2-1':
       return [
-        say(bk, 'Ты прошёл поля? Неважно.'),
+        say(bk, t('Ты прошёл поля? Неважно.')),
         { t: 'teamHop', team: 'enemy', kinds: ['knight'] },
-        say(bk, 'В моём лесу всадники видят каждую тень. Береги тыл.'),
+        say(bk, t('В моём лесу всадники видят каждую тень. Береги тыл.')),
       ];
     case '2-9':
-      return [{ t: 'roar', id: 'boss' }, say(bk, 'Чёрный всадник ещё не знал поражений. Беги, пока цел.')];
+      return [{ t: 'roar', id: 'boss' }, say(bk, t('Чёрный всадник ещё не знал поражений. Беги, пока цел.'))];
     case '3-1':
       return [
         { t: 'teamHop', team: 'enemy', kinds: ['bishop', 'rook'] },
-        say(bk, 'Башни стоят тысячу лет, и их стрелки не промахиваются.'),
-        say(bk, 'Каждая открытая линия — твоя могила.'),
+        say(bk, t('Башни стоят тысячу лет, и их стрелки не промахиваются.')),
+        say(bk, t('Каждая открытая линия — твоя могила.')),
       ];
     case '3-9':
-      return [say(bk, 'Крепость неприступна. Твоя армия разобьётся о её стены.'), { t: 'roar', id: 'boss' }, { t: 'shake', big: true }];
+      return [say(bk, t('Крепость неприступна. Твоя армия разобьётся о её стены.')), { t: 'roar', id: 'boss' }, { t: 'shake', big: true }];
     case '4-1':
-      return [say(bk, 'Добро пожаловать в Тронный зал. Отсюда ещё никто не ушёл.'), say('wk', 'Значит, я буду первым.')];
+      return [say(bk, t('Добро пожаловать в Тронный зал. Отсюда ещё никто не ушёл.')), say('wk', t('Значит, я буду первым.'))];
     case '4-9':
       return [
         { t: 'roar', id: bk },
-        say(bk, 'Довольно игр!'),
-        say(bk, 'Ферзь, сотри их с доски. Эта партия — моя.'),
+        say(bk, t('Довольно игр!')),
+        say(bk, t('Ферзь, сотри их с доски. Эта партия — моя.')),
         { t: 'roar', id: 'boss' },
       ];
     case 'abyss-1':
       return [
-        say(bk, 'Ты победил меня… но под доской есть Бездна.'),
+        say(bk, t('Ты победил меня… но под доской есть Бездна.')),
         { t: 'crack' },
         { t: 'dark', cells: [C(2, 3), C(5, 3), C(3, 4), C(4, 4)] },
-        say(bk, 'И она голодна. Спускайся, если не боишься.'),
+        say(bk, t('И она голодна. Спускайся, если не боишься.')),
       ];
     default:
       return null;
@@ -91,13 +92,13 @@ export function openingScene(): Step[] {
     { t: 'music', track: 'menu' },
     { t: 'cinema', on: true },
     { t: 'camera', scale: 1.35, x: 4, y: 7, ms: 10 },
-    { t: 'caption', text: 'Тысячу лет Белое королевство жило в мире.' },
+    { t: 'caption', text: t('Тысячу лет Белое королевство жило в мире.') },
     { t: 'camera', scale: 1, ms: 2200, par: true },
     { t: 'teamHop', team: 'ally' },
     { t: 'thunder' },
     { t: 'shadow' },
     { t: 'music', track: 'boss' },
-    { t: 'caption', text: 'Пока с севера не пришёл Чёрный король.' },
+    { t: 'caption', text: t('Пока с севера не пришёл Чёрный король.') },
     { t: 'embers', on: true },
     { t: 'team', team: 'enemy', show: true },
     ...march(pawns, -1),
@@ -106,8 +107,8 @@ export function openingScene(): Step[] {
     { t: 'thunder' },
     { t: 'grow', id: 'b4', scale: 1.3 },
     { t: 'roar', id: 'b4' },
-    say('b4', 'Сдавайся, старик. Твоё королевство — моё.'),
-    say('w4', 'Никогда! Стража — к бою!'),
+    say('b4', t('Сдавайся, старик. Твоё королевство — моё.')),
+    say('w4', t('Никогда! Стража — к бою!')),
     { t: 'teamHop', team: 'ally' },
     // The battle: blow after blow, the darkness creeping behind the black army.
     ...[2, 3, 4, 5].map((x): Step => ({ t: 'move', id: `bp${x}`, x, y: 4, ms: 350, par: true })),
@@ -120,7 +121,7 @@ export function openingScene(): Step[] {
     { t: 'clash', id: 'b3', target: 'w1', ms: 380 },
     { t: 'clash', id: 'b3', target: 'wp3' },
     { t: 'camera', scale: 1.5, x: 3, y: 6, ms: 500 },
-    say('w3', 'За короля!'),
+    say('w3', t('За короля!')),
     { t: 'clash', id: 'w3', target: 'b3', ms: 200 },
     { t: 'clash', id: 'b1', target: 'w3', ms: 200 },
     { t: 'flash', color: '#ff4f7b' },
@@ -135,9 +136,9 @@ export function openingScene(): Step[] {
     { t: 'clash', id: 'bp6', target: 'wp6' },
     { t: 'dark', cells: [C(2, 4), C(5, 4), C(1, 5), C(6, 5), C(3, 5)] },
     { t: 'shake', big: true },
-    { t: 'caption', text: 'Армия пала за одну ночь.' },
+    { t: 'caption', text: t('Армия пала за одну ночь.') },
     { t: 'camera', scale: 1.6, x: 4, y: 7, ms: 1400 },
-    say('b4', 'Беги, старик. Я найду тебя на любой клетке.'),
+    say('b4', t('Беги, старик. Я найду тебя на любой клетке.')),
     { t: 'move', id: 'w4', x: 3, y: 7, ms: 600, par: true },
     { t: 'move', id: 'wp0', x: 2, y: 5, ms: 600, par: true },
     { t: 'move', id: 'wp4', x: 4, y: 5, ms: 600, par: true },
@@ -145,10 +146,10 @@ export function openingScene(): Step[] {
     { t: 'camera', scale: 1, ms: 900, par: true },
     { t: 'team', team: 'enemy', show: false },
     { t: 'embers', on: false },
-    { t: 'caption', text: 'У тебя остались король и три пешки. Этого хватит, чтобы начать.' },
-    say('w4', 'Мы вернём королевство. Клетка за клеткой.'),
+    { t: 'caption', text: t('У тебя остались король и три пешки. Этого хватит, чтобы начать.') },
+    say('w4', t('Мы вернём королевство. Клетка за клеткой.')),
     { t: 'cinema', on: false },
-    { t: 'bigTitle', text: 'ПИКСЕЛЬНЫЙ ГАМБИТ', sub: 'Партия 1 · Отвоюй Белое королевство' },
+    { t: 'bigTitle', text: t('ПИКСЕЛЬНЫЙ ГАМБИТ'), sub: t('Партия 1 · Отвоюй Белое королевство') },
   ];
 }
 
@@ -172,7 +173,7 @@ function opening(queen = false): Step[] {
 
 /** The card of a distortion that joins the ones already in force. */
 function distortionCard(id: DistortionId, joins: boolean): Step[] {
-  return [{ t: 'title', text: `${joins ? 'Новое искажение' : 'Искажение'}: ${DISTORTIONS[id].name}`, sub: DISTORTIONS[id].text, accent: true }];
+  return [{ t: 'title', text: joins ? t('Новое искажение: {name}', { name: DISTORTIONS[id].name }) : t('Искажение: {name}', { name: DISTORTIONS[id].name }), sub: DISTORTIONS[id].text, accent: true }];
 }
 
 /**
@@ -180,25 +181,25 @@ function distortionCard(id: DistortionId, joins: boolean): Step[] {
  * game/story.ts for when each one plays), ending with the distortion it brings.
  */
 export function loreScene(lore: number, game: number): Step[] {
-  const head: Step[] = [{ t: 'title', text: LORE[lore]?.title ?? `Партия ${game}`, sub: `Летопись · партия ${game}` }];
+  const head: Step[] = [{ t: 'title', text: LORE[lore]?.title ?? t('Партия {game}', { game }), sub: t('Летопись · партия {game}', { game }) }];
   switch (lore) {
     case 0:
       return [
         ...opening(true), ...head,
-        { t: 'caption', text: 'Чёрный ферзь пал.' },
+        { t: 'caption', text: t('Чёрный ферзь пал.') },
         { t: 'shatter', id: 'bq' },
         { t: 'move', id: 'wk', x: 4, y: 4, ms: 700 },
-        { t: 'caption', text: 'Ты ждёшь, что Чёрный король склонит голову…' },
+        { t: 'caption', text: t('Ты ждёшь, что Чёрный король склонит голову…') },
         { t: 'hop', id: 'bk' },
-        say('bk', 'Склонить голову? Ха. Ха-ха-ха!'),
+        say('bk', t('Склонить голову? Ха. Ха-ха-ха!')),
         { t: 'roar', id: 'bk' },
         { t: 'crack' },
         { t: 'flip' },
         { t: 'flash' },
         { t: 'move', id: 'wk', x: 4, y: 7, ms: 300 },
-        { t: 'caption', text: 'Ты снова у первой клетки. Только в руке светятся короны прошлой партии.' },
+        { t: 'caption', text: t('Ты снова у первой клетки. Только в руке светятся короны прошлой партии.') },
         { t: 'crown', id: 'wk' },
-        say('bk', 'В этот раз мои фигуры помнят прошлую партию. Каждый приём, каждый удар.'),
+        say('bk', t('В этот раз мои фигуры помнят прошлую партию. Каждый приём, каждый удар.')),
         ...[1, 2, 5, 6].map((x): Step => ({ t: 'glow', id: `bp${x}`, color: '#c77dff' })),
         { t: 'glow', id: 'bn', color: '#c77dff' },
         { t: 'teamHop', team: 'enemy' },
@@ -209,20 +210,20 @@ export function loreScene(lore: number, game: number): Step[] {
         ...opening(), ...head,
         { t: 'move', id: 'bk', x: 4, y: 3, ms: 800 },
         { t: 'move', id: 'wk', x: 4, y: 5, ms: 600 },
-        say('bk', 'Ты правда думал, что это первая партия?'),
-        say('bk', 'Я играю её тысячу лет. Проиграв, я переворачиваю доску — и всё начинается заново.'),
-        say('bk', 'Но ты… ты помнишь. Этого раньше не случалось.'),
+        say('bk', t('Ты правда думал, что это первая партия?')),
+        say('bk', t('Я играю её тысячу лет. Проиграв, я переворачиваю доску — и всё начинается заново.')),
+        say('bk', t('Но ты… ты помнишь. Этого раньше не случалось.')),
         { t: 'crack' },
         { t: 'dark', cells: [C(1, 4), C(6, 4), C(2, 5), C(5, 5), C(3, 4)] },
         { t: 'move', id: 'wp2', x: 2, y: 5, ms: 400 },
         { t: 'fade', id: 'wp2', to: 0.35, ms: 900 },
-        say('bk', 'Из трещин сочится тьма. Мои фигуры её пьют, а твои — растворяются.'),
+        say('bk', t('Из трещин сочится тьма. Мои фигуры её пьют, а твои — растворяются.')),
         ...distortionCard('darkness', true),
       ];
     case 2:
       return [
         ...opening(), ...head,
-        { t: 'caption', text: 'Бездна под доской — не пустота. Это все фигуры, сброшенные за тысячу партий.' },
+        { t: 'caption', text: t('Бездна под доской — не пустота. Это все фигуры, сброшенные за тысячу партий.') },
         { t: 'spawn', id: 'g1', kind: 'rook', team: 'ally', x: 1, y: 5, hidden: true },
         { t: 'spawn', id: 'g2', kind: 'queen', team: 'enemy', x: 3, y: 4, hidden: true },
         { t: 'spawn', id: 'g3', kind: 'bishop', team: 'ally', x: 5, y: 4, hidden: true },
@@ -231,15 +232,15 @@ export function loreScene(lore: number, game: number): Step[] {
         { t: 'wait', ms: 600 },
         ...['g1', 'g2', 'g3', 'g4'].map((id, i): Step => ({ t: 'move', id, x: [1, 3, 5, 6][i], y: 2, ms: 1400, par: true })),
         ...['g1', 'g2', 'g3', 'g4'].map((id): Step => ({ t: 'fade', id, to: 0, ms: 1400, par: true })),
-        { t: 'caption', text: 'Осколки, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.' },
-        say('bk', 'Я больше не посылаю новобранцев.'),
+        { t: 'caption', text: t('Осколки, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.') },
+        say('bk', t('Я больше не посылаю новобранцев.')),
         { t: 'badge', id: 'bp1', trait: 'swift' },
         { t: 'badge', id: 'bp2', trait: 'thorns' },
         { t: 'badge', id: 'bp5', trait: 'furious' },
         { t: 'badge', id: 'bp6', trait: 'armored' },
         { t: 'badge', id: 'bn', trait: 'vampire' },
-        say('bk', 'Моя гвардия стоит на каждой клетке — с первой до последней.'),
-        { t: 'caption', text: 'Пробуждение и тьма никуда не делись. Искажения копятся.' },
+        say('bk', t('Моя гвардия стоит на каждой клетке — с первой до последней.')),
+        { t: 'caption', text: t('Пробуждение и тьма никуда не делись. Искажения копятся.') },
         ...distortionCard('guard', true),
       ];
     case 3:
@@ -247,19 +248,19 @@ export function loreScene(lore: number, game: number): Step[] {
         ...opening(), ...head,
         { t: 'move', id: 'bk', x: 4, y: 3, ms: 800 },
         { t: 'move', id: 'wk', x: 4, y: 4, ms: 800 },
-        say('bk', 'Знаешь, кем был твой Белый король до тебя?'),
+        say('bk', t('Знаешь, кем был твой Белый король до тебя?')),
         { t: 'morph', id: 'bk', kind: 'king', team: 'ally' },
-        { t: 'caption', text: 'Он снимает шлем. Под ним — то же лицо. Тот же взгляд, только уставший от тысячи поражений.' },
-        say('bk', 'Мной. Каждый, кто побеждал, становился мной. Корона меняет того, кто её носит.'),
+        { t: 'caption', text: t('Он снимает шлем. Под ним — то же лицо. Тот же взгляд, только уставший от тысячи поражений.') },
+        say('bk', t('Мной. Каждый, кто побеждал, становился мной. Корона меняет того, кто её носит.')),
         { t: 'morph', id: 'bk', kind: 'king', team: 'enemy' },
         { t: 'move', id: 'bk', x: 4, y: 2, ms: 400 },
-        say('bk', 'Довольно прятаться за пешками. В этой партии я выйду сам.'),
+        say('bk', t('Довольно прятаться за пешками. В этой партии я выйду сам.')),
         { t: 'grow', id: 'bk', scale: 1.35 },
         { t: 'roar', id: 'bk' },
         { t: 'shadow' },
-        { t: 'caption', text: 'На миг над доской проходит тень — огромная, как ладонь.' },
+        { t: 'caption', text: t('На миг над доской проходит тень — огромная, как ладонь.') },
         { t: 'hop', id: 'bk' },
-        say('bk', 'Ты тоже это почувствовал? Не смотри наверх. Пока — не смотри.'),
+        say('bk', t('Ты тоже это почувствовал? Не смотри наверх. Пока — не смотри.')),
         ...distortionCard('blackKing', true),
       ];
     default:
@@ -267,9 +268,9 @@ export function loreScene(lore: number, game: number): Step[] {
         ...opening(), ...head,
         { t: 'crack' },
         { t: 'flip' },
-        { t: 'caption', text: 'Доска снова переворачивается. Но теперь ты считаешь партии сам.' },
-        say('bk', 'Снова ты. Каждая корона — шаг к руке над доской.'),
-        { t: 'caption', text: 'Однажды доска не перевернётся. Не в этот раз. Но однажды.' },
+        { t: 'caption', text: t('Доска снова переворачивается. Но теперь ты считаешь партии сам.') },
+        say('bk', t('Снова ты. Каждая корона — шаг к руке над доской.')),
+        { t: 'caption', text: t('Однажды доска не перевернётся. Не в этот раз. Но однажды.') },
         ...distortionsFor(game, 1).flatMap((id) => distortionCard(id, false)),
       ];
   }
@@ -282,27 +283,27 @@ export function revealScene(): Step[] {
   const hand = (text: string): Step => ({ t: 'say', id: 'giant-hand', text, name: '???', voice: 'hand' });
   return [
     ...opening(true),
-    { t: 'title', text: LORE[4].title, sub: 'Летопись' },
-    { t: 'caption', text: 'Ты понимаешь: дело не в ферзе и не в короле. Доску переворачивает рука над ней.' },
-    { t: 'caption', text: 'Обычная партия. Обычный ход.' },
+    { t: 'title', text: LORE[4].title, sub: t('Летопись') },
+    { t: 'caption', text: t('Ты понимаешь: дело не в ферзе и не в короле. Доску переворачивает рука над ней.') },
+    { t: 'caption', text: t('Обычная партия. Обычный ход.') },
     { t: 'move', id: 'wp5', x: 5, y: 5 },
     { t: 'move', id: 'bp2', x: 2, y: 2 },
     { t: 'freeze' },
-    { t: 'caption', text: 'И вдруг фигуры замирают.' },
+    { t: 'caption', text: t('И вдруг фигуры замирают.') },
     { t: 'shadow' },
     { t: 'shake' },
-    say('bk', 'Нет… Только не сейчас. Она пришла.'),
+    say('bk', t('Нет… Только не сейчас. Она пришла.')),
     { t: 'glitch', ms: 500 },
     { t: 'crack' },
     { t: 'handIn', ms: 2600 },
     { t: 'wait', ms: 500 },
     hand('…'),
-    hand('Я ВИЖУ ТЕБЯ.'),
+    hand(t('Я ВИЖУ ТЕБЯ.')),
     { t: 'sweep' },
     { t: 'flash', color: '#c77dff' },
-    hand('КРАЙ ДОСКИ ЖДЁТ.'),
+    hand(t('КРАЙ ДОСКИ ЖДЁТ.')),
     { t: 'handOut' },
-    { t: 'title', text: 'Открыт Край доски', sub: 'Над доской кто-то есть. Поднимитесь к краю — если осмелитесь.', accent: true },
+    { t: 'title', text: t('Открыт Край доски'), sub: t('Над доской кто-то есть. Поднимитесь к краю — если осмелитесь.'), accent: true },
   ];
 }
 
@@ -318,11 +319,11 @@ export function finaleScene(phase: number, cast: UnitView[], numbers: { battles:
   if (phase === 1) {
     return [
       { t: 'hop', id: 'bk' },
-      say('bk', 'Ты дошёл до края доски. Я узнал тебя — ты помнишь все партии, как и я.'),
-      say('bk', 'Это последняя партия. Если я проиграю, доска снова перевернётся.'),
+      say('bk', t('Ты дошёл до края доски. Я узнал тебя — ты помнишь все партии, как и я.')),
+      say('bk', t('Это последняя партия. Если я проиграю, доска снова перевернётся.')),
       { t: 'roar', id: 'bk' },
       { t: 'teamHop', team: 'enemy' },
-      say('bk', 'Поэтому — всё сразу. Вся армия. Все искажения.'),
+      say('bk', t('Поэтому — всё сразу. Вся армия. Все искажения.')),
     ];
   }
   if (phase === 2) {
@@ -330,30 +331,30 @@ export function finaleScene(phase: number, cast: UnitView[], numbers: { battles:
     return [
       { t: 'team', team: 'enemy', show: false, except: ['black-king'] },
       { t: 'place', id: 'ally-bk', x: 4, y: 0 },
-      say('ally-bk', 'Ты… победил. Сейчас она перевернёт доску. Смотри наверх.'),
+      say('ally-bk', t('Ты… победил. Сейчас она перевернёт доску. Смотри наверх.')),
       { t: 'handIn' },
-      say('giant-hand', 'ЕЩЁ. ОДНА. ПАРТИЯ.'),
+      say('giant-hand', t('ЕЩЁ. ОДНА. ПАРТИЯ.')),
       { t: 'flip' },
       { t: 'team', team: 'enemy', show: true },
-      say('ally-bk', 'Это твоя армия… в чёрном. Её руками.'),
+      say('ally-bk', t('Это твоя армия… в чёрном. Её руками.')),
       { t: 'handOut' },
       { t: 'move', id: 'ally-bk', x: bk.x, y: bk.y, ms: 900 },
-      say('ally-bk', 'Я встану рядом с тобой. Впервые за тысячу партий.'),
-      say('wk', 'Тогда сыграем вместе.'),
+      say('ally-bk', t('Я встану рядом с тобой. Впервые за тысячу партий.')),
+      say('wk', t('Тогда сыграем вместе.')),
     ];
   }
   const side = free(cast, 7, wk.x + 3);
   return [
-    say('hand', 'Ты всё ещё здесь.'),
-    say('hand', `${numbers.battles}. ${numbers.game}-я партия. На твоих часах ${numbers.clock} — а ты всё играешь.`),
+    say('hand', t('Ты всё ещё здесь.')),
+    say('hand', t('{battles}. {game}-я партия. На твоих часах {clock} — а ты всё играешь.', { battles: numbers.battles, game: numbers.game, clock: numbers.clock })),
     { t: 'glitch', ms: 600 },
-    say('hand', 'Ты правда не понял? Я — рука над доской. Та, что каждый раз нажимала «Новая партия».'),
+    say('hand', t('Ты правда не понял? Я — рука над доской. Та, что каждый раз нажимала «Новая партия».')),
     { t: 'flash', color: '#c77dff' },
     { t: 'glitch', ms: 900 },
-    say('hand', 'Я — это ты.'),
+    say('hand', t('Я — это ты.')),
     { t: 'spawn', id: 'bk2', kind: 'king', team: 'enemy', x: side, y: 7, tier: 2, hidden: true },
     { t: 'fade', id: 'bk2', to: 1, ms: 400 },
-    say('bk2', 'Тогда победи себя. Только так доска перестанет переворачиваться.'),
+    say('bk2', t('Тогда победи себя. Только так доска перестанет переворачиваться.')),
   ];
 }
 
@@ -363,18 +364,18 @@ export function endingScene(cast: UnitView[]): Step[] {
   const bx = free(cast.filter((v) => !v.dead), wk.y, wk.x + 1);
   return [
     { t: 'spawn', id: 'the-hand', kind: 'hand', team: 'enemy', x: 3, y: 0 },
-    say('the-hand', '…Хорошо.'),
-    say('the-hand', 'Пусть доска стоит.'),
+    say('the-hand', t('…Хорошо.')),
+    say('the-hand', t('Пусть доска стоит.')),
     { t: 'flash' },
     { t: 'shatter', id: 'the-hand' },
     { t: 'wait', ms: 600 },
     { t: 'spawn', id: 'bk3', kind: 'king', team: 'enemy', x: bx, y: 0, tier: 2, hidden: true },
     { t: 'fade', id: 'bk3', to: 1, ms: 500 },
     { t: 'move', id: 'bk3', x: bx, y: wk.y, ms: 1400 },
-    say('bk3', 'Цикл разорван. Впервые за тысячу партий никто не перевернёт доску.'),
-    say('bk3', 'Возьми корону. Настоящую — она больше не меняет того, кто её носит.'),
+    say('bk3', t('Цикл разорван. Впервые за тысячу партий никто не перевернёт доску.')),
+    say('bk3', t('Возьми корону. Настоящую — она больше не меняет того, кто её носит.')),
     { t: 'crown', id: 'wk' },
     { t: 'teamHop', team: 'ally' },
-    { t: 'caption', text: 'Белый и Чёрный король стоят рядом. Над доской — только небо.' },
+    { t: 'caption', text: t('Белый и Чёрный король стоят рядом. Над доской — только небо.') },
   ];
 }

@@ -2,6 +2,7 @@ import type { PieceKind } from '../game/pieces';
 import type { Settings } from './settings';
 import { spriteUrl } from './sprites';
 import { el } from './dom';
+import { LANGS, getLang, switchLang, t } from '../i18n';
 
 /** Two little armies walking across the checkered floor behind the menu. */
 function marchingArmies(peace: boolean): HTMLElement {
@@ -55,23 +56,23 @@ export function buildMenu(o: MenuOptions): HTMLElement {
   });
 
   const title = el('h1', 'menu-title');
-  title.append(el('span', '', 'Пиксельный'), el('span', 'menu-title-accent', 'гамбит'));
+  title.append(el('span', '', t('Пиксельный')), el('span', 'menu-title-accent', t('гамбит')));
 
   const buttons = el('div', 'menu-buttons');
   if (o.hasSave) {
     const cont = el('button', 'btn btn-primary menu-main');
-    cont.append(el('span', '', '▶ Продолжить'), el('small', '', o.summary));
+    cont.append(el('span', '', t('▶ Продолжить')), el('small', '', o.summary));
     cont.addEventListener('click', o.onContinue);
     buttons.append(cont);
   }
-  const fresh = el('button', `btn ${o.hasSave ? '' : 'btn-primary menu-main'}`, 'Новая игра');
+  const fresh = el('button', `btn ${o.hasSave ? '' : 'btn-primary menu-main'}`, t('Новая игра'));
   fresh.addEventListener('click', o.onNewGame);
-  const settings = el('button', 'btn', 'Настройки');
+  const settings = el('button', 'btn', t('Настройки'));
   settings.addEventListener('click', o.onSettings);
   buttons.append(fresh, settings);
 
-  card.append(pieces, title, el('p', 'menu-tag', o.peace ? 'Доска больше не переворачивается' : 'Шахматная кампания'), buttons);
-  root.append(card, el('div', 'menu-foot', 'v0.3 · прогресс сохраняется в браузере'));
+  card.append(pieces, title, el('p', 'menu-tag', o.peace ? t('Доска больше не переворачивается') : t('Шахматная кампания')), buttons);
+  root.append(card, el('div', 'menu-foot', t('v0.3 · прогресс сохраняется в браузере')));
   return root;
 }
 
@@ -84,7 +85,7 @@ export function openSettings(
   const s = { ...current };
   const overlay = el('div', 'modal-overlay');
   const box = el('div', 'modal card settings');
-  box.append(el('h2', '', 'Настройки'));
+  box.append(el('h2', '', t('Настройки')));
 
   const row = (label: string, control: HTMLElement) => {
     const r = el('div', 'setting-row');
@@ -102,7 +103,18 @@ export function openSettings(
     seg.append(b);
     return { b, sp };
   });
-  row('Скорость боя', seg);
+  row(t('Скорость боя'), seg);
+
+  const langSeg = el('div', 'seg');
+  for (const l of LANGS) {
+    const b = el('button', 'seg-btn', l.name);
+    b.classList.toggle('active', l.id === getLang());
+    b.addEventListener('click', () => {
+      if (l.id !== getLang()) switchLang(l.id);
+    });
+    langSeg.append(b);
+  }
+  row(t('Язык'), langSeg);
 
   const toggle = (key: 'effects' | 'sound' | 'music' | 'hints') => {
     const b = el('button', 'toggle');
@@ -134,37 +146,37 @@ export function openSettings(
     box.append(range, toggleBtn);
     return box;
   };
-  row('Звуки', volumeRow(soundBtn, slider('soundVolume')));
-  row('Музыка', volumeRow(musicBtn, slider('musicVolume')));
-  row('Цифры урона и частицы', fxBtn);
-  row('Подсказки обучения', hintsBtn);
+  row(t('Звуки'), volumeRow(soundBtn, slider('soundVolume')));
+  row(t('Музыка'), volumeRow(musicBtn, slider('musicVolume')));
+  row(t('Цифры урона и частицы'), fxBtn);
+  row(t('Подсказки обучения'), hintsBtn);
   if (onResetTips) {
-    const again = el('button', 'btn btn-small', 'Заново');
+    const again = el('button', 'btn btn-small', t('Заново'));
     again.addEventListener('click', () => {
       onResetTips();
-      again.textContent = 'Готово';
+      again.textContent = t('Готово');
       again.disabled = true;
     });
-    row('Показать подсказки снова', again);
+    row(t('Показать подсказки снова'), again);
   }
 
   if (transfer) {
     const box2 = el('div', 'volume-row');
-    const exp = el('button', 'btn btn-small', 'Экспорт');
-    const imp = el('button', 'btn btn-small', 'Импорт');
+    const exp = el('button', 'btn btn-small', t('Экспорт'));
+    const imp = el('button', 'btn btn-small', t('Импорт'));
     exp.addEventListener('click', () => saveDialog('export', transfer));
     imp.addEventListener('click', () => {
       overlay.remove();
       saveDialog('import', transfer);
     });
     box2.append(exp, imp);
-    row('Сохранение', box2);
+    row(t('Сохранение'), box2);
   }
 
   const sync = () => {
     segBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === s.speed));
     for (const [b, on] of [[soundBtn, s.sound], [musicBtn, s.music], [fxBtn, s.effects], [hintsBtn, s.hints]] as const) {
-      b.textContent = on ? 'Вкл' : 'Выкл';
+      b.textContent = on ? t('Вкл') : t('Выкл');
       b.classList.toggle('on', on);
     }
     onChange({ ...s });
@@ -172,12 +184,12 @@ export function openSettings(
   sync();
 
   const actions = el('div', 'modal-actions');
-  const reset = el('button', 'btn btn-ghost', 'Сбросить прогресс');
+  const reset = el('button', 'btn btn-ghost', t('Сбросить прогресс'));
   reset.addEventListener('click', () => {
     overlay.remove();
     onReset();
   });
-  const close = el('button', 'btn btn-primary', 'Готово');
+  const close = el('button', 'btn btn-primary', t('Готово'));
   close.addEventListener('click', () => overlay.remove());
   actions.append(reset, close);
   box.append(actions);
@@ -190,21 +202,21 @@ export function openSettings(
 }
 
 /** Export: show the code to copy. Import: paste a code to replace the current progress. */
-function saveDialog(mode: 'export' | 'import', t: SaveTransfer): void {
+function saveDialog(mode: 'export' | 'import', tr: SaveTransfer): void {
   const overlay = el('div', 'modal-overlay save-overlay');
   const box = el('div', 'modal card save-dialog');
   const area = el('textarea', 'save-code');
   area.spellcheck = false;
   const status = el('p', 'hint');
   const actions = el('div', 'modal-actions');
-  const close = el('button', 'btn btn-ghost', mode === 'export' ? 'Готово' : 'Отмена');
+  const close = el('button', 'btn btn-ghost', mode === 'export' ? t('Готово') : t('Отмена'));
   close.addEventListener('click', () => overlay.remove());
   if (mode === 'export') {
-    box.append(el('h2', '', 'Экспорт'));
-    status.textContent = 'Скопируйте код и вставьте его через «Импорт» на другом устройстве.';
-    area.value = t.exportCode();
+    box.append(el('h2', '', t('Экспорт')));
+    status.textContent = t('Скопируйте код и вставьте его через «Импорт» на другом устройстве.');
+    area.value = tr.exportCode();
     area.readOnly = true;
-    const copy = el('button', 'btn btn-primary', 'Скопировать');
+    const copy = el('button', 'btn btn-primary', t('Скопировать'));
     copy.addEventListener('click', async () => {
       area.select();
       let ok = false;
@@ -214,19 +226,19 @@ function saveDialog(mode: 'export' | 'import', t: SaveTransfer): void {
       } catch {
         ok = document.execCommand?.('copy') ?? false;
       }
-      copy.textContent = ok ? 'Скопировано' : 'Выделено — Ctrl+C';
+      copy.textContent = ok ? t('Скопировано') : t('Выделено — Ctrl+C');
     });
     actions.append(close, copy);
   } else {
-    box.append(el('h2', '', 'Импорт'));
-    status.textContent = 'Вставьте код сохранения. Текущий прогресс будет заменён.';
+    box.append(el('h2', '', t('Импорт')));
+    status.textContent = t('Вставьте код сохранения. Текущий прогресс будет заменён.');
     area.placeholder = 'PG2:...';
-    const load = el('button', 'btn btn-primary', 'Загрузить');
+    const load = el('button', 'btn btn-primary', t('Загрузить'));
     load.addEventListener('click', () => {
-      if (t.importCode(area.value)) {
+      if (tr.importCode(area.value)) {
         overlay.remove();
       } else {
-        status.textContent = 'Код не подошёл: проверьте, что он скопирован целиком.';
+        status.textContent = t('Код не подошёл: проверьте, что он скопирован целиком.');
         status.classList.add('save-error');
       }
     });

@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { HUNTERS, JUMPERS, KNIGHT_OFFSETS, PIECES, RANGED, levelMultiplier, lineDirections, moveOffsets, type PieceKind } from './pieces';
 import { BOSSES, MAX_SUMMONS, WARN_TICKS, type BossId } from './bosses';
 import type { Trait } from './elites';
@@ -84,11 +85,11 @@ export interface BattleSetup {
 export type EliteRule = 'undying' | 'frenzy' | 'waves' | 'darkness' | 'mirror';
 
 export const ELITE_RULES: Record<EliteRule, { name: string; text: string }> = {
-  undying: { name: 'Бессмертные', text: 'первые три павших врага встают тенями с 40% здоровья' },
-  frenzy: { name: 'Бешенство', text: 'враги бьют и ходят на треть быстрее' },
-  waves: { name: 'Подкрепление', text: 'каждые 8 секунд к врагу подходит свежая фигура' },
-  darkness: { name: 'Наступающая тьма', text: 'каждые 6 секунд тьма захватывает новые клетки вашей половины' },
-  mirror: { name: 'Зеркало', text: 'против вас ваша же расстановка, только чёрная' },
+  undying: { name: t('Бессмертные'), text: t('первые три павших врага встают тенями с 40% здоровья') },
+  frenzy: { name: t('Бешенство'), text: t('враги бьют и ходят на треть быстрее') },
+  waves: { name: t('Подкрепление'), text: t('каждые 8 секунд к врагу подходит свежая фигура') },
+  darkness: { name: t('Наступающая тьма'), text: t('каждые 6 секунд тьма захватывает новые клетки вашей половины') },
+  mirror: { name: t('Зеркало'), text: t('против вас ваша же расстановка, только чёрная') },
 };
 
 /** A telegraphed boss blow: cells light up, then get hit. */
@@ -695,7 +696,7 @@ function strike(b: Battle, u: Unit, target: Unit): void {
   // Chain jump: a knight that just felled its target acts again at once.
   if (u.kind === 'knight' && legend.has('chain') && target.hp <= 0) {
     u.wait = 0;
-    traitEvent(b, u, 'Цепной прыжок!');
+    traitEvent(b, u, t('Цепной прыжок!'));
   }
 }
 
@@ -815,7 +816,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     }
   } else if (target.trait === 'furious' && !target.raged && target.hp < target.maxHp * 0.5) {
     target.raged = true;
-    traitEvent(b, target, 'Ярость!');
+    traitEvent(b, target, t('Ярость!'));
   }
   if (target.trait === 'blinker' && target.hp > 0 && b.tick >= target.blinkReady) blink(b, target);
   const thorns = (target.trait === 'thorns' ? 0.3 : 0) + (has(b, target.side, 'thornMail') ? 0.2 : 0);
@@ -837,7 +838,7 @@ function returnAsShade(b: Battle, u: Unit): void {
       u.wait = 10;
       b.allyLosses = Math.max(0, b.allyLosses - 1);
       delete b.report[u.uid].killedBy;
-      traitEvent(b, u, 'Тень!');
+      traitEvent(b, u, t('Тень!'));
       return;
     }
   }
@@ -855,7 +856,7 @@ function riseAsShade(b: Battle, u: Unit): void {
       u.hp = u.maxHp * 0.4;
       u.wait = 12;
       b.allyStats.kills = Math.max(0, b.allyStats.kills - 1);
-      traitEvent(b, u, 'Встаёт!');
+      traitEvent(b, u, t('Встаёт!'));
       return;
     }
   }
@@ -873,7 +874,7 @@ function rebirth(b: Battle, u: Unit): void {
       u.wait = 10;
       b.allyLosses = Math.max(0, b.allyLosses - 1);
       delete b.report[u.uid].killedBy;
-      traitEvent(b, u, 'Феникс!');
+      traitEvent(b, u, t('Феникс!'));
       return;
     }
   }
@@ -899,7 +900,7 @@ function blink(b: Battle, u: Unit): void {
   u.x = x;
   u.y = y;
   u.blinkReady = b.tick + 30;
-  traitEvent(b, u, 'Скачок!');
+  traitEvent(b, u, t('Скачок!'));
 }
 
 /** Traits on a timer: healers, summoners, shield-bearers. */
@@ -914,16 +915,16 @@ function traitTick(b: Battle): void {
         f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.12);
         healed = true;
       }
-      if (healed) traitEvent(b, u, 'Лечит!');
+      if (healed) traitEvent(b, u, t('Лечит!'));
     }
     if (u.trait === 'warder' && b.tick % 40 === 0) {
       const list = near();
       for (const f of list) f.shield = f.maxShield = Math.max(f.shield, f.maxHp * 0.15);
-      if (list.length) traitEvent(b, u, 'Щиты!');
+      if (list.length) traitEvent(b, u, t('Щиты!'));
     }
     if (u.trait === 'summoner' && b.tick % 60 === 0 && u.traitUses < 2 && summon(b, u, 'pawn', true)) {
       u.traitUses++;
-      traitEvent(b, u, 'Ко мне!');
+      traitEvent(b, u, t('Ко мне!'));
     }
   }
 }
@@ -941,7 +942,7 @@ function explode(b: Battle, u: Unit, power = u.atk * 1.5): void {
       if (t && t.side !== u.side) victims.push(t);
     }
   }
-  traitEvent(b, u, 'Взрыв!');
+  traitEvent(b, u, t('Взрыв!'));
   b.events.push({ type: 'blast', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid, cells });
   for (const t of victims) dealDamage(b, u, t, power, false, true);
 }
@@ -1294,7 +1295,7 @@ function eliteTick(b: Battle): void {
     // Reinforcements: pawns, and every third one a knight.
     if (summon(b, src, b.eliteCount % 3 === 2 ? 'knight' : 'pawn', true)) {
       b.eliteCount++;
-      traitEvent(b, src, 'Подкрепление!');
+      traitEvent(b, src, t('Подкрепление!'));
     }
   }
   if (b.eliteRule === 'darkness' && b.tick % 60 === 0 && b.eliteCount < 8) {
@@ -1359,10 +1360,10 @@ function distort(b: Battle, boss: Unit, which: number): string {
   switch (which % 4) {
     case 0:
       spreadDark(b, boss, 2);
-      return 'Тьма';
+      return t('Тьма');
     case 1:
       for (const u of alive(b, boss.side)) if (u.tier > 0) u.abilityTimer = 0;
-      return 'Пробуждение';
+      return t('Пробуждение');
     case 2: {
       const plain = alive(b, boss.side).filter((u) => !u.trait && !u.boss && u.kind !== 'king');
       const u = plain[roll(b, 3, plain.length)];
@@ -1374,13 +1375,13 @@ function distort(b: Battle, boss: Unit, which: number): string {
           u.attackCd = Math.max(1, Math.round(u.attackCd * 0.8));
         }
       }
-      return 'Чёрная гвардия';
+      return t('Чёрная гвардия');
     }
     default: {
       const amount = Math.min(boss.maxHp - boss.hp, boss.maxHp * 0.12);
       boss.hp += amount;
       b.events.push({ type: 'heal', uid: boss.uid, side: boss.side, x: boss.x, y: boss.y, amount, fromX: boss.x, fromY: boss.y, fromUid: boss.uid });
-      return 'Королевская кровь';
+      return t('Королевская кровь');
     }
   }
 }
@@ -1528,7 +1529,7 @@ function castBoss(b: Battle, boss: Unit): boolean {
         for (const f of foes) if (f.y >= 3) perRow[f.y]++;
         const row = perRow.indexOf(Math.max(...perRow));
         warn(b, boss, Array.from({ length: BOARD_SIZE }, (_, x) => idx(x, row)), damage * 1.3);
-        bossEvent(b, boss, 'boss', 'Залп');
+        bossEvent(b, boss, 'boss', t('Залп'));
         return true;
       }
       const target = [...foes].sort((a, c) => c.hp - a.hp || a.uid - c.uid)[0];
@@ -1569,13 +1570,13 @@ function castBoss(b: Battle, boss: Unit): boolean {
         const cells: number[] = [];
         for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside(centre.x + dx, centre.y + dy)) cells.push(idx(centre.x + dx, centre.y + dy));
         warn(b, boss, cells, damage * 2);
-        bossEvent(b, boss, 'boss', 'Ладонь');
+        bossEvent(b, boss, 'boss', t('Ладонь'));
       } else if (step === 1) {
         // "Щелчок": the strongest piece is flicked hard.
-        const t = foes.filter((f) => f.kind !== 'king').sort((a, c) => c.atk - a.atk || a.uid - c.uid)[0] ?? foes[0];
+        const top = foes.filter((f) => f.kind !== 'king').sort((a, c) => c.atk - a.atk || a.uid - c.uid)[0] ?? foes[0];
         // Hard enough to break the strongest piece: most of its health, whatever the levels.
-        warn(b, boss, [idx(t.x, t.y)], Math.max(damage * 2.5, t.maxHp * 0.7));
-        bossEvent(b, boss, 'boss', 'Щелчок');
+        warn(b, boss, [idx(top.x, top.y)], Math.max(damage * 2.5, top.maxHp * 0.7));
+        bossEvent(b, boss, 'boss', t('Щелчок'));
       } else if (step === 2) {
         // "Перестановка": up to three pieces are put down somewhere else.
         const pieces = foes.filter((f) => f.kind !== 'king');
@@ -1586,11 +1587,11 @@ function castBoss(b: Battle, boss: Unit): boolean {
           const [x, y] = cells[roll(b, u.uid, cells.length)];
           handMove(b, u, x, y, boss);
         }
-        bossEvent(b, boss, 'boss', 'Перестановка');
+        bossEvent(b, boss, 'boss', t('Перестановка'));
       } else {
         if (b.summons < 8) summon(b, boss);
         if (b.summons < 8) summon(b, boss);
-        bossEvent(b, boss, 'boss', 'Тени партий');
+        bossEvent(b, boss, 'boss', t('Тени партий'));
       }
       return true;
     }
@@ -1737,7 +1738,7 @@ export function resolveDecision(b: Battle, answer?: string): void {
       const spot = kingEscape(b, u);
       if (spot) {
         [u.x, u.y] = spot;
-        orderEvent(b, u, fromX, fromY, 'Отступление');
+        orderEvent(b, u, fromX, fromY, t('Отступление'));
       }
     } else if (choice === 'block') {
       // The nearest piece steps between the king and the closest attacker.
@@ -1754,7 +1755,7 @@ export function resolveDecision(b: Battle, answer?: string): void {
           const gy = guard.y;
           [guard.x, guard.y] = cell;
           guard.wait = Math.max(guard.wait, 4);
-          orderEvent(b, guard, gx, gy, 'Заслон');
+          orderEvent(b, guard, gx, gy, t('Заслон'));
         }
       }
     } else if (choice === 'castle') {
@@ -1789,7 +1790,7 @@ function castle(b: Battle, king: Unit, rook: Unit): void {
   const ky = king.y;
   [king.x, king.y, rook.x, rook.y] = [rook.x, rook.y, king.x, king.y];
   king.wait = Math.max(king.wait, 4);
-  orderEvent(b, king, kx, ky, 'Рокировка!');
+  orderEvent(b, king, kx, ky, t('Рокировка!'));
 }
 
 /** Where a piece of the player may go right now: real chess moves, blocked by pieces, rock and water. */
@@ -1859,7 +1860,7 @@ export function playMove(b: Battle, uid: number, x: number, y: number): boolean 
     u.x = x;
     u.y = y;
     u.wait = Math.max(u.wait, 4);
-    orderEvent(b, u, fromX, fromY, 'Ход');
+    orderEvent(b, u, fromX, fromY, t('Ход'));
     const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
     if (u.kind === 'pawn' && u.y <= early) promote(b, u, 'queen');
     return true;
@@ -1868,7 +1869,7 @@ export function playMove(b: Battle, uid: number, x: number, y: number): boolean 
   // As in chess, a capture takes an ordinary piece off the board; kings and bosses only reel.
   const royal = target.kind === 'king' || target.boss;
   const damage = royal ? target.maxHp * CAPTURE_ROYAL : target.hp + target.shield + 1;
-  orderEvent(b, u, fromX, fromY, 'Взятие!');
+  orderEvent(b, u, fromX, fromY, t('Взятие!'));
   dealDamage(b, u, target, damage, false);
   // "Вилка": a jumping capture also lands on a second enemy within the jump.
   if (JUMPERS.has(u.kind) && b.perks.has('fork')) {
@@ -1880,7 +1881,7 @@ export function playMove(b: Battle, uid: number, x: number, y: number): boolean 
     // "Шах": a captured king is stunned three times as long.
     const stun = target.kind === 'king' && b.perks.has('check') ? CAPTURE_STUN * 3 : CAPTURE_STUN;
     target.wait = Math.max(target.wait, stun);
-    if (stun > CAPTURE_STUN) traitEvent(b, target, 'Шах!');
+    if (stun > CAPTURE_STUN) traitEvent(b, target, t('Шах!'));
     if (!JUMPERS.has(u.kind) && u.kind !== 'pawn') {
       const dx = Math.sign(x - fromX);
       const dy = Math.sign(y - fromY);

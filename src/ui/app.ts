@@ -20,6 +20,7 @@ import { Tutorial } from './tutorial';
 import { playOpening } from './story';
 import { FEATURES, acknowledgeOpen, featureOpen, newlyOpened, openKey } from '../game/features';
 import { lives } from '../game/run';
+import { t } from '../i18n';
 
 export class App implements Ctx {
   state: GameState;
@@ -107,7 +108,7 @@ export class App implements Ctx {
     this.tutorial = new Tutorial(() => this.state, () => this.settings.hints, () => this.save());
 
     const top = el('header', 'topbar');
-    const menuBtn = el('button', 'btn btn-ghost menu-btn', '☰ Меню');
+    const menuBtn = el('button', 'btn btn-ghost menu-btn', t('☰ Меню'));
     menuBtn.addEventListener('click', () => {
       this.save();
       this.go('menu');
@@ -116,7 +117,7 @@ export class App implements Ctx {
     const logo = el('img', 'brand-logo');
     logo.src = spriteUrl('knight', 'ally');
     logo.alt = '';
-    brand.append(logo, el('span', '', 'Пиксельный гамбит'));
+    brand.append(logo, el('span', '', t('Пиксельный гамбит')));
     const chipBox = el('div', 'chips');
     const chip = (cls: string, label: string) => {
       const c = el('div', `chip ${cls}`);
@@ -126,23 +127,23 @@ export class App implements Ctx {
       return value;
     };
     this.chips = {
-      gold: chip('chip-gold', 'Золото'),
-      stars: chip('chip-wave', 'Глава'),
-      lives: chip('chip-best', 'Жизни'),
+      gold: chip('chip-gold', t('Золото')),
+      stars: chip('chip-wave', t('Глава')),
+      lives: chip('chip-best', t('Жизни')),
     };
     const nav = el('nav', 'topnav');
-    this.navMap = el('button', 'nav-btn', 'Карта');
+    this.navMap = el('button', 'nav-btn', t('Карта'));
     this.navMap.addEventListener('click', () => this.go('map'));
-    this.navCamp = el('button', 'nav-btn', 'Улучшения');
+    this.navCamp = el('button', 'nav-btn', t('Улучшения'));
     this.navCamp.append(this.navBadge);
-    this.navCamp.title = 'Лагерь: найм фигур, их уровни и постройки';
+    this.navCamp.title = t('Лагерь: найм фигур, их уровни и постройки');
     this.navCamp.addEventListener('click', () => this.go('camp'));
-    this.navAch = el('button', 'nav-btn', 'Достижения');
+    this.navAch = el('button', 'nav-btn', t('Достижения'));
     this.navAch.append(this.achBadge);
     this.navAch.addEventListener('click', () => this.go('achievements'));
     nav.append(this.navMap, this.navCamp, this.navAch);
     this.soundBtn = el('button', 'btn btn-ghost sound-btn');
-    this.soundBtn.title = 'Звук и музыка';
+    this.soundBtn.title = t('Звук и музыка');
     this.soundBtn.addEventListener('click', () => {
       const on = !(this.settings.sound || this.settings.music);
       this.settings = { ...this.settings, sound: on, music: on };
@@ -165,7 +166,7 @@ export class App implements Ctx {
   private renderMenu(): void {
     const s = this.state;
     const id = currentLevelId(s);
-    const summary = `Партия ${s.prestige + 1} · глава ${chapterOf(id).id} · ${fmt(s.gold)} золота`
+    const summary = t('Партия {g} · глава {ch} · {gold} золота', { g: s.prestige + 1, ch: chapterOf(id).id, gold: fmt(s.gold) })
       + (s.crowns ? ` · ♛ ${s.crowns}` : '');
     const menu = buildMenu({
       hasSave: hasSave(),
@@ -181,7 +182,7 @@ export class App implements Ctx {
 
   private async newGame(): Promise<void> {
     if (hasSave()) {
-      const ok = await confirmDialog('Новая игра', 'Текущий прогресс будет удалён. Начать заново?');
+      const ok = await confirmDialog(t('Новая игра'), t('Текущий прогресс будет удалён. Начать заново?'));
       if (!ok) return;
     }
     clearSave();
@@ -199,7 +200,7 @@ export class App implements Ctx {
       saveSettings(next);
       audio.configure(next);
     }, async () => {
-      const ok = await confirmDialog('Сброс', 'Удалить сохранение полностью?', 'Удалить');
+      const ok = await confirmDialog(t('Сброс'), t('Удалить сохранение полностью?'), t('Удалить'));
       if (!ok) return;
       clearSave();
       this.state = newGame();
@@ -258,7 +259,7 @@ export class App implements Ctx {
     setHidden(this.navAch, !featureOpen(s, 'achievements'));
     setHidden(this.achBadge, claimableAchievements(s) === 0);
     const on = this.settings.sound || this.settings.music;
-    setText(this.soundBtn, on ? '♪ Звук' : '♪ Тихо');
+    setText(this.soundBtn, on ? t('♪ Звук') : t('♪ Тихо'));
     this.soundBtn.classList.toggle('muted', !on);
     setText(this.chips.lives, `${lives(s)}${s.crowns ? ` · ♛ ${s.crowns}` : ''}`);
   }
@@ -270,7 +271,7 @@ export class App implements Ctx {
     if (!fresh.length) return;
     this.save();
     audio.play('achievement');
-    for (const id of fresh) toast(`Достижение: «${getAchievement(id)?.name}»`, 'good');
+    for (const id of fresh) toast(t('Достижение: «{name}»', { name: String(getAchievement(id)?.name) }), 'good');
   }
 
   /** A part of the game just opened: say so, and make its button glow for a while. */
@@ -280,7 +281,7 @@ export class App implements Ctx {
     if (!fresh.length || document.querySelector('.modal-overlay, .stage-overlay')) return;
     for (const f of fresh) {
       s.tutorial.push(openKey(f));
-      toast(`Открыто: ${FEATURES[f].name}!`, 'good');
+      toast(t('Открыто: {name}!', { name: FEATURES[f].name }), 'good');
       const button = f === 'camp' ? this.navCamp : f === 'achievements' ? this.navAch : null;
       if (button) {
         button.classList.add('just-opened');
@@ -295,10 +296,10 @@ export class App implements Ctx {
   private globalTips(): void {
     const s = this.state;
     if (claimableAchievements(s) > 0 && this.screenId !== 'achievements') {
-      this.tip('t_achievements', this.navAch, 'Открыто достижение! Загляните сюда, чтобы забрать награду.');
+      this.tip('t_achievements', this.navAch, t('Открыто достижение! Загляните сюда, чтобы забрать награду.'));
     }
     if (s.stats.wins >= 2 && canAffordUpgrade(s) && this.screenId !== 'camp') {
-      this.tip('t_upgrades', this.navCamp, 'Золота хватает на улучшения. Здесь нанимают фигуры и повышают их уровень.');
+      this.tip('t_upgrades', this.navCamp, t('Золота хватает на улучшения. Здесь нанимают фигуры и повышают их уровень.'));
     }
   }
 }

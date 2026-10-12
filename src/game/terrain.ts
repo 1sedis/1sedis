@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 const BOARD_SIZE = 8;
 
 /**
@@ -14,11 +15,11 @@ export type Terrain = 'plain' | 'rock' | 'water' | 'forest' | 'hill' | 'dark';
 export const TERRAIN_CHARS: Record<string, Terrain> = { '.': 'plain', '#': 'rock', '~': 'water', f: 'forest', '^': 'hill', x: 'dark' };
 
 export const TERRAIN_INFO: Record<Exclude<Terrain, 'plain'>, { name: string; text: string }> = {
-  rock: { name: 'Камень', text: 'Нельзя встать, блокирует выстрелы.' },
-  water: { name: 'Вода', text: 'Нельзя встать, выстрелы пролетают над ней. Конь перепрыгивает.' },
-  forest: { name: 'Лес', text: 'Фигура в лесу получает на 30% меньше урона.' },
-  hill: { name: 'Холм', text: 'Слон, ладья или ферзь на холме бьёт на 25% сильнее.' },
-  dark: { name: 'Тьма', text: 'Ваша фигура здесь теряет 4% здоровья в секунду, вражеская — лечится.' },
+  rock: { name: t('Камень'), text: t('Нельзя встать, блокирует выстрелы.') },
+  water: { name: t('Вода'), text: t('Нельзя встать, выстрелы пролетают над ней. Конь перепрыгивает.') },
+  forest: { name: t('Лес'), text: t('Фигура в лесу получает на 30% меньше урона.') },
+  hill: { name: t('Холм'), text: t('Слон, ладья или ферзь на холме бьёт на 25% сильнее.') },
+  dark: { name: t('Тьма'), text: t('Ваша фигура здесь теряет 4% здоровья в секунду, вражеская — лечится.') },
 };
 
 export const FOREST_DEFENSE = 0.7;

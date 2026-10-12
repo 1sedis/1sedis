@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { BOARD_SIZE, MOVES_PER_BATTLE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
   CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
@@ -39,8 +40,8 @@ export interface BuildingDef {
 }
 
 export const BUILDINGS: Record<BuildingId, BuildingDef> = {
-  hq: { id: 'hq', name: 'Штаб', description: '+1 фигура в каждом бою', baseCost: 400, growth: 3.5, maxLevel: 3 },
-  forge: { id: 'forge', name: 'Кузница', description: '+6% к атаке и здоровью всей армии', baseCost: 200, growth: 1.8, maxLevel: 25 },
+  hq: { id: 'hq', name: t('Штаб'), description: t('+1 фигура в каждом бою'), baseCost: 400, growth: 3.5, maxLevel: 3 },
+  forge: { id: 'forge', name: t('Кузница'), description: t('+6% к атаке и здоровью всей армии'), baseCost: 200, growth: 1.8, maxLevel: 25 },
 };
 
 export const BUILDING_ORDER: BuildingId[] = ['hq', 'forge'];
@@ -409,12 +410,12 @@ export function available(s: GameState, kind: PieceKind): number {
 
 /** Place a piece from the reserve. Returns an error message or null. */
 export function placeFromReserve(s: GameState, kind: PieceKind, x: number, y: number, limit: number, levelId?: string): string | null {
-  if (!isPlayerCell(x, y)) return 'Ставить можно только в три нижних ряда';
-  if (!isPlayerCell(x, y, levelId)) return 'Сюда нельзя: камень или вода';
-  if (available(s, kind) <= 0) return 'Таких фигур больше нет в резерве';
+  if (!isPlayerCell(x, y)) return t('Ставить можно только в три нижних ряда');
+  if (!isPlayerCell(x, y, levelId)) return t('Сюда нельзя: камень или вода');
+  if (available(s, kind) <= 0) return t('Таких фигур больше нет в резерве');
   const occupant = slotAt(s, x, y);
-  if (occupant?.kind === 'king') return 'Здесь стоит король';
-  if (!occupant && kind !== 'king' && fieldedCount(s) >= limit) return `Лимит фигур в этом бою: ${limit}`;
+  if (occupant?.kind === 'king') return t('Здесь стоит король');
+  if (!occupant && kind !== 'king' && fieldedCount(s) >= limit) return t('Лимит фигур в этом бою: {limit}', { limit });
   if (occupant) s.formation = s.formation.filter((f) => f !== occupant);
   s.formation.push({ kind, x, y });
   return null;

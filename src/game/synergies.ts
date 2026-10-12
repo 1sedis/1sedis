@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { PieceKind } from './pieces';
 
 export type SynergyId = 'phalanx' | 'cavalry' | 'bishops' | 'towers' | 'fullSet';
@@ -15,11 +16,11 @@ export interface SynergyDef {
 }
 
 export const SYNERGIES: SynergyDef[] = [
-  { id: 'phalanx', name: 'Фаланга', description: '3 пешки: пешки +20% здоровья', kind: 'pawn', need: 3, hp: 1.2, atk: 1 },
-  { id: 'cavalry', name: 'Кавалерия', description: '2 коня: кони +20% атаки', kind: 'knight', need: 2, hp: 1, atk: 1.2 },
-  { id: 'bishops', name: 'Пара слонов', description: '2 слона: слоны +25% атаки', kind: 'bishop', need: 2, hp: 1, atk: 1.25 },
-  { id: 'towers', name: 'Башни', description: '2 ладьи: ладьи +15% здоровья и атаки', kind: 'rook', need: 2, hp: 1.15, atk: 1.15 },
-  { id: 'fullSet', name: 'Полный набор', description: 'Все 5 видов фигур: вся армия +10% атаки', kind: null, need: 5, hp: 1, atk: 1.1 },
+  { id: 'phalanx', name: t('Фаланга'), description: t('3 пешки: пешки +20% здоровья'), kind: 'pawn', need: 3, hp: 1.2, atk: 1 },
+  { id: 'cavalry', name: t('Кавалерия'), description: t('2 коня: кони +20% атаки'), kind: 'knight', need: 2, hp: 1, atk: 1.2 },
+  { id: 'bishops', name: t('Пара слонов'), description: t('2 слона: слоны +25% атаки'), kind: 'bishop', need: 2, hp: 1, atk: 1.25 },
+  { id: 'towers', name: t('Башни'), description: t('2 ладьи: ладьи +15% здоровья и атаки'), kind: 'rook', need: 2, hp: 1.15, atk: 1.15 },
+  { id: 'fullSet', name: t('Полный набор'), description: t('Все 5 видов фигур: вся армия +10% атаки'), kind: null, need: 5, hp: 1, atk: 1.1 },
 ];
 
 const ARMY_KINDS: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'];

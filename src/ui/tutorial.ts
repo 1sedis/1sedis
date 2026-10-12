@@ -1,6 +1,7 @@
 import type { GameState } from '../game/state';
 import { el } from './dom';
 import { pointerUrl } from './pointerArt';
+import { t } from '../i18n';
 
 /**
  * One-time contextual tips: a pulsing ring around a target element and a
@@ -23,7 +24,7 @@ export class Tutorial {
     private enabled: () => boolean,
     private save: () => void,
   ) {
-    const ok = el('button', 'btn btn-small btn-primary', 'Понятно');
+    const ok = el('button', 'btn btn-small btn-primary', t('Понятно'));
     ok.addEventListener('click', () => this.dismiss());
     this.bubble.append(this.text, ok);
     this.pointer.src = pointerUrl();

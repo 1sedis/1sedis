@@ -15,6 +15,7 @@ import { fmt } from './format';
 import { iconUrl, type IconId } from './icons';
 import { relicIcon } from './relics';
 import { spriteUrl } from './sprites';
+import { plural, t } from '../i18n';
 
 export const NODE_ICON: Record<RunNode['kind'], IconId> = {
   battle: 'sword', elite: 'skull', event: 'question', shop: 'bag', camp: 'fire', boss: 'crown',
@@ -23,21 +24,21 @@ export const NODE_ICON: Record<RunNode['kind'], IconId> = {
 export function nodeLabel(node: RunNode): string {
   switch (node.kind) {
     case 'battle': return getLevel(node.level!).name;
-    case 'elite': return node.rule ? `Элита: ${ELITE_RULES[node.rule].name}` : `Элита: ${getLevel(node.level!).name}`;
-    case 'boss': return getLevel(node.level!).boss ?? 'Босс';
-    case 'event': return node.event ? EVENTS[node.event].title : 'Событие';
-    case 'shop': return 'Торговец';
-    case 'camp': return 'Лагерь';
+    case 'elite': return t('Элита: {name}', { name: node.rule ? ELITE_RULES[node.rule].name : getLevel(node.level!).name });
+    case 'boss': return getLevel(node.level!).boss ?? t('Босс');
+    case 'event': return node.event ? EVENTS[node.event].title : t('Событие');
+    case 'shop': return t('Торговец');
+    case 'camp': return t('Лагерь');
   }
 }
 
 export const NODE_HELP: Record<RunNode['kind'], string> = {
-  battle: 'Бой. Победа приносит золото и звёзды.',
-  elite: 'Элита: враги на уровень сильнее, с лишним элитным бойцом и особым правилом боя. За победу — реликвия.',
-  event: 'Событие: выбор с последствиями.',
-  shop: 'Торговец: реликвии, запасное знамя и заточка за золото.',
-  camp: 'Лагерь: заточить оружие или потренировать фигуру.',
-  boss: 'Босс главы. Победа открывает следующую главу.',
+  battle: t('Бой. Победа приносит золото и звёзды.'),
+  elite: t('Элита: враги на уровень сильнее, с лишним элитным бойцом и особым правилом боя. За победу — реликвия.'),
+  event: t('Событие: выбор с последствиями.'),
+  shop: t('Торговец: реликвии, запасное знамя и заточка за золото.'),
+  camp: t('Лагерь: заточить оружие или потренировать фигуру.'),
+  boss: t('Босс главы. Победа открывает следующую главу.'),
 };
 
 /** Lives as flags: every run has one, a spare banner adds a second. */
@@ -45,8 +46,8 @@ export function livesRow(s: GameState): HTMLElement {
   const n = lives(s);
   const row = el('span', 'banner-row');
   row.title = n > 1
-    ? 'Жизни: 2. Запасное знамя сгорит вместо поражения — бой можно будет переиграть.'
-    : 'Одна жизнь: поражение заканчивает забег. Запасное знамя даёт вторую.';
+    ? t('Жизни: 2. Запасное знамя сгорит вместо поражения — бой можно будет переиграть.')
+    : t('Одна жизнь: поражение заканчивает забег. Запасное знамя даёт вторую.');
   for (let i = 0; i < n; i++) {
     const img = el('img', 'banner-flag');
     img.src = iconUrl('flag');
@@ -64,7 +65,7 @@ export function pickArmy(ctx: Ctx, onPick: (army: ArmyId) => void): void {
     return;
   }
   const content = el('div', 'army-picker');
-  content.append(el('h2', '', 'Выберите армию'), el('p', 'hint', 'С ней начнётся следующий забег. Новые армии открываются за боссов.'));
+  content.append(el('h2', '', t('Выберите армию')), el('p', 'hint', t('С ней начнётся следующий забег. Новые армии открываются за боссов.')));
   const grid = el('div', 'army-grid');
   const close = openModal(content, { dismissable: false, cls: 'army-modal' });
   for (const id of ARMY_ORDER) {
@@ -82,7 +83,7 @@ export function pickArmy(ctx: Ctx, onPick: (army: ArmyId) => void): void {
     add('king');
     for (const [kind, n] of Object.entries(def.pieces) as [PieceKind, number][]) for (let i = 0; i < n; i++) add(kind);
     card.append(el('div', 'army-name', def.name), pics, el('div', 'army-rule', open ? def.rule : `🔒 ${def.unlock}`),
-      el('div', 'army-gold', open ? `Золото: ${def.gold}` : ''));
+      el('div', 'army-gold', open ? t('Золото: {n}', { n: def.gold }) : ''));
     card.addEventListener('click', () => {
       close();
       onPick(id);
@@ -99,24 +100,24 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
   if (!o) return;
   const content = el('div', `run-end ${o.won ? 'won' : 'lost'}`);
   const where = o.at.startsWith('abyss-')
-    ? `в Бездне на этаже ${o.abyss + 1}`
-    : o.won ? 'после победы над Чёрным ферзём' : `в главе ${o.chapter} «${CHAPTERS[o.chapter - 1].name}», бой «${levelOf(o.at).name}»`;
+    ? t('в Бездне на этаже {n}', { n: o.abyss + 1 })
+    : o.won ? t('после победы над Чёрным ферзём') : t('в главе {n} «{chapter}», бой «{level}»', { n: o.chapter, chapter: CHAPTERS[o.chapter - 1].name, level: levelOf(o.at).name });
   content.append(
-    el('h2', 'run-end-title', o.won ? 'Партия выиграна!' : 'Забег окончен'),
-    el('p', 'run-end-where', o.won ? `Забег завершён ${where}.` : `Армия пала ${where}.`),
+    el('h2', 'run-end-title', o.won ? t('Партия выиграна!') : t('Забег окончен')),
+    el('p', 'run-end-where', o.won ? t('Забег завершён {where}.', { where }) : t('Армия пала {where}.', { where })),
   );
   const stats = el('ul', 'run-end-stats');
   for (const [label, value] of [
-    ['Побед в боях', o.wins], ['Элитных отрядов', o.elites], ['Боссов', o.bosses], ...(o.abyss ? [['Этажей Бездны', o.abyss]] : []),
+    [t('Побед в боях'), o.wins], [t('Элитных отрядов'), o.elites], [t('Боссов'), o.bosses], ...(o.abyss ? [[t('Этажей Бездны'), o.abyss]] : []),
   ] as [string, number][]) {
     stats.append(el('li', '', `${label}: ${value}`));
   }
-  content.append(stats, el('div', 'result-reward', `+${o.crowns} ♛ короны`));
+  content.append(stats, el('div', 'result-reward', t('+{n} ♛ короны', { n: o.crowns })));
   content.append(el('p', 'hint', o.won
-    ? 'Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.'
-    : `Короны остаются с вами — потратьте их в Древе короны. ${o.crowns ? '' : 'Короны дают боссы — дойдите хотя бы до первого. '}Новый забег начнётся с 1-1.`));
+    ? t('Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.')
+    : t('Короны остаются с вами — потратьте их в Древе короны. {tip}Новый забег начнётся с 1-1.', { tip: o.crowns ? '' : t('Короны дают боссы — дойдите хотя бы до первого. ') })));
   const actions = el('div', 'modal-actions');
-  const next = el('button', 'btn btn-primary', o.won ? 'Новая партия ▶' : 'Новый забег ▶');
+  const next = el('button', 'btn btn-primary', o.won ? t('Новая партия ▶') : t('Новый забег ▶'));
   actions.append(next);
   content.append(actions);
   const close = openModal(content, { dismissable: false, cls: 'run-end-modal' });
@@ -162,7 +163,7 @@ function openEvent(ctx: Ctx, node: RunNode, onDone: () => void): void {
       ctx.save();
       audio.play('relic');
       body.replaceChildren(el('p', 'event-outcome', line));
-      const next = el('button', 'btn btn-primary', 'Дальше');
+      const next = el('button', 'btn btn-primary', t('Дальше'));
       next.addEventListener('click', () => {
         close();
         onDone();
@@ -175,11 +176,11 @@ function openEvent(ctx: Ctx, node: RunNode, onDone: () => void): void {
 
 function openShop(ctx: Ctx, node: RunNode, onDone: () => void): void {
   const s = ctx.state;
-  const { content, body, actions } = modal('Торговец', 'Бродячий торговец разложил товар у дороги. Купить можно один раз.');
+  const { content, body, actions } = modal(t('Торговец'), t('Бродячий торговец разложил товар у дороги. Купить можно один раз.'));
   const close = openModal(content, { dismissable: false, cls: 'node-modal' });
   const gold = el('div', 'shop-gold');
   const render = () => {
-    gold.textContent = `Золото: ${fmt(s.gold)}`;
+    gold.textContent = t('Золото: {n}', { n: fmt(s.gold) });
     body.replaceChildren(gold, ...shopItems(s, node).map((item) => {
       const row = el('div', 'shop-item');
       const icon = item.relic ? relicIcon(item.relic) : el('img', 'shop-icon');
@@ -187,9 +188,9 @@ function openShop(ctx: Ctx, node: RunNode, onDone: () => void): void {
       const text = el('div', 'shop-text');
       text.append(el('b', '', item.relic ? RELICS[item.relic].name : item.name), el('span', '', item.relic ? RELICS[item.relic].description : item.text));
       const why = canBuy(s, node, item);
-      const buy = el('button', 'btn btn-buy btn-small', why === 'Куплено' || why === 'Уже есть' ? why : fmt(item.cost));
+      const buy = el('button', 'btn btn-buy btn-small', why === t('Куплено') || why === t('Уже есть') ? why : fmt(item.cost));
       buy.disabled = !!why;
-      if (why && why !== 'Куплено' && why !== 'Уже есть') buy.title = why;
+      if (why && why !== t('Куплено') && why !== t('Уже есть')) buy.title = why;
       buy.addEventListener('click', () => {
         if (!buyItem(s, node, item)) return;
         ctx.save();
@@ -201,7 +202,7 @@ function openShop(ctx: Ctx, node: RunNode, onDone: () => void): void {
     }));
   };
   render();
-  const leave = el('button', 'btn btn-primary', 'Уйти');
+  const leave = el('button', 'btn btn-primary', t('Уйти'));
   leave.addEventListener('click', () => {
     finishNode(s);
     ctx.save();
@@ -213,7 +214,7 @@ function openShop(ctx: Ctx, node: RunNode, onDone: () => void): void {
 
 function openCamp(ctx: Ctx, onDone: () => void): void {
   const s = ctx.state;
-  const { content, body } = modal('Лагерь', 'Армия разбила лагерь у костра. Есть время на одно дело.');
+  const { content, body } = modal(t('Лагерь'), t('Армия разбила лагерь у костра. Есть время на одно дело.'));
   const close = openModal(content, { dismissable: false, cls: 'node-modal' });
   const finish = (text: string) => {
     ctx.save();
@@ -223,12 +224,14 @@ function openCamp(ctx: Ctx, onDone: () => void): void {
     onDone();
   };
   const forge = el('button', 'btn choice-btn');
-  forge.append(el('span', 'choice-label', 'Заточить оружие'), el('span', 'choice-hint', `+${campGain(s)} ${campGain(s) > 1 ? 'уровня' : 'уровень'} Кузницы (сейчас ${s.buildings.forge})`));
+  const gain = campGain(s);
+  const levels = plural(gain, ['уровень', 'уровня', 'уровней'], ['level', 'levels']);
+  forge.append(el('span', 'choice-label', t('Заточить оружие')), el('span', 'choice-hint', t('+{n} {levels} Кузницы (сейчас {now})', { n: gain, levels, now: s.buildings.forge })));
   forge.addEventListener('click', () => {
     campForge(s);
-    finish(`Кузница: +${campGain(s)}`);
+    finish(t('Кузница: +{n}', { n: campGain(s) }));
   });
-  body.append(forge, el('div', 'camp-train-title', `Или тренировка: +${campGain(s)} ${campGain(s) > 1 ? 'уровня' : 'уровень'} бесплатно`));
+  body.append(forge, el('div', 'camp-train-title', t('Или тренировка: +{n} {levels} бесплатно', { n: gain, levels })));
   const grid = el('div', 'camp-train');
   for (const kind of Object.keys(s.army) as PieceKind[]) {
     if (s.army[kind] <= 0) continue;
@@ -236,9 +239,9 @@ function openCamp(ctx: Ctx, onDone: () => void): void {
     const img = el('img');
     img.src = spriteUrl(kind, 'ally');
     img.alt = '';
-    btn.append(img, el('span', '', `${PIECES[kind].name} → ур. ${s.levels[kind] + 1}`), el('span', 'choice-hint', `стоит ${fmt(upgradeCost(s, kind))}`));
+    btn.append(img, el('span', '', t('{name} → ур. {lv}', { name: PIECES[kind].name, lv: s.levels[kind] + 1 })), el('span', 'choice-hint', t('стоит {cost}', { cost: fmt(upgradeCost(s, kind)) })));
     btn.addEventListener('click', () => {
-      if (campTrain(s, kind)) finish(`${PIECES[kind].name}: ур. ${s.levels[kind]}`);
+      if (campTrain(s, kind)) finish(t('{name}: ур. {lv}', { name: PIECES[kind].name, lv: s.levels[kind] }));
     });
     grid.append(btn);
   }

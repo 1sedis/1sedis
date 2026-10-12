@@ -9,20 +9,19 @@ import type { BoardView, UnitView } from './board';
 import { Stage } from './cutscene';
 import { endingScene, finaleScene } from './scenes';
 import { audio } from './audio';
+import { getLang, plural, t } from '../i18n';
 
 /** "02:14 ночи", "15:40 дня" — the player's own clock, read aloud by the Hand. */
 function clock(): string {
   const d = new Date();
   const h = d.getHours();
-  const part = h < 5 ? 'ночи' : h < 12 ? 'утра' : h < 17 ? 'дня' : h < 23 ? 'вечера' : 'ночи';
+  if (getLang() === 'en') return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'a.m.' : 'p.m.'}`;
+  const part = h < 5 ? 'ночи' : h < 12 ? 'утра' : h < 17 ? 'дня' : h < 23 ? 'вечера' : 'ночи'; // i18n-ok: Russian-only branch (English returns above)
   return `${String(h).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} ${part}`;
 }
 
 function battles(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  const word = m10 === 1 && m100 !== 11 ? 'бой' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'боя' : 'боёв';
-  return `${fmt(n)} ${word}`;
+  return `${fmt(n)} ${plural(n, ['бой', 'боя', 'боёв'], ['battle', 'battles'])}`;
 }
 
 /**
@@ -65,32 +64,32 @@ export function playCredits(s: GameState): Promise<void> {
       row.append(img, el('span', 'credits-name', name), el('span', 'credits-role', role));
       return row;
     };
-    roll.append(el('div', 'credits-logo', 'Пиксельный гамбит'));
-    roll.append(el('div', 'credits-sub', 'Летопись завершена'));
+    roll.append(el('div', 'credits-logo', t('Пиксельный гамбит')));
+    roll.append(el('div', 'credits-sub', t('Летопись завершена')));
     const army = (Object.keys(s.army) as PieceKind[]).filter((k) => s.army[k] > 0);
-    block('В главных ролях', ...army.map((k) => castRow(
+    block(t('В главных ролях'), ...army.map((k) => castRow(
       spriteUrl(k, 'ally', abilityTier(s.levels[k]) as Tier),
       `${PIECES[k].name}${s.army[k] > 1 ? ` ×${s.army[k]}` : ''}`,
-      `уровень ${s.levels[k]}`,
+      t('уровень {n}', { n: s.levels[k] }),
     )));
-    block('Против них',
-      castRow(spriteUrl('queen', 'enemy', 2), 'Чёрный ферзь', 'тысячу раз'),
-      castRow(spriteUrl('king', 'enemy', 2), 'Чёрный король', 'больше не враг'),
-      castRow(handUrl(), 'Рука над доской', 'это был ты'));
-    block('Летопись в цифрах',
-      `Партий: ${gameNumber(s)}`,
-      `Боёв: ${fmt(s.stats.battles)} · побед: ${fmt(s.stats.wins)}`,
-      `Фигур сражено: ${fmt(s.stats.kills)}`,
-      `Пешек стали ферзями: ${fmt(s.stats.promotions)}`,
-      `Приёмов применено: ${fmt(s.stats.abilities)}`,
-      `Золота добыто: ${fmt(Math.round(s.stats.goldEarned))}`,
-      `Забегов: ${fmt(s.stats.runs)} · даров короны: ${Object.keys(s.roulette.owned).length}`);
-    block('Над игрой работали',
-      'Полководец, геймдизайнер и главный тестер — ты',
-      'Код, пиксели и 8-битная музыка — Claude');
-    roll.append(el('div', 'credits-end', 'Доска больше не переворачивается.'));
-    roll.append(el('div', 'credits-sub', 'Спасибо за игру'));
-    const skip = el('button', 'btn btn-small credits-skip', 'Пропустить');
+    block(t('Против них'),
+      castRow(spriteUrl('queen', 'enemy', 2), t('Чёрный ферзь'), t('тысячу раз')),
+      castRow(spriteUrl('king', 'enemy', 2), t('Чёрный король'), t('больше не враг')),
+      castRow(handUrl(), t('Рука над доской'), t('это был ты')));
+    block(t('Летопись в цифрах'),
+      t('Партий: {n}', { n: gameNumber(s) }),
+      t('Боёв: {battles} · побед: {wins}', { battles: fmt(s.stats.battles), wins: fmt(s.stats.wins) }),
+      t('Фигур сражено: {n}', { n: fmt(s.stats.kills) }),
+      t('Пешек стали ферзями: {n}', { n: fmt(s.stats.promotions) }),
+      t('Приёмов применено: {n}', { n: fmt(s.stats.abilities) }),
+      t('Золота добыто: {n}', { n: fmt(Math.round(s.stats.goldEarned)) }),
+      t('Забегов: {runs} · даров короны: {gifts}', { runs: fmt(s.stats.runs), gifts: Object.keys(s.roulette.owned).length }));
+    block(t('Над игрой работали'),
+      t('Полководец, геймдизайнер и главный тестер — ты'),
+      t('Код, пиксели и 8-битная музыка — Claude'));
+    roll.append(el('div', 'credits-end', t('Доска больше не переворачивается.')));
+    roll.append(el('div', 'credits-sub', t('Спасибо за игру')));
+    const skip = el('button', 'btn btn-small credits-skip', t('Пропустить'));
     overlay.append(roll, skip);
     document.body.append(overlay);
     audio.play('achievement');
@@ -100,7 +99,7 @@ export function playCredits(s: GameState): Promise<void> {
     };
     skip.addEventListener('click', done);
     roll.addEventListener('animationend', () => {
-      skip.textContent = 'Дальше';
+      skip.textContent = t('Дальше');
       skip.classList.add('btn-primary');
     });
   });

@@ -43,6 +43,7 @@ import { saveSettings, type Settings } from '../settings';
 import { FINALE_CROWNS } from '../../game/state';
 import { featureOpen } from '../../game/features';
 import { spriteUrl, type Tier } from '../sprites';
+import { t } from '../../i18n';
 
 const TICK_MS = 100;
 /** More pending ticks than this means we are catching up: skip effects. */
@@ -113,7 +114,7 @@ export class ArenaScreen implements Screen {
     this.board = new BoardView((x, y) => this.onCell(x, y));
 
     const top = el('div', 'arena-top');
-    const back = el('button', 'btn btn-ghost', '← Карта');
+    const back = el('button', 'btn btn-ghost', t('← Карта'));
     back.addEventListener('click', () => this.leave());
     const titles = el('div', 'arena-titles');
     titles.append(this.title, this.subtitle);
@@ -129,11 +130,11 @@ export class ArenaScreen implements Screen {
       this.speedBtns.push({ b, sp });
     }
     this.fightBtn.addEventListener('click', () => (this.phase === 'prep' ? this.startBattle() : this.retreat()));
-    this.autoBtn2.title = 'После победы сразу спускаться на следующий этаж';
+    this.autoBtn2.title = t('После победы сразу спускаться на следующий этаж');
     this.autoBtn2.addEventListener('click', () => {
       this.autoDescend = !this.autoDescend;
     });
-    this.movesEl.title = 'Ваши ходы в этом бою: нажмите на свою фигуру во время боя';
+    this.movesEl.title = t('Ваши ходы в этом бою: нажмите на свою фигуру во время боя');
     controls.append(this.movesEl, seg, this.autoBtn2, this.fightBtn);
     top.append(back, titles, controls);
 
@@ -159,7 +160,7 @@ export class ArenaScreen implements Screen {
     boardCol.append(this.bossBar);
     const trayPanel = el('div', 'bench-panel');
     const trayHead = el('div', 'panel-head');
-    trayHead.append(el('span', 'panel-title', 'Резерв'), this.trayTitle);
+    trayHead.append(el('span', 'panel-title', t('Резерв')), this.trayTitle);
     for (const kind of TRAY_ORDER) {
       const btn = el('button', 'bench-item');
       const img = el('img');
@@ -175,15 +176,15 @@ export class ArenaScreen implements Screen {
       this.tray.append(btn);
       this.trayItems.set(kind, { btn, count, img });
     }
-    const autoBtn = el('button', 'btn btn-small', 'Авто');
+    const autoBtn = el('button', 'btn btn-small', t('Авто'));
     this.autoBtn = autoBtn;
-    autoBtn.title = 'Проверить 16 расстановок в симуляции и поставить лучшую';
+    autoBtn.title = t('Проверить 16 расстановок в симуляции и поставить лучшую');
     autoBtn.addEventListener('click', () => {
       bestFormation(this.ctx.state, this.levelId, this.limit());
-      toast('Подобрана лучшая из 16 расстановок');
+      toast(t('Подобрана лучшая из 16 расстановок'));
       this.selection = null;
     });
-    const clearBtn = el('button', 'btn btn-small btn-ghost', 'Очистить');
+    const clearBtn = el('button', 'btn btn-small btn-ghost', t('Очистить'));
     clearBtn.addEventListener('click', () => {
       clearFormation(this.ctx.state);
       this.selection = null;
@@ -199,18 +200,16 @@ export class ArenaScreen implements Screen {
     const side = el('aside', 'arena-side');
     const infoCard = el('div', 'card task-card');
     const taskHead = el('div', 'panel-head');
-    const codexBtn = el('button', 'btn btn-ghost btn-small', 'Фигуры');
+    const codexBtn = el('button', 'btn btn-ghost btn-small', t('Фигуры'));
     codexBtn.addEventListener('click', () => openCodex(this.ctx.state));
-    taskHead.append(el('span', 'panel-title', 'Задача'), codexBtn, infoBtn('Как играть',
-      'Сразите вражеского короля. Если падёт ваш — бой проигран.\n'
-      + 'Выберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\n'
-      + 'Звёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.'));
+    taskHead.append(el('span', 'panel-title', t('Задача')), codexBtn, infoBtn(t('Как играть'),
+      t('Сразите вражеского короля. Если падёт ваш — бой проигран.\nВыберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\nЗвёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.')));
     this.hintText.classList.add('task-hint');
     infoCard.append(taskHead, this.enemyText, this.distortionRow, this.bossInfo, this.eliteRow, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
 
     const kingsCard = el('div', 'card');
-    kingsCard.append(el('div', 'panel-title', 'Короли'));
+    kingsCard.append(el('div', 'panel-title', t('Короли')));
     const bar = (label: string, team: 'ally' | 'enemy') => {
       const row = el('div', `king-row ${team}`);
       const img = el('img');
@@ -228,7 +227,7 @@ export class ArenaScreen implements Screen {
       kingsCard.append(row);
       return { fill, text, name };
     };
-    this.kingBars = { ally: bar('Ваш король', 'ally'), enemy: bar('Чёрный король', 'enemy') };
+    this.kingBars = { ally: bar(t('Ваш король'), 'ally'), enemy: bar(t('Чёрный король'), 'enemy') };
     kingsCard.append(this.battleTime);
     this.battlePanel.append(kingsCard);
     side.append(this.infoPanel, this.battlePanel);
@@ -295,13 +294,13 @@ export class ArenaScreen implements Screen {
     const chapter = chapterOf(this.levelId);
     const abyss = isAbyss(this.levelId);
     const finale = isFinale(this.levelId);
-    const eliteTitle = isEliteBattle(s, this.levelId) ? 'Элита · ' : '';
-    setText(this.title, abyss ? `Бездна · ${level.name}` : finale ? `Финал · ${level.name}` : `${eliteTitle}${level.id} · ${level.name}`);
+    const eliteTitle = isEliteBattle(s, this.levelId) ? t('Элита · ') : '';
+    setText(this.title, abyss ? t('Бездна · {name}', { name: level.name }) : finale ? t('Финал · {name}', { name: level.name }) : `${eliteTitle}${level.id} · ${level.name}`);
     setText(this.subtitle, abyss
-      ? `Рекорд: этаж ${s.abyss.best}`
+      ? t('Рекорд: этаж {n}', { n: s.abyss.best })
       : finale
-        ? `${chapter.name} · фаза ${finalePhase(this.levelId)} из 3`
-        : `Глава ${chapter.id}. ${chapter.name}${s.prestige ? ` · партия ${s.prestige + 1}` : ''}`);
+        ? t('{name} · фаза {n} из 3', { name: chapter.name, n: finalePhase(this.levelId) })
+        : t('Глава {n}. {name}', { n: chapter.id, name: chapter.name }) + (s.prestige ? t(' · партия {n}', { n: s.prestige + 1 }) : ''));
     this.board.setTheme(chapter.id);
     this.root.dataset.theme = String(chapter.id);
     document.body.dataset.chapter = String(chapter.id);
@@ -312,7 +311,7 @@ export class ArenaScreen implements Screen {
     this.distortionRow.hidden = distortions.length === 0;
     if (distortions.length) {
       this.distortionRow.replaceChildren(el('span', '', distortions.map((id) => `◆ ${DISTORTIONS[id].name}`).join('  ')),
-        infoBtn('Искажения', distortions.map((id) => `${DISTORTIONS[id].name}: ${DISTORTIONS[id].text}`).join('\n')));
+        infoBtn(t('Искажения'), distortions.map((id) => `${DISTORTIONS[id].name}: ${DISTORTIONS[id].text}`).join('\n')));
     }
     this.terrainRow.replaceChildren(...kinds.map((t) => {
       const chip = el('span', 'terrain-chip');
@@ -323,7 +322,7 @@ export class ArenaScreen implements Screen {
       chip.title = TERRAIN_INFO[t].text;
       return chip;
     }));
-    if (kinds.length) this.terrainRow.append(infoBtn('Ландшафт', kinds.map((t) => `${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`).join('\n')));
+    if (kinds.length) this.terrainRow.append(infoBtn(t('Ландшафт'), kinds.map((t) => `${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`).join('\n')));
     this.terrainRow.hidden = kinds.length === 0;
     const elites = this.enemies().filter((p) => p.trait);
     this.eliteRow.hidden = elites.length === 0;
@@ -337,8 +336,8 @@ export class ArenaScreen implements Screen {
       return chip;
     }));
     if (elites.length) {
-      this.eliteRow.append(infoBtn('Элитные враги', [...new Set(elites.map((p) => p.trait!))]
-        .map((t) => `${TRAITS[t].name[0]}: ${TRAITS[t].text}.`).join('\n') + '\nЭлиту видно по значку над фигурой.'));
+      this.eliteRow.append(infoBtn(t('Элитные враги'), [...new Set(elites.map((p) => p.trait!))]
+        .map((t) => `${TRAITS[t].name[0]}: ${TRAITS[t].text}.`).join('\n') + '\n' + t('Элиту видно по значку над фигурой.')));
     }
     if (!abyss && !finale) {
       for (const x of activeBoons(s.run, !!level.boss)) {
@@ -353,21 +352,22 @@ export class ArenaScreen implements Screen {
     this.bossInfo.hidden = !bossId && !rule;
     if (bossId) {
       const d = BOSSES[bossId];
-      this.bossInfo.replaceChildren(el('span', '', `${d.passive ? `◆ ${d.passive} · ` : ''}★ ${d.skill} · ☠ ${d.rage}`), infoBtn(getLevel(this.levelId).boss ?? 'Босс',
-        `У босса втрое больше здоровья.\n${d.passive ? `◆ ${d.passive}: ${d.passiveText}.\n` : ''}★ ${d.skill}: ${d.skillText}.\n☠ ${d.rage} (ниже 50% здоровья): ${d.rageText}.`));
+      this.bossInfo.replaceChildren(el('span', '', `${d.passive ? `◆ ${d.passive} · ` : ''}★ ${d.skill} · ☠ ${d.rage}`), infoBtn(getLevel(this.levelId).boss ?? t('Босс'),
+        t('У босса втрое больше здоровья.') + '\n' + (d.passive ? `◆ ${d.passive}: ${d.passiveText}.\n` : '') + `★ ${d.skill}: ${d.skillText}.\n`
+        + t('☠ {rage} (ниже 50% здоровья): {text}.', { rage: d.rage, text: d.rageText })));
     } else if (rule) {
       const r = ELITE_RULES[rule];
-      this.bossInfo.replaceChildren(el('span', 'elite-rule', `☠ Элита: ${r.name}`), infoBtn(`Элита: ${r.name}`,
-        `Правило этого боя: ${r.text}.\nВраги на уровень сильнее, за победу — реликвия.`));
+      this.bossInfo.replaceChildren(el('span', 'elite-rule', t('☠ Элита: {name}', { name: r.name })), infoBtn(t('Элита: {name}', { name: r.name }),
+        t('Правило этого боя: {text}.\nВраги на уровень сильнее, за победу — реликвия.', { text: r.text })));
     }
     const enemies = this.enemies();
-    setText(this.enemyText, `Враги: ${enemies.length} · ур. ${enemies[0]?.level ?? level.level}${level.boss ? ` · ${level.boss}` : ''}`);
+    setText(this.enemyText, t('Враги: {n} · ур. {lv}', { n: enemies.length, lv: enemies[0]?.level ?? level.level }) + (level.boss ? ` · ${level.boss}` : ''));
     this.autoBtn2.hidden = !abyss;
     if (finale) {
       const phase = finalePhase(this.levelId);
       setText(this.rewardText, phase < 3
-        ? 'Победа сохраняет прогресс финала'
-        : s.finale.beaten ? 'Рука уже опущена — это бой на память' : `Награда: +${FINALE_CROWNS} ♛ и конец истории`);
+        ? t('Победа сохраняет прогресс финала')
+        : s.finale.beaten ? t('Рука уже опущена — это бой на память') : t('Награда: +{n} ♛ и конец истории', { n: FINALE_CROWNS }));
       setText(this.hintText, level.hint);
       this.relicCard.hidden = s.relics.length === 0;
       this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -375,7 +375,7 @@ export class ArenaScreen implements Screen {
     }
     if (abyss) {
       const floor = abyssFloor(this.levelId);
-      setText(this.rewardText, `Награда: +${fmt(Math.round(abyssReward(floor)))} золота · +${shardsForFloor(floor)} ◆`);
+      setText(this.rewardText, t('Награда: +{gold} золота · +{shards} ◆', { gold: fmt(Math.round(abyssReward(floor))), shards: shardsForFloor(floor) }));
       setText(this.hintText, level.hint);
       this.relicCard.hidden = s.relics.length === 0;
       this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -383,8 +383,8 @@ export class ArenaScreen implements Screen {
     }
     const elite = isEliteBattle(s, level.id);
     const gold = Math.round(firstReward(level.id) * RUN_GOLD * (elite ? ELITE_GOLD : 1) * goldMultiplier(s) * (s.relics.includes('plunder') ? 1.3 : 1));
-    setText(this.rewardText, `Награда: +${fmt(gold)} золота${elite || level.boss ? ' · реликвия' : ''}`
-      + ` · ${lives(s) > 1 ? 'жизней: 2' : 'одна жизнь'}`);
+    setText(this.rewardText, t('Награда: +{gold} золота', { gold: fmt(gold) }) + (elite || level.boss ? t(' · реликвия') : '')
+      + ' · ' + (lives(s) > 1 ? t('жизней: 2') : t('одна жизнь')));
     setText(this.hintText, level.hint);
     this.relicCard.hidden = s.relics.length === 0;
     this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -406,7 +406,7 @@ export class ArenaScreen implements Screen {
       else if (isPlayerCell(x, y, this.levelId)) {
         moveSlot(s, sel.from.x, sel.from.y, x, y, this.levelId);
         this.selection = null;
-      } else toast(isPlayerCell(x, y) ? 'Сюда нельзя: камень или вода' : 'Свои фигуры ставятся в три нижних ряда');
+      } else toast(isPlayerCell(x, y) ? t('Сюда нельзя: камень или вода') : t('Свои фигуры ставятся в три нижних ряда'));
       return;
     }
     if (sel) {
@@ -423,13 +423,13 @@ export class ArenaScreen implements Screen {
     if (enemy) {
       const def = PIECES[enemy.kind];
       const tier = abilityTier(enemy.level + (battleSetup(this.ctx.state, this.levelId).enemyAbilityShift ?? 0));
-      const ability = tier ? ` Приём «${ABILITIES[enemy.kind].name}»${tier === 2 ? ' (усилен)' : ''}.` : '';
+      const ability = tier ? t(' Приём «{name}»', { name: ABILITIES[enemy.kind].name }) + (tier === 2 ? t(' (усилен)') : '') + '.' : '';
       const elite = enemy.trait ? ` ${traitAdjective(enemy.trait, enemy.kind)}: ${TRAITS[enemy.trait].text}.` : '';
-      toast(`${enemy.boss ? getLevel(this.levelId).boss : def.name}, ур. ${enemy.level}.${elite} ${def.description}${ability}`);
+      toast(t('{name}, ур. {lv}.', { name: (enemy.boss ? getLevel(this.levelId).boss : def.name) ?? '', lv: enemy.level }) + `${elite} ${def.description}${ability}`);
       return;
     }
-    const t = terrainFor(this.ctx.state, this.levelId)[y * 8 + x];
-    if (t !== 'plain') toast(`${TERRAIN_INFO[t].name}: ${TERRAIN_INFO[t].text}`);
+    const ter = terrainFor(this.ctx.state, this.levelId)[y * 8 + x];
+    if (ter !== 'plain') toast(`${TERRAIN_INFO[ter].name}: ${TERRAIN_INFO[ter].text}`);
   }
 
   // ---------- The player's moves in battle ----------
@@ -463,7 +463,7 @@ export class ArenaScreen implements Screen {
         return;
       }
     }
-    if (own && b.movesLeft <= 0) toast('Ходы в этом бою кончились');
+    if (own && b.movesLeft <= 0) toast(t('Ходы в этом бою кончились'));
     this.cancelPick();
   }
 
@@ -484,11 +484,11 @@ export class ArenaScreen implements Screen {
       this.board.setMoveTargets(this.moveTargets);
       this.guideTarget = best;
     }
-    const t = this.guideTarget;
-    if (t) {
-      this.ctx.tip('t_moves', this.board.cellNode(t.x, t.y),
-        t.type === 'capture' ? 'Время замерло — твой ход! Нажми на клетку врага: взятие снимет его с доски.'
-          : 'Время замерло — твой ход! Нажми на подсвеченную клетку.');
+    const tg = this.guideTarget;
+    if (tg) {
+      this.ctx.tip('t_moves', this.board.cellNode(tg.x, tg.y),
+        tg.type === 'capture' ? t('Время замерло — твой ход! Нажми на клетку врага: взятие снимет его с доски.')
+          : t('Время замерло — твой ход! Нажми на подсвеченную клетку.'));
     }
   }
 
@@ -542,7 +542,7 @@ export class ArenaScreen implements Screen {
       return;
     }
     if (available(this.ctx.state, kind) <= 0) {
-      toast(this.ctx.state.army[kind] === 0 ? `${PIECES[kind].name}: наймите в лагере` : 'Все такие фигуры уже на доске');
+      toast(this.ctx.state.army[kind] === 0 ? t('{name}: наймите в лагере', { name: PIECES[kind].name }) : t('Все такие фигуры уже на доске'));
       return;
     }
     this.selection = { kind, from: null };
@@ -552,7 +552,7 @@ export class ArenaScreen implements Screen {
   private returnSelected(): void {
     const from = this.selection?.from;
     if (!from || this.phase !== 'prep') return;
-    if (!removeSlot(this.ctx.state, from.x, from.y)) toast('Король всегда участвует в бою');
+    if (!removeSlot(this.ctx.state, from.x, from.y)) toast(t('Король всегда участвует в бою'));
     this.selection = null;
   }
 
@@ -564,7 +564,7 @@ export class ArenaScreen implements Screen {
     const s = this.ctx.state;
     sanitizeFormation(s, this.limit(), this.levelId);
     if (fieldedCount(s) === 0) {
-      toast('Поставьте на доску хотя бы одну фигуру');
+      toast(t('Поставьте на доску хотя бы одну фигуру'));
       return;
     }
     this.selection = null;
@@ -577,7 +577,7 @@ export class ArenaScreen implements Screen {
     if (bossId && !(isAbyss(this.levelId) && this.autoDescend)) {
       const boss = this.battle.units.find((u) => u.uid === this.battle!.bossUid)!;
       this.board.intro({
-        name: getLevel(this.levelId).boss ?? 'Босс',
+        name: getLevel(this.levelId).boss ?? t('Босс'),
         sprite: bossId === 'hand' ? handUrl() : hasBossArt(bossId) ? bossArtUrl(bossId) : spriteUrl(boss.kind, 'enemy', boss.tier as Tier),
         skill: BOSSES[bossId].skill, rage: BOSSES[bossId].rage,
       });
@@ -594,7 +594,7 @@ export class ArenaScreen implements Screen {
 
   private retreat(): void {
     this.enterPrep();
-    toast('Отступили. Бой не засчитан');
+    toast(t('Отступили. Бой не засчитан'));
   }
 
   private leave(): void {
@@ -612,11 +612,11 @@ export class ArenaScreen implements Screen {
     const outcome = recordResult(this.ctx.state, this.levelId, b);
     this.ctx.save();
     this.phase = 'result';
-    this.board.showBanner(outcome.win ? 'Победа' : 'Поражение', outcome.win);
+    this.board.showBanner(outcome.win ? t('Победа') : t('Поражение'), outcome.win);
     audio.play(outcome.win ? 'win' : 'lose');
     // Auto-descent: skip the dialog and go straight to the next floor.
     if (outcome.win && isAbyss(this.levelId) && this.autoDescend && outcome.relicsEarned === 0) {
-      toast(`Этаж ${abyssFloor(this.levelId)}: +${fmt(outcome.reward)} золота, +${outcome.shards} ◆`, 'good');
+      toast(t('Этаж {n}: +{gold} золота, +{shards} ◆', { n: abyssFloor(this.levelId), gold: fmt(outcome.reward), shards: outcome.shards }), 'good');
       this.autoTimer = window.setTimeout(() => {
         this.autoTimer = null;
         if (!this.root.isConnected || this.root.closest('[hidden]') || this.phase !== 'result') return;
@@ -651,7 +651,7 @@ export class ArenaScreen implements Screen {
 
   private showResult(o: BattleOutcome): void {
     const content = el('div', `result ${o.win ? 'is-win' : 'is-loss'}`);
-    content.append(el('h2', `result-title ${o.win ? 'win' : 'loss'}`, o.win ? 'Победа!' : o.runOver ? 'Забег окончен' : 'Поражение'));
+    content.append(el('h2', `result-title ${o.win ? 'win' : 'loss'}`, o.win ? t('Победа!') : o.runOver ? t('Забег окончен') : t('Поражение')));
     if (o.win) {
       // Falling pixel confetti over the dialog.
       const confetti = el('div', 'confetti');
@@ -669,38 +669,38 @@ export class ArenaScreen implements Screen {
     }
     // A strip under the title: losses and time, and where run news is put.
     const list = el('div', 'result-line',
-      this.battle ? `Потери: ${this.battle.allyLosses} · время боя: ${Math.round(this.battle.tick / 10)} с` : '');
+      this.battle ? t('Потери: {n} · время боя: {s} с', { n: this.battle.allyLosses, s: Math.round(this.battle.tick / 10) }) : '');
     content.append(list);
     if (this.battle) content.append(this.reportView(o.win));
 
-    if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', 'Новая реликвия! Выберите одну из трёх.'));
+    if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', t('Новая реликвия! Выберите одну из трёх.')));
     if (isFinale(this.levelId)) {
-      if (o.ending) content.append(el('div', 'result-reward', `+${FINALE_CROWNS} ♛ · трофейная корона на вашем короле`));
-      else if (o.win && nextLevelId(this.levelId)) content.append(el('div', 'result-unlock', 'Фаза пройдена — прогресс сохранён. Дальше будет хуже.'));
-      else if (!o.win) content.append(el('div', 'result-unlock', 'Рука ждёт. Улучшите армию — враги финала растут вместе с ней, но реликвии, кузница и древо — нет.'));
+      if (o.ending) content.append(el('div', 'result-reward', t('+{n} ♛ · трофейная корона на вашем короле', { n: FINALE_CROWNS })));
+      else if (o.win && nextLevelId(this.levelId)) content.append(el('div', 'result-unlock', t('Фаза пройдена — прогресс сохранён. Дальше будет хуже.')));
+      else if (!o.win) content.append(el('div', 'result-unlock', t('Рука ждёт. Улучшите армию — враги финала растут вместе с ней, но реликвии, кузница и древо — нет.')));
     } else if (o.win) {
-      content.append(el('div', 'result-reward', `+${fmt(o.reward)} золота`));
-      if (o.trophy) content.append(el('div', 'result-unlock relic', 'Трофей: бесплатная крутка Колеса короны'));
+      content.append(el('div', 'result-reward', t('+{gold} золота', { gold: fmt(o.reward) })));
+      if (o.trophy) content.append(el('div', 'result-unlock relic', t('Трофей: бесплатная крутка Колеса короны')));
       if (o.firstClear) {
         const unlocked = (Object.keys(UNLOCKED_BY) as PieceKind[]).find((k) => UNLOCKED_BY[k] === this.levelId);
-        if (unlocked) content.append(el('div', 'result-unlock', `Новая фигура: ${PIECES[unlocked].name}! Наймите в лагере.`));
+        if (unlocked) content.append(el('div', 'result-unlock', t('Новая фигура: {name}! Наймите в лагере.', { name: PIECES[unlocked].name })));
       }
       if (o.chapterDone) {
         const s = this.ctx.state;
         content.append(el('div', 'result-unlock', s.run.complete
-          ? 'Чёрный ферзь пал — кампания этой партии пройдена!'
-          : `Глава пройдена! Впереди глава ${s.run.chapter}: ${CHAPTERS[s.run.chapter - 1].name}.`));
+          ? t('Чёрный ферзь пал — кампания этой партии пройдена!')
+          : t('Глава пройдена! Впереди глава {n}: {name}.', { n: s.run.chapter, name: CHAPTERS[s.run.chapter - 1].name })));
       }
     } else {
       if (o.reward > 0 && !o.runOver) {
         content.append(el('div', 'result-reward small',
-          `+${fmt(o.reward)} золота за ${Math.round(o.damageShare * 100)}% урона врагу`));
+          t('+{gold} золота за {p}% урона врагу', { gold: fmt(o.reward), p: Math.round(o.damageShare * 100) })));
       }
       // Right under the conditions, so it is seen before the long report.
       if (o.runOver) {
-        list.after(el('div', 'result-unlock loss-banners run-over', 'Король пал — забег окончен.'));
+        list.after(el('div', 'result-unlock loss-banners run-over', t('Король пал — забег окончен.')));
       } else if (o.spared) {
-        const line = el('div', 'result-unlock loss-banners', 'Запасное знамя сгорело вместо вас — бой можно переиграть. Осталась одна жизнь. ');
+        const line = el('div', 'result-unlock loss-banners', t('Запасное знамя сгорело вместо вас — бой можно переиграть. Осталась одна жизнь. '));
         line.append(livesRow(this.ctx.state));
         list.after(line);
       }
@@ -720,7 +720,7 @@ export class ArenaScreen implements Screen {
     const campaign = !isAbyss(this.levelId) && !isFinale(this.levelId);
     if (o.runOver) {
       // A dead run: one way on — the summary, then a new run from 1-1.
-      button('Итоги забега ▶', 'btn-primary', () => {
+      button(t('Итоги забега ▶'), 'btn-primary', () => {
         this.enterPrep();
         openRunEnd(this.ctx, () => this.ctx.go('map'));
       });
@@ -728,43 +728,43 @@ export class ArenaScreen implements Screen {
       return;
     }
     if (!campaign || (!o.win && !o.spared)) {
-      button('Карта', 'btn-ghost', () => {
+      button(t('Карта'), 'btn-ghost', () => {
         this.enterPrep();
         this.ctx.go('map');
       });
     }
     if (campaign) {
       // The run map decides where to go next; a loss saved by a spare banner retries the same battle.
-      button('Улучшения', '', () => {
+      button(t('Улучшения'), '', () => {
         this.enterPrep();
         this.ctx.go('camp');
       });
       const ahead = availableNodes(this.ctx.state.run);
-      if (!o.win) button('Ещё раз', 'btn-primary', () => this.enterPrep());
+      if (!o.win) button(t('Ещё раз'), 'btn-primary', () => this.enterPrep());
       else if (o.win && !o.chapterDone && ahead.length === 1 && ahead[0].level) {
         // No fork ahead (the first lessons): straight on to the next battle.
-        button('Дальше ▶', 'btn-primary', () => {
+        button(t('Дальше ▶'), 'btn-primary', () => {
           enterNode(this.ctx.state, ahead[0].id);
           this.show(ahead[0].level!);
         });
-      } else button('К карте ▶', 'btn-primary', () => {
+      } else button(t('К карте ▶'), 'btn-primary', () => {
         this.enterPrep();
         this.ctx.go('map');
       });
     } else if (o.win) {
-      button('Улучшения', '', () => {
+      button(t('Улучшения'), '', () => {
         this.enterPrep();
         this.ctx.go('camp');
       });
-      if (!isAbyss(this.levelId)) button('Переиграть', '', () => this.enterPrep());
+      if (!isAbyss(this.levelId)) button(t('Переиграть'), '', () => this.enterPrep());
       const next = nextLevelId(this.levelId);
-      if (next) button('Дальше ▶', 'btn-primary', () => this.show(next));
+      if (next) button(t('Дальше ▶'), 'btn-primary', () => this.show(next));
     } else {
-      button('Улучшения', '', () => {
+      button(t('Улучшения'), '', () => {
         this.enterPrep();
         this.ctx.go('camp');
       });
-      button('Ещё раз', 'btn-primary', () => this.enterPrep());
+      button(t('Ещё раз'), 'btn-primary', () => this.enterPrep());
     }
     content.append(actions);
   }
@@ -778,13 +778,13 @@ export class ArenaScreen implements Screen {
     box.append(el('img', 'advice-icon'));
     (box.firstChild as HTMLImageElement).src = spriteUrl(a.kind, 'ally');
     const body = el('div', 'advice-body');
-    body.append(el('div', 'advice-title', `Совет: ${adviceLabel(a)}`));
+    body.append(el('div', 'advice-title', t('Совет: {text}', { text: adviceLabel(a) })));
     body.append(el('div', 'advice-sub', a.wins
-      ? 'С этим улучшением та же расстановка побеждает.'
-      : 'Даст больше всего силы именно в этом бою.'));
+      ? t('С этим улучшением та же расстановка побеждает.')
+      : t('Даст больше всего силы именно в этом бою.')));
     box.append(body);
     const affordable = s.gold >= a.cost;
-    const buy = el('button', 'btn btn-up btn-small', affordable ? `Улучшить · ${fmt(a.cost)}` : `Нужно ${fmt(a.cost)}`);
+    const buy = el('button', 'btn btn-up btn-small', affordable ? t('Улучшить · {cost}', { cost: fmt(a.cost) }) : t('Нужно {cost}', { cost: fmt(a.cost) }));
     buy.disabled = !affordable;
     buy.addEventListener('click', () => {
       if (!upgradePiece(s, a.kind)) return;
@@ -795,7 +795,7 @@ export class ArenaScreen implements Screen {
       this.enterPrep();
     });
     box.append(buy);
-    if (!affordable) box.append(el('div', 'advice-sub advice-wide', 'Золото дают победы на карте — элита платит больше.'));
+    if (!affordable) box.append(el('div', 'advice-sub advice-wide', t('Золото дают победы на карте — элита платит больше.')));
     return box;
   }
 
@@ -819,7 +819,7 @@ export class ArenaScreen implements Screen {
     }), this.synergyInfo);
   }
 
-  private synergyInfo = infoBtn('Синергии', () => `Бонусы за состав армии на доске:\n${SYNERGIES.map((d) => `${d.name}: ${d.description}.`).join('\n')}`);
+  private synergyInfo = infoBtn(t('Синергии'), () => t('Бонусы за состав армии на доске:') + '\n' + SYNERGIES.map((d) => `${d.name}: ${d.description}.`).join('\n'));
 
   /** The first time an ally uses an ability, explain where abilities come from. */
   private firstAbility(events: BattleEvent[]): void {
@@ -828,7 +828,7 @@ export class ArenaScreen implements Screen {
     const e = events.find((ev) => ev.type === 'ability' && ev.side === 'ally');
     if (!e?.fromKind) return;
     s.tutorial.push('t_ability_seen');
-    toast(`${PIECES[e.fromKind].name}: приём «${e.label}»! На 5-м уровне фигура выбирает один из двух приёмов`, 'good');
+    toast(t('{name}: приём «{label}»! На 5-м уровне фигура выбирает один из двух приёмов', { name: PIECES[e.fromKind].name, label: e.label ?? '' }), 'good');
   }
 
   // ---------- Frame ----------
@@ -890,15 +890,15 @@ export class ArenaScreen implements Screen {
     const tokens = `${left}/${total}`;
     if (this.movesEl.dataset.left !== tokens) {
       this.movesEl.dataset.left = tokens;
-      this.movesEl.replaceChildren(el('span', 'moves-label', 'Ходы'),
+      this.movesEl.replaceChildren(el('span', 'moves-label', t('Ходы')),
         ...Array.from({ length: total }, (_, i) => el('span', `move-token${i < left ? ' on' : ''}`)));
     }
     this.movesEl.classList.toggle('active', !prep && left > 0);
     if (!prep && left > 0 && left < total && this.movePick === null) {
-      void this.ctx.tip('t_tokens', this.movesEl, `Это твои ходы: осталось ${left}. Нажми на свою фигуру, когда захочешь сходить.`);
+      void this.ctx.tip('t_tokens', this.movesEl, t('Это твои ходы: осталось {n}. Нажми на свою фигуру, когда захочешь сходить.', { n: left }));
     }
-    setText(this.fightBtn, prep ? '▶ В бой' : '■ Отступить');
-    setText(this.autoBtn2, `Авто-спуск: ${this.autoDescend ? 'вкл' : 'выкл'}`);
+    setText(this.fightBtn, prep ? t('▶ В бой') : t('■ Отступить'));
+    setText(this.autoBtn2, t('Авто-спуск: {state}', { state: this.autoDescend ? t('вкл') : t('выкл') }));
     this.autoBtn2.classList.toggle('on', this.autoDescend);
     this.fightBtn.classList.toggle('btn-danger', !prep);
     setDisabled(this.fightBtn, this.phase === 'result');
@@ -913,7 +913,7 @@ export class ArenaScreen implements Screen {
 
     const limit = this.limit();
     setText(this.limitText, `${fieldedCount(s)}/${limit}`);
-    setText(this.trayTitle, prep ? `На доске ${fieldedCount(s)}/${limit} + король` : 'Идёт бой');
+    setText(this.trayTitle, prep ? t('На доске {n}/{limit} + король', { n: fieldedCount(s), limit }) : t('Идёт бой'));
     this.renderSynergies(prep);
     for (const [kind, item] of this.trayItems) {
       const avail = available(s, kind);
@@ -935,7 +935,7 @@ export class ArenaScreen implements Screen {
     }
 
     if (this.battle) {
-      setText(this.kingBars.enemy.name, this.levelId === 'final-3' ? 'Рука над доской' : this.levelId === 'final-2' ? 'Тень полководца' : 'Чёрный король');
+      setText(this.kingBars.enemy.name, this.levelId === 'final-3' ? t('Рука над доской') : this.levelId === 'final-2' ? t('Тень полководца') : t('Чёрный король'));
       for (const side of ['ally', 'enemy'] as const) {
         const king = this.battle.units.find((u) => u.side === side && u.kind === 'king');
         const ratio = king ? Math.max(0, king.hp) / king.maxHp : 0;
@@ -943,7 +943,7 @@ export class ArenaScreen implements Screen {
         if (this.kingBars[side].fill.style.width !== w) this.kingBars[side].fill.style.width = w;
         setText(this.kingBars[side].text, `${Math.round(ratio * 100)}%`);
       }
-      setText(this.battleTime, `Время боя: ${Math.floor(this.battle.tick / 10)} с · потери: ${this.battle.allyLosses}`);
+      setText(this.battleTime, t('Время боя: {s} с · потери: {n}', { s: Math.floor(this.battle.tick / 10), n: this.battle.allyLosses }));
     }
     this.renderBossBar();
   }
@@ -956,8 +956,8 @@ export class ArenaScreen implements Screen {
     const ratio = boss ? Math.max(0, boss.hp) / boss.maxHp : 0;
     const bw = `${ratio * 100}%`;
     if (this.bossFill.style.width !== bw) this.bossFill.style.width = bw;
-    setText(this.bossName, getLevel(this.levelId).boss ?? 'Босс');
-    setText(this.bossPhase, ratio <= 0 ? 'Повержен' : b.bossPhase === 2 ? `☠ ${BOSSES[b.bossId!].rage}` : `${Math.ceil(ratio * 100)}%`);
+    setText(this.bossName, getLevel(this.levelId).boss ?? t('Босс'));
+    setText(this.bossPhase, ratio <= 0 ? t('Повержен') : b.bossPhase === 2 ? `☠ ${BOSSES[b.bossId!].rage}` : `${Math.ceil(ratio * 100)}%`);
     this.bossBar.classList.toggle('enraged', b.bossPhase === 2);
     this.board.setWarnings(b.warnings.flatMap((w) => w.cells));
   }
@@ -980,23 +980,23 @@ export class ArenaScreen implements Screen {
     };
     for (const e of events) {
       if (e.type === 'rage' && b.bossId) {
-        shout('rage', e.x, e.y, RAGE_LINES[b.bossId] ?? 'Ярость!', b.bossId === 'hand' ? 'hand' : 'enemy', true);
+        shout('rage', e.x, e.y, RAGE_LINES[b.bossId] ?? t('Ярость!'), b.bossId === 'hand' ? 'hand' : 'enemy', true);
       } else if (e.type === 'boss' && b.bossId === 'hand' && e.label && HAND_LINES[e.label]) {
         shout(null, e.x, e.y, HAND_LINES[e.label]!, 'hand');
       } else if (e.type === 'promote' && e.side === 'ally') {
-        shout('promote', e.x, e.y, 'Я — ферзь!', 'ally');
+        shout('promote', e.x, e.y, t('Я — ферзь!'), 'ally');
       } else if (e.type === 'save' && e.side === 'ally') {
-        shout('save', e.x, e.y, 'Ещё не конец!', 'ally', true);
+        shout('save', e.x, e.y, t('Ещё не конец!'), 'ally', true);
       }
     }
     for (const u of b.units) {
       if (u.kind !== 'king' || u.hp <= 0 || u.boss) continue;
-      if (u.side === 'ally' && u.hp < u.maxHp * 0.3) shout('ally-king', u.x, u.y, 'Ко мне, стража!', 'ally');
-      if (u.side === 'enemy' && u.hp < u.maxHp * 0.3) shout('enemy-king', u.x, u.y, 'Нет… не сейчас!', 'enemy');
+      if (u.side === 'ally' && u.hp < u.maxHp * 0.3) shout('ally-king', u.x, u.y, t('Ко мне, стража!'), 'ally');
+      if (u.side === 'enemy' && u.hp < u.maxHp * 0.3) shout('enemy-king', u.x, u.y, t('Нет… не сейчас!'), 'enemy');
     }
     if (this.levelId === 'final-2' && b.tick >= 20) {
       const bk = b.units.find((u) => u.side === 'ally' && u.boss && u.kind === 'king' && u.hp > 0);
-      if (bk) shout('bk-ally', bk.x, bk.y, 'За Белого короля!', 'enemy');
+      if (bk) shout('bk-ally', bk.x, bk.y, t('За Белого короля!'), 'enemy');
     }
   }
 
@@ -1005,16 +1005,16 @@ export class ArenaScreen implements Screen {
     const b = this.battle;
     if (!b) return;
     for (const e of events) {
-      if (e.type === 'order' && e.label && e.label !== 'Ход') this.board.callout(e.label, 'skill');
+      if (e.type === 'order' && e.label && e.label !== t('Ход')) this.board.callout(e.label, 'skill');
       if (e.type === 'hand') {
         this.board.handGrab(e.fromX, e.fromY, e.x, e.y);
-        if (!b.bossId) this.board.callout('Рука переставляет фигуру!', 'skill');
+        if (!b.bossId) this.board.callout(t('Рука переставляет фигуру!'), 'skill');
       } else if (e.type === 'flip') {
         this.board.flip();
         this.board.setTerrain(b.terrain);
       } else if (e.type === 'rage' && b.bossId === 'hand') {
         this.setTimeLock(true);
-        toast('Рука держит время: ускорение недоступно');
+        toast(t('Рука держит время: ускорение недоступно'));
       }
     }
   }
@@ -1025,10 +1025,10 @@ export class ArenaScreen implements Screen {
     if (!b?.bossId) return;
     for (const e of events) {
       if (e.type === 'boss') this.board.callout(`${e.label}!`, 'skill');
-      else if (e.type === 'rage') this.board.callout(`Ярость: ${e.label}`, 'rage');
+      else if (e.type === 'rage') this.board.callout(t('Ярость: {name}', { name: e.label ?? '' }), 'rage');
       else if (e.type === 'terrain') this.board.setTerrain(b.terrain);
       else if (e.type === 'death' && e.uid === b.bossUid) {
-        this.board.callout(b.bossId === 'hand' ? 'Рука опущена!' : 'Босс повержен!', 'down');
+        this.board.callout(b.bossId === 'hand' ? t('Рука опущена!') : t('Босс повержен!'), 'down');
         audio.play('bossDown');
       }
     }
@@ -1051,18 +1051,18 @@ export class ArenaScreen implements Screen {
     const spot = [3, 4, 2, 5, 1, 6].map((x) => [x, 5] as const).find(([x, y]) => isPlayerCell(x, y, this.levelId) && !slotAt(s, x, y));
     const firstWin = (s.stars['1-1'] ?? 0) > 0;
     void ((freeReserve && spot && ctx.tip('t_reserve', freeReserve,
-      'Нажми на пешку в резерве, потом на клетку — поставь её в строй.', board.cellNode(spot[0], spot[1])))
-      || ctx.tip('t_fight', this.fightBtn, 'Армия готова. В бой!')
+      t('Нажми на пешку в резерве, потом на клетку — поставь её в строй.'), board.cellNode(spot[0], spot[1])))
+      || ctx.tip('t_fight', this.fightBtn, t('Армия готова. В бой!'))
       || (firstWin && ctx.tip('t_king', board.unitNode('ally', 'king'),
-        'Твой король. Падёт он — бой проигран. Фигуры рядом с ним бьют сильнее.'))
+        t('Твой король. Падёт он — бой проигран. Фигуры рядом с ним бьют сильнее.')))
       || (firstWin && ctx.tip('t_enemy_king', board.unitNode('enemy', 'king'),
-        'Сразишь Чёрного короля — победа. Нажми на врага, чтобы узнать о нём.'))
+        t('Сразишь Чёрного короля — победа. Нажми на врага, чтобы узнать о нём.')))
       || (featureOpen(s, 'auto') && ctx.tip('t_move', this.autoBtn,
-        '«Авто» расставит армию сама. Переставить фигуру: нажми на неё, потом на клетку.'))
+        t('«Авто» расставит армию сама. Переставить фигуру: нажми на неё, потом на клетку.')))
       || (!this.terrainRow.hidden && ctx.tip('t_terrain', this.terrainRow,
-        'Ландшафт! Лес защищает, с холма стрелки бьют сильнее, через камни и воду не пройти.'))
+        t('Ландшафт! Лес защищает, с холма стрелки бьют сильнее, через камни и воду не пройти.')))
       || (this.board.root.querySelector('.cell.threat') && ctx.tip('t_threats', this.board.root.querySelector<HTMLElement>('.cell.threat'),
-        'Красные клетки простреливает враг. Не ставь туда короля, закрывай линии пешками.')));
+        t('Красные клетки простреливает враг. Не ставь туда короля, закрывай линии пешками.'))));
   }
 
   /** After-battle breakdown: loss reason, MVP, damage per piece and tips. */
@@ -1070,11 +1070,11 @@ export class ArenaScreen implements Screen {
     const r = buildReport(this.battle!);
     const box = el('details', 'report');
     box.open = !win;
-    box.append(el('summary', 'report-title', 'Разбор боя'));
+    box.append(el('summary', 'report-title', t('Разбор боя')));
     if (r.lossReason) box.append(el('p', 'report-reason', r.lossReason));
     if (r.mvp) {
       box.append(el('p', 'report-mvp',
-        `Лучшая фигура: ${pieceName(r.mvp)} — ${fmt(Math.round(r.mvp.dealt))} урона, сражено ${r.mvp.kills}`));
+        t('Лучшая фигура: {name} — {dmg} урона, сражено {n}', { name: pieceName(r.mvp), dmg: fmt(Math.round(r.mvp.dealt)), n: r.mvp.kills })));
     }
     const max = Math.max(1, ...r.allies.map((a) => a.dealt));
     const table = el('div', 'report-table');
@@ -1094,7 +1094,7 @@ export class ArenaScreen implements Screen {
     box.append(table);
     if (r.tips.length) {
       const tips = el('ul', 'report-tips');
-      for (const t of r.tips) tips.append(el('li', '', t));
+      for (const tip of r.tips) tips.append(el('li', '', tip));
       box.append(tips);
     }
     return box;
@@ -1151,21 +1151,24 @@ const DECISION_MS = 3000;
 
 const DECISION_TEXT: Record<Decision['kind'], { title: string; hint: string; options: Record<string, string> }> = {
   check: {
-    title: 'Шах! Король под ударом', hint: 'Падёт король — бой проигран. Уведи его, закрой фигурой или спрячь рокировкой.',
-    options: { escape: 'Отступить', block: 'Закрыться', castle: 'Рокировка', none: 'Стоять' },
+    title: t('Шах! Король под ударом'), hint: t('Падёт король — бой проигран. Уведи его, закрой фигурой или спрячь рокировкой.'),
+    options: { escape: t('Отступить'), block: t('Закрыться'), castle: t('Рокировка'), none: t('Стоять') },
   },
   boss: {
-    title: 'Удар босса!', hint: 'Красные клетки — сюда ударит босс. Уведи фигуры или подними щиты.',
-    options: { scatter: 'Разбежаться', brace: 'Щиты', none: 'Стоять' },
+    title: t('Удар босса!'), hint: t('Красные клетки — сюда ударит босс. Уведи фигуры или подними щиты.'),
+    options: { scatter: t('Разбежаться'), brace: t('Щиты'), none: t('Стоять') },
   },
 };
 
 const RAGE_LINES: Partial<Record<string, string>> = {
-  captain: 'Сомкнуть ряды!', rider: 'Ты не уйдёшь!', fortress: 'Камень не сдаётся!', queen: 'На колени!',
-  guardian: 'Бездна голодна!', blackKing: 'Все искажения — сейчас!', hand: 'ПЕРЕВЕРНУТЬ.',
+  captain: t('Сомкнуть ряды!'), rider: t('Ты не уйдёшь!'), fortress: t('Камень не сдаётся!'), queen: t('На колени!'),
+  guardian: t('Бездна голодна!'), blackKing: t('Все искажения — сейчас!'), hand: t('ПЕРЕВЕРНУТЬ.'),
 };
 
-const HAND_LINES: Partial<Record<string, string>> = { 'Щелчок': 'Щёлк.', 'Перестановка': 'Не туда.', 'Тени партий': 'Встаньте.' };
+// Keyed by the boss skill label from the battle (translated the same way there).
+const HAND_LINES: Partial<Record<string, string>> = {
+  [t('Щелчок')]: t('Щёлк.'), [t('Перестановка')]: t('Не туда.'), [t('Тени партий')]: t('Встаньте.'),
+};
 
 function hitSound(e: BattleEvent): 'crit' | 'shot' | 'hit' {
   if (e.crit) return 'crit';

@@ -3,6 +3,7 @@
  * battle, the court and the Abyss. Each branch has four tiers; on every tier
  * the player picks one of two nodes. Deep tiers open in later games.
  */
+import { t } from '../i18n';
 import type { PieceKind } from './pieces';
 
 export type BranchId = 'gambit' | 'court' | 'shadow';
@@ -24,9 +25,9 @@ export interface CrownNode {
 }
 
 export const BRANCHES: Record<BranchId, { name: string; text: string; icon: string }> = {
-  gambit: { name: 'Гамбит', text: 'Шахматные приёмы', icon: '♞' },
-  court: { name: 'Двор', text: 'Устройство королевства', icon: '♛' },
-  shadow: { name: 'Тень', text: 'Тёмные силы и колесо', icon: '☠' },
+  gambit: { name: t('Гамбит'), text: t('Шахматные приёмы'), icon: '♞' },
+  court: { name: t('Двор'), text: t('Устройство королевства'), icon: '♛' },
+  shadow: { name: t('Тень'), text: t('Тёмные силы и колесо'), icon: '☠' },
 };
 
 export const BRANCH_ORDER: BranchId[] = ['gambit', 'court', 'shadow'];
@@ -39,31 +40,31 @@ const N = (id: NodeId, branch: BranchId, tier: number, name: string, text: strin
   ({ id, branch, tier, name, text, piece });
 
 export const NODES: CrownNode[] = [
-  N('doubleStep', 'gambit', 0, 'Двойной шаг', 'Пешки первым ходом проходят 2 клетки, как в шахматах.'),
+  N('doubleStep', 'gambit', 0, t('Двойной шаг'), t('Пешки первым ходом проходят 2 клетки, как в шахматах.')),
   // Kept as 'castling' so old saves keep the node: castling itself is now a move anyone can make.
-  N('castling', 'gambit', 0, 'Темп', 'Третий ход в каждом бою.'),
-  N('fork', 'gambit', 1, 'Вилка', 'Взятие конём (и любой прыгающей фигурой) бьёт ещё одного врага в зоне прыжка.'),
-  N('check', 'gambit', 1, 'Шах', 'Взятие вражеского короля оглушает его втрое дольше.'),
-  N('earlyCrown', 'gambit', 2, 'Ранняя коронация', 'Пешки становятся ферзём на 2 ряда раньше.'),
-  N('sacrifice', 'gambit', 2, 'Жертва', 'Павшая пешка дарит соседним союзникам щит в 25% здоровья.'),
-  N('archbishop', 'gambit', 3, 'Архиепископ', 'Новая фигура: ходит и бьёт как слон и как конь.', 'archbishop'),
-  N('chancellor', 'gambit', 3, 'Канцлер', 'Новая фигура: ходит и бьёт как ладья и как конь.', 'chancellor'),
-  N('trophies', 'court', 0, 'Трофеи', 'Каждый побеждённый босс дарит бесплатную крутку Колеса короны.'),
-  N('tribute', 'court', 0, 'Дань', 'Боссы и элита платят вдвое больше золота.'),
-  N('vault', 'court', 1, 'Сокровищница', 'Каждый забег начинается с выбора реликвии.'),
-  N('heritage', 'court', 1, 'Наследство', 'Каждый забег начинается с Запасным знаменем — второй жизнью.'),
-  N('heralds', 'court', 2, 'Герольды', 'Синергиям нужно на одну фигуру меньше.'),
-  N('banner', 'court', 2, 'Знамя', '+1 фигура в каждом бою.'),
-  N('twoQueens', 'court', 3, 'Две королевы', 'В армии можно держать двух ферзей.'),
-  N('warlord', 'court', 3, 'Король-полководец', 'Король не прячется: сам идёт в атаку и бьёт на 2 клетки во все стороны.'),
-  N('hunger', 'shadow', 0, 'Голод', 'После каждого забега первая крутка Колеса короны бесплатна.'),
-  N('luck', 'shadow', 0, 'Удача', 'Колесо короны предлагает выбор из четырёх даров, а не из трёх.'),
-  N('shadowReserve', 'shadow', 1, 'Теневой резерв', 'Первые две павшие в бою фигуры возвращаются тенями с третью здоровья.'),
-  N('fog', 'shadow', 1, 'Туман войны', 'Первые 3 секунды боя враги не атакуют.'),
-  N('echo', 'shadow', 2, 'Эхо легенд', 'Легендарные дары выпадают в Колесе вдвое чаще.'),
-  N('lure', 'shadow', 2, 'Переманивание', 'В бою с элитой одна вражеская фигура переходит на вашу сторону.'),
-  N('ghost', 'shadow', 3, 'Призрак', 'Новая фигура: прыгает на 2 клетки сквозь фигуры и камни и охотится на стрелков.', 'ghost'),
-  N('guardian', 'shadow', 3, 'Страж на службе', 'Последний побеждённый босс сражается за вас до конца забега.'),
+  N('castling', 'gambit', 0, t('Темп'), t('Третий ход в каждом бою.')),
+  N('fork', 'gambit', 1, t('Вилка'), t('Взятие конём (и любой прыгающей фигурой) бьёт ещё одного врага в зоне прыжка.')),
+  N('check', 'gambit', 1, t('Шах'), t('Взятие вражеского короля оглушает его втрое дольше.')),
+  N('earlyCrown', 'gambit', 2, t('Ранняя коронация'), t('Пешки становятся ферзём на 2 ряда раньше.')),
+  N('sacrifice', 'gambit', 2, t('Жертва'), t('Павшая пешка дарит соседним союзникам щит в 25% здоровья.')),
+  N('archbishop', 'gambit', 3, t('Архиепископ'), t('Новая фигура: ходит и бьёт как слон и как конь.'), 'archbishop'),
+  N('chancellor', 'gambit', 3, t('Канцлер'), t('Новая фигура: ходит и бьёт как ладья и как конь.'), 'chancellor'),
+  N('trophies', 'court', 0, t('Трофеи'), t('Каждый побеждённый босс дарит бесплатную крутку Колеса короны.')),
+  N('tribute', 'court', 0, t('Дань'), t('Боссы и элита платят вдвое больше золота.')),
+  N('vault', 'court', 1, t('Сокровищница'), t('Каждый забег начинается с выбора реликвии.')),
+  N('heritage', 'court', 1, t('Наследство'), t('Каждый забег начинается с Запасным знаменем — второй жизнью.')),
+  N('heralds', 'court', 2, t('Герольды'), t('Синергиям нужно на одну фигуру меньше.')),
+  N('banner', 'court', 2, t('Знамя'), t('+1 фигура в каждом бою.')),
+  N('twoQueens', 'court', 3, t('Две королевы'), t('В армии можно держать двух ферзей.')),
+  N('warlord', 'court', 3, t('Король-полководец'), t('Король не прячется: сам идёт в атаку и бьёт на 2 клетки во все стороны.')),
+  N('hunger', 'shadow', 0, t('Голод'), t('После каждого забега первая крутка Колеса короны бесплатна.')),
+  N('luck', 'shadow', 0, t('Удача'), t('Колесо короны предлагает выбор из четырёх даров, а не из трёх.')),
+  N('shadowReserve', 'shadow', 1, t('Теневой резерв'), t('Первые две павшие в бою фигуры возвращаются тенями с третью здоровья.')),
+  N('fog', 'shadow', 1, t('Туман войны'), t('Первые 3 секунды боя враги не атакуют.')),
+  N('echo', 'shadow', 2, t('Эхо легенд'), t('Легендарные дары выпадают в Колесе вдвое чаще.')),
+  N('lure', 'shadow', 2, t('Переманивание'), t('В бою с элитой одна вражеская фигура переходит на вашу сторону.')),
+  N('ghost', 'shadow', 3, t('Призрак'), t('Новая фигура: прыгает на 2 клетки сквозь фигуры и камни и охотится на стрелков.'), 'ghost'),
+  N('guardian', 'shadow', 3, t('Страж на службе'), t('Последний побеждённый босс сражается за вас до конца забега.')),
 ];
 
 export const NODE_BY_ID = Object.fromEntries(NODES.map((x) => [x.id, x])) as Record<NodeId, CrownNode>;
@@ -89,9 +90,9 @@ export function nodeState(owned: readonly NodeId[], game: number, node: CrownNod
 export function lockReason(owned: readonly NodeId[], game: number, node: CrownNode): string | null {
   if (node.tier > 0) {
     const below = NODES.filter((x) => x.branch === node.branch && x.tier === node.tier - 1);
-    if (!below.some((x) => owned.includes(x.id))) return 'Сначала выберите узел ярусом ниже';
+    if (!below.some((x) => owned.includes(x.id))) return t('Сначала выберите узел ярусом ниже');
   }
-  if (game < TIER_FROM_GAME[node.tier]) return `Откроется в партии ${TIER_FROM_GAME[node.tier]}`;
+  if (game < TIER_FROM_GAME[node.tier]) return t('Откроется в партии {n}', { n: TIER_FROM_GAME[node.tier] });
   return null;
 }
 

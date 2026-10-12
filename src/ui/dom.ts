@@ -1,4 +1,5 @@
 import { hasGlyphs, renderRich } from './icons';
+import { t } from '../i18n';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -58,11 +59,11 @@ export function openModal(content: HTMLElement, opts: { dismissable?: boolean; c
   return close;
 }
 
-export function confirmDialog(title: string, text: string, yesLabel = 'Да'): Promise<boolean> {
+export function confirmDialog(title: string, text: string, yesLabel = t('Да')): Promise<boolean> {
   return new Promise((resolve) => {
     const content = el('div');
     const actions = el('div', 'modal-actions');
-    const no = el('button', 'btn btn-ghost', 'Отмена');
+    const no = el('button', 'btn btn-ghost', t('Отмена'));
     const yes = el('button', 'btn btn-primary', yesLabel);
     actions.append(no, yes);
     content.append(el('h2', '', title), el('p', '', text), actions);
@@ -93,11 +94,11 @@ export function infoBtn(title: string, text: string | (() => string)): HTMLButto
   const b = el('button', 'info-btn', '?');
   b.type = 'button';
   b.title = title;
-  b.setAttribute('aria-label', `Подробнее: ${title}`);
+  b.setAttribute('aria-label', t('Подробнее: {title}', { title }));
   b.addEventListener('click', (e) => {
     e.stopPropagation();
     const content = el('div', 'info-dialog');
-    const ok = el('button', 'btn btn-primary', 'Понятно');
+    const ok = el('button', 'btn btn-primary', t('Понятно'));
     const actions = el('div', 'modal-actions');
     actions.append(ok);
     const body = el('div', 'info-text');

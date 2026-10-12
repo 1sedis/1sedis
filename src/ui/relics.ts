@@ -4,6 +4,7 @@ import { audio } from './audio';
 import type { Ctx } from './context';
 import { el, openModal, toast } from './dom';
 import { relicIconUrl } from './relicIcons';
+import { t } from '../i18n';
 
 /** Small framed pixel icon for a relic. */
 export function relicIcon(id: RelicId): HTMLElement {
@@ -35,8 +36,8 @@ export function openRelicPicker(ctx: Ctx, onDone?: () => void): void {
   }
   const content = el('div', 'relic-picker');
   content.append(
-    el('h2', '', 'Выберите реликвию'),
-    el('p', 'hint', 'Реликвия действует до конца игры. Остальные две могут выпасть позже.'),
+    el('h2', '', t('Выберите реликвию')),
+    el('p', 'hint', t('Реликвия действует до конца игры. Остальные две могут выпасть позже.')),
   );
   const cards = el('div', 'relic-cards');
   let close = () => {};
@@ -63,7 +64,7 @@ export function openRelicPicker(ctx: Ctx, onDone?: () => void): void {
       if (!chooseRelic(ctx.state, id)) return;
       ctx.save();
       audio.play('relic');
-      toast(`Реликвия «${def.name}» получена`, 'good');
+      toast(t('Реликвия «{name}» получена', { name: def.name }), 'good');
       close();
       // Several picks can be pending (a boss on a star milestone).
       if (relicOffer(ctx.state)) openRelicPicker(ctx, onDone);
@@ -71,7 +72,7 @@ export function openRelicPicker(ctx: Ctx, onDone?: () => void): void {
     });
     cards.append(card);
   });
-  const later = el('button', 'btn btn-ghost', 'Выбрать позже');
+  const later = el('button', 'btn btn-ghost', t('Выбрать позже'));
   later.addEventListener('click', () => {
     close();
     onDone?.();

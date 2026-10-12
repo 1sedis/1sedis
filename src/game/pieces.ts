@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 export type PieceKind = 'king' | 'pawn' | 'knight' | 'bishop' | 'rook' | 'queen'
   // Prestige pieces from the Crown Tree.
   | 'archbishop' | 'chancellor' | 'ghost';
@@ -21,49 +23,49 @@ export interface PieceDef {
 
 export const PIECES: Record<PieceKind, PieceDef> = {
   king: {
-    kind: 'king', name: 'Король', role: 'Сердце армии',
+    kind: 'king', name: t('Король'), role: t('Сердце армии'),
     hp: 240, atk: 10, attackCd: 12, moveCd: 14, range: 0, cost: 0,
-    description: 'Отступает от угроз и прячется за своими. Соседние союзники получают +20% к атаке. Пал король — бой проигран.',
+    description: t('Отступает от угроз и прячется за своими. Соседние союзники получают +20% к атаке. Пал король — бой проигран.'),
   },
   pawn: {
-    kind: 'pawn', name: 'Пешка', role: 'Стена',
+    kind: 'pawn', name: t('Пешка'), role: t('Стена'),
     hp: 90, atk: 10, attackCd: 10, moveCd: 12, range: 0, cost: 20,
-    description: 'Идёт только вперёд и закрывает собой выстрелы. Дойдя до края доски, становится ферзём.',
+    description: t('Идёт только вперёд и закрывает собой выстрелы. Дойдя до края доски, становится ферзём.'),
   },
   knight: {
-    kind: 'knight', name: 'Конь', role: 'Убийца',
+    kind: 'knight', name: t('Конь'), role: t('Убийца'),
     hp: 110, atk: 16, attackCd: 9, moveCd: 8, range: 0, cost: 60,
-    description: 'Прыгает через фигуры буквой «Г» и охотится на стрелков и короля.',
+    description: t('Прыгает через фигуры буквой «Г» и охотится на стрелков и короля.'),
   },
   bishop: {
-    kind: 'bishop', name: 'Слон', role: 'Стрелок',
+    kind: 'bishop', name: t('Слон'), role: t('Стрелок'),
     hp: 70, atk: 18, attackCd: 12, moveCd: 9, range: 4, cost: 90,
-    description: 'Стреляет по диагонали на 4 клетки. Хрупкий — держите за пешками.',
+    description: t('Стреляет по диагонали на 4 клетки. Хрупкий — держите за пешками.'),
   },
   rook: {
-    kind: 'rook', name: 'Ладья', role: 'Тяжёлый стрелок',
+    kind: 'rook', name: t('Ладья'), role: t('Тяжёлый стрелок'),
     hp: 170, atk: 16, attackCd: 13, moveCd: 10, range: 7, cost: 150,
-    description: 'Стреляет по прямой через всю доску. Крепкая.',
+    description: t('Стреляет по прямой через всю доску. Крепкая.'),
   },
   queen: {
-    kind: 'queen', name: 'Ферзь', role: 'Козырь',
+    kind: 'queen', name: t('Ферзь'), role: t('Козырь'),
     hp: 180, atk: 26, attackCd: 10, moveCd: 7, range: 4, cost: 400,
-    description: 'Бьёт во все 8 направлений. В армии может быть только один.',
+    description: t('Бьёт во все 8 направлений. В армии может быть только один.'),
   },
   archbishop: {
-    kind: 'archbishop', name: 'Архиепископ', role: 'Слон и конь',
+    kind: 'archbishop', name: t('Архиепископ'), role: t('Слон и конь'),
     hp: 150, atk: 22, attackCd: 11, moveCd: 8, range: 4, cost: 280,
-    description: 'Стреляет по диагонали как слон и прыгает буквой «Г» как конь.',
+    description: t('Стреляет по диагонали как слон и прыгает буквой «Г» как конь.'),
   },
   chancellor: {
-    kind: 'chancellor', name: 'Канцлер', role: 'Ладья и конь',
+    kind: 'chancellor', name: t('Канцлер'), role: t('Ладья и конь'),
     hp: 210, atk: 20, attackCd: 12, moveCd: 9, range: 7, cost: 340,
-    description: 'Стреляет по прямой как ладья и прыгает буквой «Г» как конь.',
+    description: t('Стреляет по прямой как ладья и прыгает буквой «Г» как конь.'),
   },
   ghost: {
-    kind: 'ghost', name: 'Призрак', role: 'Охотник из тени',
+    kind: 'ghost', name: t('Призрак'), role: t('Охотник из тени'),
     hp: 120, atk: 24, attackCd: 9, moveCd: 7, range: 0, cost: 240,
-    description: 'Прыгает на 2 клетки в любую сторону сквозь фигуры и камни и охотится на стрелков и короля.',
+    description: t('Прыгает на 2 клетки в любую сторону сквозь фигуры и камни и охотится на стрелков и короля.'),
   },
 };
 

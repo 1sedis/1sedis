@@ -1,4 +1,5 @@
 import type { GameState } from './state';
+import { t } from '../i18n';
 
 /**
  * Parts of the game that open one by one through chapter 1, so a new player
@@ -8,14 +9,14 @@ export type Feature = 'moves' | 'camp' | 'speed' | 'auto' | 'buildings' | 'achie
 
 /** Each part opens after this many won battles (the first chapter is a fixed lesson, then the map forks). */
 export const FEATURES: Record<Feature, { name: string; wins: number }> = {
-  moves: { name: 'Твой ход', wins: 1 },
-  camp: { name: 'Улучшения', wins: 2 },
-  speed: { name: 'Ускорение боя', wins: 3 },
-  auto: { name: 'Авторасстановка', wins: 3 },
-  buildings: { name: 'Постройки', wins: 5 },
-  achievements: { name: 'Достижения', wins: 6 },
-  relics: { name: 'Реликвии', wins: 8 },
-  synergies: { name: 'Синергии', wins: 8 },
+  moves: { name: t('Твой ход'), wins: 1 },
+  camp: { name: t('Улучшения'), wins: 2 },
+  speed: { name: t('Ускорение боя'), wins: 3 },
+  auto: { name: t('Авторасстановка'), wins: 3 },
+  buildings: { name: t('Постройки'), wins: 5 },
+  achievements: { name: t('Достижения'), wins: 6 },
+  relics: { name: t('Реликвии'), wins: 8 },
+  synergies: { name: t('Синергии'), wins: 8 },
 };
 
 export const FEATURE_ORDER = Object.keys(FEATURES) as Feature[];

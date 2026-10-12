@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { formationScore } from './autoformation';
 import { PIECES, type PieceKind } from './pieces';
 import { upgradeCost, type GameState } from './state';
@@ -34,5 +35,5 @@ export function adviseUpgrade(s: GameState, levelId: string): UpgradeAdvice | nu
 }
 
 export function adviceLabel(a: UpgradeAdvice): string {
-  return `${PIECES[a.kind].name} → ур. ${a.level}`;
+  return t('{piece} → ур. {lv}', { piece: PIECES[a.kind].name, lv: a.level });
 }

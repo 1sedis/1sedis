@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { MAX_TICKS, type Battle, type UnitReport } from './battle';
 import { traitAdjective, type Trait } from './elites';
 import { PIECES, RANGED } from './pieces';
@@ -8,8 +9,10 @@ export function square(x: number, y: number): string {
 }
 
 export function pieceName(r: Pick<UnitReport, 'kind' | 'promoted'> & { trait?: Trait }): string {
-  if (r.promoted) return 'Ферзь из пешки';
-  return r.trait ? `${traitAdjective(r.trait, r.kind)} ${PIECES[r.kind].name.toLowerCase()}` : PIECES[r.kind].name;
+  if (r.promoted) return t('Ферзь из пешки');
+  return r.trait
+    ? t('{adj} {piece}', { adj: traitAdjective(r.trait, r.kind), piece: PIECES[r.kind].name.toLowerCase() })
+    : PIECES[r.kind].name;
 }
 
 export interface BattleReport {
@@ -25,22 +28,22 @@ export interface BattleReport {
 
 /** The line along which a ranged piece hit a target. */
 function lineBetween(fromX: number, fromY: number, toX: number, toY: number): string {
-  if (fromX === toX) return `вертикаль ${'abcdefgh'[toX]}`;
-  if (fromY === toY) return `горизонталь ${8 - toY}`;
-  return `диагональ ${square(fromX, fromY)}–${square(toX, toY)}`;
+  if (fromX === toX) return t('вертикаль {file}', { file: 'abcdefgh'[toX] });
+  if (fromY === toY) return t('горизонталь {rank}', { rank: 8 - toY });
+  return t('диагональ {from}–{to}', { from: square(fromX, fromY), to: square(toX, toY) });
 }
 
 function kingTip(king: UnitReport): string | null {
   const k = king.killedBy;
   if (!k) return null;
   if (RANGED.has(k.kind)) {
-    return `Стрелок бил по королю через ${lineBetween(k.x, k.y, k.atX, k.atY)}. `
-      + 'Закройте эту линию пешкой или поставьте короля под прикрытие своих фигур.';
+    return t('Стрелок бил по королю через {line}. Закройте эту линию пешкой или поставьте короля под прикрытие своих фигур.',
+      { line: lineBetween(k.x, k.y, k.atX, k.atY) });
   }
   if (k.kind === 'knight') {
-    return 'Конь прорвался к королю. Окружите короля своими фигурами: на занятые клетки конь не прыгнет.';
+    return t('Конь прорвался к королю. Окружите короля своими фигурами: на занятые клетки конь не прыгнет.');
   }
-  return 'Враг дошёл до короля вплотную. Держите перед королём строй пешек и не оставляйте его на краю.';
+  return t('Враг дошёл до короля вплотную. Держите перед королём строй пешек и не оставляйте его на краю.');
 }
 
 export function buildReport(b: Battle): BattleReport {
@@ -56,27 +59,27 @@ export function buildReport(b: Battle): BattleReport {
     const killer = king?.killedBy;
     if (king && killer) {
       const name = pieceName(b.report[killer.uid] ?? { kind: killer.kind, promoted: false });
-      lossReason = `Короля сразил враг: ${name.toLowerCase()} с ${square(killer.x, killer.y)}.`;
+      lossReason = t('Короля сразил враг: {name} с {sq}.', { name: name.toLowerCase(), sq: square(killer.x, killer.y) });
       tips.push(kingTip(king)!);
     } else if (b.tick >= MAX_TICKS) {
-      lossReason = 'Время вышло: армия не успела пробиться к вражескому королю.';
-      tips.push('Нужно больше урона по королю: кони прыгают в тыл, ладья на открытой линии бьёт через всю доску.');
+      lossReason = t('Время вышло: армия не успела пробиться к вражескому королю.');
+      tips.push(t('Нужно больше урона по королю: кони прыгают в тыл, ладья на открытой линии бьёт через всю доску.'));
     } else {
-      lossReason = 'Ваша армия пала.';
+      lossReason = t('Ваша армия пала.');
     }
     // The enemy piece that caused the most losses.
     const butcher = [...enemies].sort((a, c) => c.kills - a.kills)[0];
     if (butcher && butcher.kills >= 2) {
-      tips.push(`Больше всего ваших фигур сразил враг: ${pieceName(butcher).toLowerCase()} с ${square(butcher.startX, butcher.startY)}. `
-        + 'Займитесь им первым: конём или стрелком на его линии.');
+      tips.push(t('Больше всего ваших фигур сразил враг: {name} с {sq}. Займитесь им первым: конём или стрелком на его линии.',
+        { name: pieceName(butcher).toLowerCase(), sq: square(butcher.startX, butcher.startY) }));
     }
   }
 
   // A piece that survived without dealing damage stands in the wrong place.
   const idle = allies.find((r) => r.kind !== 'king' && r.dealt === 0 && !r.killedBy);
   if (idle) {
-    tips.push(`${pieceName(idle)} с ${square(idle.startX, idle.startY)} не нанёс(ла) урона. `
-      + 'Поставьте эту фигуру ближе к врагу или на открытую линию.');
+    tips.push(t('{name} с {sq} не нанёс(ла) урона. Поставьте эту фигуру ближе к врагу или на открытую линию.',
+      { name: pieceName(idle), sq: square(idle.startX, idle.startY) }));
   }
   return { mvp, allies, lossReason, tips: tips.slice(0, 2) };
 }

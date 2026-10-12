@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { EPIC_PITY, LEGEND_PITY, RARITY, ROMAN, SPIN_COST, ownedGifts, rank, type BuffDef, type Rarity } from '../game/roulette';
 import { chooseGift, spinCost, spinRoulette } from '../game/state';
 import { audio } from './audio';
@@ -18,7 +19,7 @@ function giftCard(b: BuffDef, have: number, next = false): HTMLElement {
   const img = el('img', 'buff-icon');
   img.src = giftIcon(b);
   img.alt = '';
-  const rankText = b.max === 1 ? 'уникальный' : next ? (have ? `ранг ${ROMAN[have]} → ${ROMAN[have + 1]}` : 'ранг I') : `ранг ${ROMAN[have]}`;
+  const rankText = b.max === 1 ? t('уникальный') : next ? (have ? t('ранг {from} → {to}', { from: ROMAN[have], to: ROMAN[have + 1] }) : t('ранг I')) : t('ранг {r}', { r: ROMAN[have] });
   c.append(el('span', 'buff-rarity', RARITY[b.rarity].name), img, el('span', 'buff-name', b.name),
     el('span', 'buff-text', b.text), el('span', 'buff-rank', rankText));
   return c;
@@ -41,21 +42,21 @@ export function openWheel(ctx: Ctx, onChange: () => void): void {
     const cost = spinCost(s);
     const r = s.roulette;
     const head = el('div', 'wheel-head');
-    head.append(el('h2', '', 'Колесо короны'), el('span', 'wheel-crowns', `♛ ${s.crowns}`));
-    const spin = el('button', 'btn btn-buy wheel-spin', cost ? `Крутить · ${SPIN_COST} ♛` : 'Крутить бесплатно');
+    head.append(el('h2', '', t('Колесо короны')), el('span', 'wheel-crowns', `♛ ${s.crowns}`));
+    const spin = el('button', 'btn btn-buy wheel-spin', cost ? t('Крутить · {cost} ♛', { cost: SPIN_COST }) : t('Крутить бесплатно'));
     spin.disabled = s.crowns < cost;
     spin.addEventListener('click', () => roll());
-    const pity = el('div', 'pity-line', `Эпический или лучше — не позже чем через ${EPIC_PITY - r.sinceEpic}, легендарный — через ${LEGEND_PITY - r.sinceLegend}`);
-    const hint = el('p', 'hint', 'Колесо выбирает редкость, а вы — один дар из трёх. Дары вечные; повторный дар повышает ранг (до III), легендарные — уникальны.');
+    const pity = el('div', 'pity-line', t('Эпический или лучше — не позже чем через {epic}, легендарный — через {legend}', { epic: EPIC_PITY - r.sinceEpic, legend: LEGEND_PITY - r.sinceLegend }));
+    const hint = el('p', 'hint', t('Колесо выбирает редкость, а вы — один дар из трёх. Дары вечные; повторный дар повышает ранг (до III), легендарные — уникальны.'));
     const owned = ownedGifts(r);
     const shelf = el('div', 'gift-shelf');
     if (owned.length) for (const { def, rank: n } of owned) shelf.append(giftCard(def, n));
-    else shelf.append(el('p', 'hint', 'Даров пока нет.'));
+    else shelf.append(el('p', 'hint', t('Даров пока нет.')));
     const actions = el('div', 'modal-actions');
-    const done = el('button', 'btn btn-ghost', 'Закрыть');
+    const done = el('button', 'btn btn-ghost', t('Закрыть'));
     done.addEventListener('click', close);
     actions.append(done);
-    content.replaceChildren(head, hint, spin, pity, el('div', 'wheel-subtitle', 'Ваши дары'), shelf, actions);
+    content.replaceChildren(head, hint, spin, pity, el('div', 'wheel-subtitle', t('Ваши дары')), shelf, actions);
   };
 
   /** The rarity strip races past and stops; then the choice. */
@@ -74,7 +75,7 @@ export function openWheel(ctx: Ctx, onChange: () => void): void {
       strip.append(tile);
     }
     viewport.append(strip, el('div', 'spin-marker'));
-    content.replaceChildren(el('h2', '', 'Колесо короны'), viewport);
+    content.replaceChildren(el('h2', '', t('Колесо короны')), viewport);
     requestAnimationFrame(() => {
       const tileW = (strip.firstElementChild as HTMLElement).getBoundingClientRect().width + 8;
       const offset = STOP * tileW - viewport.clientWidth / 2 + tileW / 2 + (Math.random() - 0.5) * tileW * 0.5;
@@ -111,13 +112,13 @@ export function openWheel(ctx: Ctx, onChange: () => void): void {
         if (!got) return;
         ctx.save();
         audio.play(FANFARE[got.rarity]);
-        toast(`Дар «${got.name}»${got.max > 1 ? ` · ранг ${ROMAN[rank(s.roulette, got.id)]}` : ''}`, 'good');
+        toast(t('Дар «{name}»', { name: got.name }) + (got.max > 1 ? t(' · ранг {r}', { r: ROMAN[rank(s.roulette, got.id)] }) : ''), 'good');
         onChange();
         home();
       });
       cards.append(card);
     }
-    content.replaceChildren(el('h2', `wheel-landed r-${offer[0].rarity}`, `${RARITY[offer[0].rarity].name} дар — выберите один`), cards);
+    content.replaceChildren(el('h2', `wheel-landed r-${offer[0].rarity}`, t('{rarity} дар — выберите один', { rarity: RARITY[offer[0].rarity].name })), cards);
   };
 
   // A spin that landed before (the game was closed mid-choice) is still waiting.
