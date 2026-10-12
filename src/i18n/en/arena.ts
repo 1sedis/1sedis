@@ -12,7 +12,7 @@ export const arena: Record<string, string> = {
   'Фигуры': 'Pieces',
   'Задача': 'Objective',
   'Как играть': 'How to Play',
-  'Сразите вражеского короля. Если падёт ваш — бой проигран.\nВыберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\nЗвёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.': 'Slay the enemy King. If yours falls, the battle is lost.\nPick a piece in the reserve and tap a square in the bottom three rows. Tap your piece to move it, or the reserve to remove it.\nStars: victory, your King keeps at least 50% health, losses no more than shown.',
+  'Сразите вражеского короля. Если падёт ваш — бой проигран.\nВыберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.': 'Slay the enemy King. If yours falls, the battle is lost.\nPick a piece in the reserve and tap a square in the bottom three rows. Tap your piece to move it, or the reserve to remove it.',
   'Короли': 'Kings',
   'Ваш король': 'Your King',
   'Чёрный король': 'Black King',

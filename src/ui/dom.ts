@@ -29,18 +29,35 @@ export function pulse(node: HTMLElement): void {
 
 let toastLayer: HTMLElement | null = null;
 
-export function toast(text: string, kind: 'info' | 'good' = 'info'): void {
+/** Toasts wait in line: at most two on screen, the rest follow, so news never piles over the game. */
+const TOAST_MAX = 2;
+const toastQueue: { text: string; kind: 'info' | 'good' }[] = [];
+
+function showNextToast(): void {
   if (!toastLayer) {
     toastLayer = el('div', 'toast-layer');
     document.body.append(toastLayer);
   }
-  const t = el('div', `toast ${kind}`, text);
-  toastLayer.append(t);
-  while (toastLayer.children.length > 3) toastLayer.firstElementChild?.remove();
-  setTimeout(() => {
-    t.classList.add('out');
-    setTimeout(() => t.remove(), 300);
-  }, 2400);
+  while (toastQueue.length && toastLayer.querySelectorAll('.toast:not(.out)').length < TOAST_MAX) {
+    const { text, kind } = toastQueue.shift()!;
+    const node = el('div', `toast ${kind}`, text);
+    toastLayer.append(node);
+    setTimeout(() => {
+      node.classList.add('out');
+      setTimeout(() => {
+        node.remove();
+        showNextToast();
+      }, 300);
+    }, 2400);
+  }
+}
+
+export function toast(text: string, kind: 'info' | 'good' = 'info'): void {
+  // The same news twice in a row is said once.
+  if (toastQueue.some((q) => q.text === text)) return;
+  toastQueue.push({ text, kind });
+  if (toastQueue.length > 6) toastQueue.shift();
+  showNextToast();
 }
 
 /** Open a modal with arbitrary content. Returns a function that closes it. */

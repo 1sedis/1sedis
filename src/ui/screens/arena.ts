@@ -203,7 +203,7 @@ export class ArenaScreen implements Screen {
     const codexBtn = el('button', 'btn btn-ghost btn-small', t('Фигуры'));
     codexBtn.addEventListener('click', () => openCodex(this.ctx.state));
     taskHead.append(el('span', 'panel-title', t('Задача')), codexBtn, infoBtn(t('Как играть'),
-      t('Сразите вражеского короля. Если падёт ваш — бой проигран.\nВыберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.\nЗвёзды: победа, король сохранил не меньше 50% здоровья, потери не больше указанного.')));
+      t('Сразите вражеского короля. Если падёт ваш — бой проигран.\nВыберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.')));
     this.hintText.classList.add('task-hint');
     infoCard.append(taskHead, this.enemyText, this.distortionRow, this.bossInfo, this.eliteRow, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
@@ -234,6 +234,11 @@ export class ArenaScreen implements Screen {
 
     const grid = el('div', 'arena-grid');
     grid.append(boardCol, side);
+    // Wide screens keep the reserve beside the board, so placing pieces never needs a scroll.
+    const wide = window.matchMedia('(min-width: 1001px)');
+    const placeTray = () => (wide.matches ? side.prepend(trayPanel) : boardCol.append(trayPanel));
+    placeTray();
+    wide.addEventListener('change', placeTray);
     this.root.append(top, grid);
   }
 

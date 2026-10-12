@@ -88,4 +88,6 @@ export function installIconVars(): void {
   root.setProperty('--icon-crown', `url(${iconUrl('crown')})`);
   root.setProperty('--icon-star', `url(${iconUrl('star')})`);
   root.setProperty('--icon-coin', `url(${iconUrl('coin')})`);
+  root.setProperty('--icon-flag', `url(${iconUrl('flag')})`);
+  root.setProperty('--icon-skull', `url(${iconUrl('skull')})`);
 }

@@ -207,11 +207,16 @@ export class CampScreen implements Screen {
       const cap = armyCap(s, row.kind);
       const maxed = s.army[row.kind] >= cap;
       const rCost = recruitCost(s, row.kind);
-      setText(row.recruitBtn, !unlocked ? '🔒' : maxed ? (cap === 1 ? t('Есть') : t('Все {n}', { n: cap })) : t('Нанять · {cost}', { cost: fmt(rCost) }));
+      const rMain = !unlocked ? '🔒' : maxed ? (cap === 1 ? t('Есть') : t('Все {n}', { n: cap })) : t('Нанять · {cost}', { cost: fmt(rCost) });
+      const rSub = !unlocked || maxed ? '' : s.gold < rCost ? t('не хватает {n}', { n: fmt(rCost - s.gold) }) : t('придёт ур. {lv}', { lv: lvl });
+      twoLines(row.recruitBtn, rMain, rSub);
       row.recruitBtn.disabled = !unlocked || maxed || s.gold < rCost;
 
       const uCost = upgradeCost(s, row.kind);
-      setText(row.upgradeBtn, unlocked ? t('Ур. {lv} · {cost}', { lv: lvl + 1, cost: fmt(uCost) }) : '🔒');
+      const gain = Math.round((levelMultiplier(lvl + 1) / levelMultiplier(lvl) - 1) * 100);
+      const uSub = !unlocked ? '' : s.gold < uCost ? t('не хватает {n}', { n: fmt(uCost - s.gold) })
+        : row.kind === 'king' ? t('+{p}% ❤⚔', { p: gain }) : t('+{p}% ❤⚔ всем ×{n}', { p: gain, n: s.army[row.kind] });
+      twoLines(row.upgradeBtn, unlocked ? t('Ур. {lv} · {cost}', { lv: lvl + 1, cost: fmt(uCost) }) : '🔒', uSub);
       row.upgradeBtn.disabled = !unlocked || s.gold < uCost;
     }
     const pawnRow = this.armyRows.find((r) => r.kind === 'pawn');
@@ -226,8 +231,16 @@ export class CampScreen implements Screen {
       const maxed = lvl >= def.maxLevel;
       setText(row.level, `${lvl}/${def.maxLevel}`);
       const cost = buildingCost(s, row.id);
-      setText(row.btn, maxed ? t('Макс.') : fmt(cost));
+      twoLines(row.btn, maxed ? t('Макс.') : fmt(cost), maxed ? '' : s.gold < cost ? t('не хватает {n}', { n: fmt(cost - s.gold) }) : '');
       row.btn.disabled = maxed || s.gold < cost;
     }
   }
+}
+
+/** A buy button with a main line and a small second line (what it gives, or what is missing). */
+function twoLines(btn: HTMLElement, main: string, sub: string): void {
+  const key = `${main}|${sub}`;
+  if (btn.dataset.text === key) return;
+  btn.dataset.text = key;
+  btn.replaceChildren(el('span', 'btn-main', main), ...(sub ? [el('small', 'btn-sub', sub)] : []));
 }

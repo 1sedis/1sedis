@@ -30,7 +30,7 @@ export class App implements Ctx {
   private menuEl: HTMLElement = el('div');
   private shell = el('div', 'shell');
   private content = el('main', 'content');
-  private chips!: { gold: HTMLElement; stars: HTMLElement; lives: HTMLElement };
+  private chips!: { gold: HTMLElement; stars: HTMLElement; lives: HTMLElement; crowns: HTMLElement; crownChip: HTMLElement };
   private navMap!: HTMLButtonElement;
   private navCamp!: HTMLButtonElement;
   private navBadge = el('span', 'nav-badge');
@@ -119,18 +119,26 @@ export class App implements Ctx {
     logo.alt = '';
     brand.append(logo, el('span', '', t('Пиксельный гамбит')));
     const chipBox = el('div', 'chips');
-    const chip = (cls: string, label: string) => {
+    // Every chip says what it is: a label on wide screens, an icon and a tap-to-explain on phones.
+    const chip = (cls: string, label: string, help: string, short = '') => {
       const c = el('div', `chip ${cls}`);
       const value = el('b');
-      c.append(el('span', 'chip-label', label), value);
+      c.title = help;
+      c.append(el('span', 'chip-label', label));
+      if (short) c.append(el('span', 'chip-short', short));
+      c.append(value);
+      c.addEventListener('click', () => toast(help));
       chipBox.append(c);
       return value;
     };
     this.chips = {
-      gold: chip('chip-gold', t('Золото')),
-      stars: chip('chip-wave', t('Глава')),
-      lives: chip('chip-best', t('Жизни')),
+      gold: chip('chip-gold', t('Золото'), t('Золото забега: найм и улучшения фигур, торговцы. Сгорает, когда забег кончается.')),
+      stars: chip('chip-wave', t('Глава'), t('Глава забега из четырёх. В конце каждой — босс.'), t('Гл.')),
+      lives: chip('chip-best', t('Жизни'), t('Жизни: поражение заканчивает забег. Запасное знамя даёт вторую.')),
+      crowns: chip('chip-crowns', t('Короны'), t('Короны остаются навсегда: тратьте их в Древе и Колесе короны.')),
+      crownChip: undefined as unknown as HTMLElement,
     };
+    this.chips.crownChip = this.chips.crowns.parentElement!;
     const nav = el('nav', 'topnav');
     this.navMap = el('button', 'nav-btn', t('Карта'));
     this.navMap.addEventListener('click', () => this.go('map'));
@@ -250,7 +258,7 @@ export class App implements Ctx {
     setText(this.chips.gold, fmt(s.gold));
     if (s.gold > this.lastGold && this.lastGold >= 0) pulse(this.chips.gold);
     this.lastGold = s.gold;
-    setText(this.chips.stars, `${s.run.chapter}/4`);
+    setText(this.chips.stars, t('{n}/4', { n: s.run.chapter }));
     this.navMap.classList.toggle('active', this.screenId === 'map');
     this.navCamp.classList.toggle('active', this.screenId === 'camp');
     setHidden(this.navBadge, this.screenId === 'camp' || !canAffordUpgrade(s));
@@ -261,7 +269,9 @@ export class App implements Ctx {
     const on = this.settings.sound || this.settings.music;
     setText(this.soundBtn, on ? t('♪ Звук') : t('♪ Тихо'));
     this.soundBtn.classList.toggle('muted', !on);
-    setText(this.chips.lives, `${lives(s)}${s.crowns ? ` · ♛ ${s.crowns}` : ''}`);
+    setText(this.chips.lives, String(lives(s)));
+    setText(this.chips.crowns, fmt(s.crowns));
+    setHidden(this.chips.crownChip, s.crowns === 0 && s.prestige === 0 && s.stats.runs === 0);
   }
 
   private checkAchievements(): void {
@@ -271,7 +281,8 @@ export class App implements Ctx {
     if (!fresh.length) return;
     this.save();
     audio.play('achievement');
-    for (const id of fresh) toast(t('Достижение: «{name}»', { name: String(getAchievement(id)?.name) }), 'good');
+    if (fresh.length === 1) toast(t('🏆 Достижение: «{name}»', { name: String(getAchievement(fresh[0])?.name) }), 'good');
+    else toast(t('🏆 Новых достижений: {n} — загляните в «Достижения»', { n: fresh.length }), 'good');
   }
 
   /** A part of the game just opened: say so, and make its button glow for a while. */
@@ -279,9 +290,9 @@ export class App implements Ctx {
     const s = this.state;
     const fresh = newlyOpened(s);
     if (!fresh.length || document.querySelector('.modal-overlay, .stage-overlay')) return;
+    toast(t('Открыто: {name}!', { name: fresh.map((f) => FEATURES[f].name).join(', ') }), 'good');
     for (const f of fresh) {
       s.tutorial.push(openKey(f));
-      toast(t('Открыто: {name}!', { name: FEATURES[f].name }), 'good');
       const button = f === 'camp' ? this.navCamp : f === 'achievements' ? this.navAch : null;
       if (button) {
         button.classList.add('just-opened');

@@ -184,7 +184,7 @@ export function openSettings(
   sync();
 
   const actions = el('div', 'modal-actions');
-  const reset = el('button', 'btn btn-ghost', t('Сбросить прогресс'));
+  const reset = el('button', 'btn btn-danger-ghost settings-reset', t('⚠ Сбросить прогресс'));
   reset.addEventListener('click', () => {
     overlay.remove();
     onReset();
