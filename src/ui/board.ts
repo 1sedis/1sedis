@@ -220,6 +220,7 @@ export class BoardView {
       u.node.classList.toggle('king', v.kind === 'king');
       u.node.classList.toggle('selected', !!v.selected);
       u.node.classList.toggle('dead', !!v.dead);
+      u.node.classList.toggle('in-danger', !v.dead && this.warned.has(Math.round(v.y) * BOARD_SIZE + Math.round(v.x)));
       u.node.classList.toggle('full-hp', v.hp >= v.maxHp);
       // scaleX instead of width: no layout work when health changes.
       const ratio = `scaleX(${Math.max(0, Math.min(1, v.hp / v.maxHp)).toFixed(3)})`;
@@ -242,9 +243,10 @@ export class BoardView {
   react(events: BattleEvent[], keyOf: (uid: number) => string, effects = true): void {
     let shake = 0;
     for (const e of events) {
-      if (effects && e.type === 'death' && (e.big || this.room())) {
+      if (e.type === 'death') {
         const u = this.units.get(keyOf(e.uid));
-        if (u) this.shatter(e.x, e.y, u.img.src);
+        if (u) this.fall(e, u.img.src);
+        if (effects && u && (e.big || this.room())) this.shatter(e.x, e.y, u.img.src);
       }
       if (effects && e.type === 'hit' && e.amount >= 1 && this.fxLevel > 0 && this.room()) {
         const spark = el('div', `fx-spark${e.crit ? ' crit' : ''}`);
@@ -369,9 +371,13 @@ export class BoardView {
     restart(this.introEl, 'show');
   }
 
+  /** Cells under a boss strike right now: pieces standing there are marked "in danger". */
+  private warned = new Set<number>();
+
   /** Cells a boss is about to hit. */
   setWarnings(cells: number[]): void {
     const set = new Set(cells);
+    this.warned = set;
     this.cells.forEach((c, i) => c.classList.toggle('warn', set.has(i)));
   }
 
@@ -443,7 +449,10 @@ export class BoardView {
             this.place(el('div', `fx-dmg ${e.side}${e.crit ? ' crit' : ''}`, text), e.x, e.y);
           }
         }
-        if (Math.max(Math.abs(e.x - e.fromX), Math.abs(e.y - e.fromY)) > 1 && this.room()) this.bolt(e);
+        if (Math.max(Math.abs(e.x - e.fromX), Math.abs(e.y - e.fromY)) > 1 && this.room()) {
+          this.tracer(e);
+          this.bolt(e);
+        }
       } else if (e.type === 'ability') {
         this.place(el('div', 'fx-ability', `${e.label}!`), e.x, e.y);
       } else if (e.type === 'shieldBreak') {
@@ -509,6 +518,31 @@ export class BoardView {
       b.addEventListener('animationend', () => b.remove());
       this.fxLayer.append(b);
     }
+  }
+
+  /**
+   * Where a piece fell: a white ring and its dark silhouette that sinks and fades,
+   * so a loss is seen even in a crowd (kept with effects off: it is information).
+   */
+  private fall(e: BattleEvent, src: string): void {
+    const ring = el('div', `fx-fall-ring ${e.side}${e.big ? ' big' : ''}`);
+    this.place(ring, e.x, e.y);
+    const ghost = el('div', `fx-fall ${e.side}`);
+    ghost.style.backgroundImage = `url(${src})`;
+    this.place(ghost, e.x, e.y);
+  }
+
+  /** A shot leaves a thin line from the shooter to its target for a moment. */
+  private tracer(e: BattleEvent): void {
+    const dx = e.x - e.fromX;
+    const dy = e.y - e.fromY;
+    const line = el('div', `fx-tracer ${e.side === 'ally' ? 'enemy' : 'ally'}`);
+    line.style.left = `${(e.fromX + 0.5) * 12.5}%`;
+    line.style.top = `${(e.fromY + 0.5) * 12.5}%`;
+    line.style.width = `${Math.hypot(dx, dy) * 12.5}%`;
+    line.style.rotate = `${Math.atan2(dy, dx)}rad`;
+    line.addEventListener('animationend', () => line.remove());
+    this.fxLayer.append(line);
   }
 
   /** A dead piece breaks into four pieces of its own sprite that fly apart. */

@@ -2264,3 +2264,27 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 .run-card-threat { color: #ff5d85; }
 .run-card .boon-chip { align-self: flex-start; }
 @media (max-width: 1000px) { .run-card { display: none; } }
+
+/* ---------- Readable falls, threats and shots (polish 2.2) ---------- */
+.fx-fall { position: absolute; width: 12.5%; height: 12.5%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none;
+  background: center / 78% no-repeat; image-rendering: pixelated; filter: brightness(0.15) saturate(0);
+  animation: fall-sink 1s ease-in forwards; }
+.fx-fall.enemy { filter: brightness(0.2) sepia(1) hue-rotate(-40deg) saturate(3); }
+@keyframes fall-sink { 0% { opacity: 0.9; } 60% { opacity: 0.55; transform: translate(-50%, -38%) scale(0.9, 0.8); }
+  100% { opacity: 0; transform: translate(-50%, -28%) scale(0.8, 0.45); } }
+.fx-fall-ring { position: absolute; width: 9%; height: 9%; transform: translate(-50%, -50%); z-index: 4; pointer-events: none;
+  border: 3px solid #fff; animation: fall-ring .45s steps(5, end) forwards; }
+.fx-fall-ring.ally { border-color: #cfe9ff; }
+.fx-fall-ring.enemy { border-color: #ffd6cf; }
+.fx-fall-ring.big { border-width: 5px; animation-duration: .7s; }
+@keyframes fall-ring { 0% { opacity: 1; scale: 0.4; } 100% { opacity: 0; scale: 1.6; } }
+.fx-tracer { position: absolute; height: 2px; margin-top: -1px; transform-origin: 0 50%; z-index: 3; pointer-events: none;
+  background: var(--mint); opacity: 0.7; animation: tracer .3s linear forwards; }
+.fx-tracer.enemy { background: var(--coral); }
+@keyframes tracer { 0% { opacity: 0.8; } 100% { opacity: 0; } }
+.unit.in-danger .unit-body { outline: 2px solid var(--coral); outline-offset: -3px; animation: in-danger .5s steps(2, end) infinite; }
+@keyframes in-danger { 50% { outline-color: #fff3; } }
+@media (prefers-reduced-motion: reduce) {
+  .fx-fall, .fx-tracer { animation-duration: .01s; }
+  .unit.in-danger .unit-body { animation: none; }
+}
