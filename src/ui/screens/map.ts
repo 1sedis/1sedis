@@ -2,6 +2,8 @@ import { CHAPTERS, abyssId, finaleId, enemyPlacements } from '../../game/levels'
 import { MAP_ROWS, availableNodes, endRun, enterNode, runMap, type RunNode } from '../../game/run';
 import { NODE_HELP, NODE_ICON, livesRow, nodeLabel, openNodeDialog, openRunEnd } from '../runNodes';
 import { iconUrl } from '../icons';
+import { bossArtUrl, hasBossArt } from '../bossArt';
+import { bossFor } from '../../game/bosses';
 import { RELIC_IDS } from '../../game/relics';
 import {
   PRESTIGE_UNLOCK, canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, isFinaleOpen,
@@ -76,7 +78,7 @@ export class MapScreen implements Screen {
 
     const aHead = el('div', 'panel-head');
     aHead.append(el('span', 'panel-title', 'Бездна'), infoBtn('Бездна',
-      'Бесконечный путь после победы в партии: армия забега спускается этаж за этажом, враги всё сильнее.\nЗдесь добываются осколки ◆ — за них крутят «Рулетку бездны» с вечными улучшениями, а каждые 5 этажей — ещё и корона.\nПервое поражение заканчивает забег. Каждые 10 этажей — страж с тройным здоровьем и реликвия.'));
+      'Бесконечный путь после победы в партии: армия забега спускается этаж за этажом, враги всё сильнее.\nЗдесь добываются осколки ◆ — за них крутят «Рулетку бездны» с вечными улучшениями, а каждые 10 этажей — ещё и корона.\nПервое поражение заканчивает забег. Каждые 10 этажей — страж с тройным здоровьем и реликвия.'));
     const aImg = el('img', 'abyss-img');
     aImg.src = spriteUrl('king', 'enemy', 2);
     aImg.alt = '';
@@ -85,7 +87,7 @@ export class MapScreen implements Screen {
 
     const pHead = el('div', 'panel-head');
     pHead.append(el('span', 'panel-title', 'Короны'), infoBtn('Короны и партии',
-      'Каждый забег, даже проигранный, приносит короны: по 2 за босса, по 1 за элиту, 3 за победу в партии и по 1 за каждые 5 этажей Бездны.\nКороны тратятся в «Древе короны» на доктрины: шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы открываются в следующих партиях.\nПобеда над Чёрным ферзём выигрывает партию: следующая будет труднее, Чёрный король принесёт новое искажение. Проигранный забег повторяет ту же партию с 1-1.'));
+      'Каждый забег, даже проигранный, приносит короны: по 1 за босса, 2 за победу в партии и 1 за каждые 10 этажей Бездны.\nКороны тратятся в «Древе короны» на доктрины: шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы открываются в следующих партиях.\nПобеда над Чёрным ферзём выигрывает партию: следующая будет труднее, Чёрный король принесёт новое искажение. Проигранный забег повторяет ту же партию с 1-1.'));
     this.prestigeBtn.addEventListener('click', () => void this.onPrestige());
     this.treeBtn.addEventListener('click', () => openCrownTree(this.ctx));
     this.chronicleBtn.addEventListener('click', () => openChronicle(this.ctx.state, () => this.ctx.save(),
@@ -124,7 +126,8 @@ export class MapScreen implements Screen {
     this.root.dataset.theme = String(chapter.id);
     document.body.dataset.chapter = String(chapter.id);
     const boss = chapter.levels[chapter.levels.length - 1];
-    this.chapterBoss.src = spriteUrl(enemyPlacements(boss).find((p) => p.boss)?.kind ?? 'king', 'enemy');
+    const art = bossFor(boss.id);
+    this.chapterBoss.src = hasBossArt(art) ? bossArtUrl(art) : spriteUrl(enemyPlacements(boss).find((p) => p.boss)?.kind ?? 'king', 'enemy');
     this.chapterBoss.title = boss.boss ?? '';
     setText(this.chapterTitle, chapter.name);
     setText(this.chapterSub, `${chapter.subtitle} · до ${chapter.limit} фигур в бою`);
@@ -218,7 +221,8 @@ export class MapScreen implements Screen {
       const tile = el('div', 'level-tile');
       if (node.kind === 'boss') {
         const img = el('img');
-        img.src = spriteUrl(enemyPlacements(CHAPTERS[this.chapter - 1].levels[8]).find((p) => p.boss)?.kind ?? 'king', 'enemy');
+        const art = bossFor(node.level!);
+        img.src = hasBossArt(art) ? bossArtUrl(art) : spriteUrl(enemyPlacements(CHAPTERS[this.chapter - 1].levels[8]).find((p) => p.boss)?.kind ?? 'king', 'enemy');
         img.alt = '';
         tile.append(img);
       } else if (node.kind === 'battle') {

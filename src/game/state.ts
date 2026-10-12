@@ -525,8 +525,14 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const bonus = prestigeEnemyBonus(s, levelId);
   const distortions = levelDistortions(s, levelId);
   const elite = isEliteBattle(s, levelId);
+  const rule = elite ? currentNode(s.run)?.rule : undefined;
   let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard') || elite)
     .map((p) => ({ ...p, level: p.level + bonus + (elite ? ELITE_LEVELS : 0) }));
+  if (rule === 'mirror') {
+    // "Зеркало": your own formation in black, at this battle's level.
+    const lv = getLevel(levelId).level + bonus + ELITE_LEVELS;
+    enemies = s.formation.map((f) => ({ kind: f.kind, x: f.x, y: BOARD_SIZE - 1 - f.y, level: lv }));
+  }
   if (isAbyss(levelId)) {
     const terrain = levelTerrain(levelId);
     const free = (x: number, y: number) => walkable(terrain[y * BOARD_SIZE + x])
@@ -565,6 +571,7 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
     enemyAbilityShift: distortions.includes('awakening') ? AWAKENING_SHIFT : 0,
     enemyKingHp: distortions.includes('blackKing') ? BLACK_KING_HP : 1,
     enemyKingAtk: distortions.includes('blackKing') ? BLACK_KING_ATK : 1,
+    eliteRule: rule,
   };
 }
 

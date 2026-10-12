@@ -31,23 +31,23 @@ describe('crown tree', () => {
   });
 
   it('buys in order, closes the twin and respects the game gate', () => {
-    const s = fresh(2, 50);
+    const s = fresh(1, 50);
     expect(buyNode(s, 'fork')).toBe(false); // tier II needs tier I first
     expect(buyNode(s, 'doubleStep')).toBe(true);
-    expect(nodeState(s.crownTree, 2, NODE_BY_ID.castling)).toBe('rejected');
+    expect(nodeState(s.crownTree, 1, NODE_BY_ID.castling)).toBe('rejected');
     expect(buyNode(s, 'castling')).toBe(false);
     expect(buyNode(s, 'fork')).toBe(true);
-    expect(buyNode(s, 'earlyCrown')).toBe(false); // tier III opens in game 3
-    expect(s.crowns).toBe(50 - 1 - 2);
+    expect(buyNode(s, 'earlyCrown')).toBe(false); // tier III opens in game 2
+    expect(s.crowns).toBe(50 - 2 - 4);
   });
 
   it('a reset refunds everything but the fee', () => {
-    const s = fresh(4, 11);
+    const s = fresh(4, 21);
     for (const id of ['hunger', 'fog', 'echo', 'ghost'] as const) expect(buyNode(s, id)).toBe(true);
     expect(s.crowns).toBe(0);
     expect(resetTree(s)).toBe(true);
     expect(s.crownTree).toEqual([]);
-    expect(s.crowns).toBe(11 - 1);
+    expect(s.crowns).toBe(21 - 1);
   });
 
   it('unlocks prestige pieces and court rules', () => {

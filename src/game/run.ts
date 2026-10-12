@@ -13,6 +13,9 @@ import { CHAPTERS } from './levels';
 import type { PieceKind } from './pieces';
 import { RELIC_IDS, rollOffer, type RelicId } from './relics';
 import type { GameState } from './state';
+import type { EliteRule } from './battle';
+
+const RULES: EliteRule[] = ['undying', 'frenzy', 'waves', 'darkness', 'mirror'];
 
 export type NodeKind = 'battle' | 'elite' | 'event' | 'shop' | 'camp' | 'boss';
 
@@ -25,6 +28,8 @@ export interface RunNode {
   /** The level fought here (battle, elite, boss). */
   level?: string;
   event?: EventId;
+  /** The special rule of an elite battle. */
+  rule?: EliteRule;
   next: string[];
 }
 
@@ -160,9 +165,22 @@ export function buildMap(chapter: number, seed: number): RunMap {
     }
   });
   // Events: different ones on one map.
-  const events = [...EVENT_IDS].sort(() => rand() - 0.5);
+  const shuffle = <T>(list: T[]): T[] => {
+    // Fisher–Yates with the map's own dice: the same map in every browser.
+    const out = [...list];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  };
+  const events = shuffle(EVENT_IDS);
   let e = 0;
   for (const nodes of rows) for (const n of nodes) if (n.kind === 'event') n.event = events[e++ % events.length];
+  // Elites: a different rule each, where the map has room for it.
+  const rules = shuffle(RULES);
+  let r = 0;
+  for (const nodes of rows) for (const n of nodes) if (n.kind === 'elite') n.rule = rules[r++ % rules.length];
   // Paths: each node leads to the nearest nodes of the next row; nothing is left unreachable.
   for (let row = 0; row < MAP_ROWS - 1; row++) {
     const from = rows[row];
@@ -174,7 +192,11 @@ export function buildMap(chapter: number, seed: number): RunMap {
     const link = (a: RunNode, b: RunNode) => {
       if (!a.next.includes(b.id) && !crosses(a, b)) a.next.push(b.id);
     };
-    const nearest = (a: RunNode) => [...to].sort((x, y) => Math.abs(x.lane - a.lane) - Math.abs(y.lane - a.lane) || rand() - 0.5);
+    const nearest = (a: RunNode) => {
+      // Ties go left or right by one coin toss, not by the sort's own order.
+      const coin = rand() < 0.5 ? 1 : -1;
+      return [...to].sort((x, y) => Math.abs(x.lane - a.lane) - Math.abs(y.lane - a.lane) || (x.lane - y.lane) * coin);
+    };
     for (const a of from) {
       const near = nearest(a);
       link(a, near[0]);
@@ -280,9 +302,9 @@ export function loseNode(s: GameState, at: string, won = false): 'spared' | 'ove
   return 'over';
 }
 
-/** Crowns a run pays: for every boss, every elite, the Abyss and the victory itself. */
+/** Crowns a run pays: one for every boss, two for the victory, one for every ten Abyss floors. */
 export function crownsForRun(s: GameState, won: boolean): number {
-  return 2 * s.run.bosses + s.run.elites + (won ? 3 : 0) + Math.floor(Math.max(0, s.abyss.floor - 1) / 5);
+  return s.run.bosses + (won ? 2 : 0) + Math.floor(Math.max(0, s.abyss.floor - 1) / 10);
 }
 
 /** Close the run: pay its crowns and keep a summary for the end screen. */

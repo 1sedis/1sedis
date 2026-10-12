@@ -2100,3 +2100,22 @@ body:has(.modal-overlay) .toast-layer { top: auto; bottom: 24px; }
 .run-end-stats { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 4px; color: var(--muted); }
 .run-end .modal-actions { justify-content: center; }
 .run-over { color: var(--coral); }
+
+/* Giant bosses: a portrait far bigger than a square, standing on their cell */
+.unit.giant-unit { z-index: 3; }
+.unit.giant-unit .unit-sprite {
+  inset: auto; left: -48%; bottom: 2%; width: 196%; height: 238%; object-fit: contain; object-position: 50% 100%;
+  transform-origin: 50% 100%; animation: giant-breathe 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(255, 79, 123, 0.55)) drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35));
+}
+.unit.giant-unit .unit-body::before { display: none; }
+.unit.giant-unit::after { content: ''; position: absolute; left: -40%; bottom: -6%; width: 180%; height: 40%; z-index: -1;
+  background: radial-gradient(ellipse at 50% 50%, rgba(8, 2, 18, 0.6), rgba(8, 2, 18, 0) 70%); }
+.unit.giant-unit .hp { opacity: 0; }
+.unit.giant-unit.hit .unit-sprite { filter: brightness(2.2) drop-shadow(0 0 10px rgba(255, 79, 123, 0.8)); }
+@keyframes giant-breathe { 50% { scale: 1.03 0.97; } }
+@media (prefers-reduced-motion: reduce) { .unit.giant-unit .unit-sprite { animation: none; } }
+@media (pointer: coarse) { .unit.giant-unit .unit-sprite { filter: none; animation: none; } }
+.boss-intro-img { image-rendering: pixelated; }
+.elite-rule { color: var(--coral); }
+.level-tile img, .chapter-boss { object-fit: contain; image-rendering: pixelated; }

@@ -1,4 +1,5 @@
 import { getLevel } from '../game/levels';
+import { ELITE_RULES } from '../game/battle';
 import { PIECES, type PieceKind } from '../game/pieces';
 import { RELICS } from '../game/relics';
 import { CHAPTERS, getLevel as levelOf } from '../game/levels';
@@ -21,7 +22,7 @@ export const NODE_ICON: Record<RunNode['kind'], IconId> = {
 export function nodeLabel(node: RunNode): string {
   switch (node.kind) {
     case 'battle': return getLevel(node.level!).name;
-    case 'elite': return `Элита: ${getLevel(node.level!).name}`;
+    case 'elite': return node.rule ? `Элита: ${ELITE_RULES[node.rule].name}` : `Элита: ${getLevel(node.level!).name}`;
     case 'boss': return getLevel(node.level!).boss ?? 'Босс';
     case 'event': return node.event ? EVENTS[node.event].title : 'Событие';
     case 'shop': return 'Торговец';
@@ -31,7 +32,7 @@ export function nodeLabel(node: RunNode): string {
 
 export const NODE_HELP: Record<RunNode['kind'], string> = {
   battle: 'Бой. Победа приносит золото и звёзды.',
-  elite: 'Элита: враги на уровень сильнее и с лишним элитным бойцом. За победу — реликвия.',
+  elite: 'Элита: враги на уровень сильнее, с лишним элитным бойцом и особым правилом боя. За победу — реликвия.',
   event: 'Событие: выбор с последствиями.',
   shop: 'Торговец: реликвии, запасное знамя и заточка за золото.',
   camp: 'Лагерь: заточить оружие или потренировать фигуру.',
@@ -76,7 +77,7 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
   content.append(stats, el('div', 'result-reward', `+${o.crowns} ♛ короны`));
   content.append(el('p', 'hint', o.won
     ? 'Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.'
-    : `Короны остаются с вами — потратьте их в Древе короны. ${o.crowns ? '' : 'Боссы и элита приносят их больше. '}Новый забег начнётся с 1-1.`));
+    : `Короны остаются с вами — потратьте их в Древе короны. ${o.crowns ? '' : 'Короны дают боссы — дойдите хотя бы до первого. '}Новый забег начнётся с 1-1.`));
   const actions = el('div', 'modal-actions');
   const next = el('button', 'btn btn-primary', o.won ? 'Новая партия ▶' : 'Новый забег ▶');
   actions.append(next);

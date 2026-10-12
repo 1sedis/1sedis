@@ -32,8 +32,8 @@ export const BRANCHES: Record<BranchId, { name: string; text: string; icon: stri
 export const BRANCH_ORDER: BranchId[] = ['gambit', 'court', 'shadow'];
 
 /** Crown cost and the first game (1 = before any new game) per tier. */
-export const TIER_COST = [1, 2, 3, 5];
-export const TIER_FROM_GAME = [1, 2, 3, 4];
+export const TIER_COST = [2, 4, 6, 9];
+export const TIER_FROM_GAME = [1, 1, 2, 3];
 
 const N = (id: NodeId, branch: BranchId, tier: number, name: string, text: string, piece?: PieceKind): CrownNode =>
   ({ id, branch, tier, name, text, piece });

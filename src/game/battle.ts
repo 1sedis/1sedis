@@ -72,7 +72,24 @@ export interface BattleSetup {
   playerMoves?: number;
   /** Stop for the player's decisions (promotion, check, boss blows); off in simulations, which take the defaults. */
   decisions?: boolean;
+  /** The special rule of an elite battle on the run map. */
+  eliteRule?: EliteRule;
 }
+
+/**
+ * Rules of elite battles: undying enemies rise again as shades, frenzied ones
+ * strike faster, reinforcements keep arriving, darkness creeps over the board,
+ * or the enemy is a mirror of the player's army (set up in state.ts).
+ */
+export type EliteRule = 'undying' | 'frenzy' | 'waves' | 'darkness' | 'mirror';
+
+export const ELITE_RULES: Record<EliteRule, { name: string; text: string }> = {
+  undying: { name: 'Бессмертные', text: 'первые три павших врага встают тенями с 40% здоровья' },
+  frenzy: { name: 'Бешенство', text: 'враги бьют и ходят на треть быстрее' },
+  waves: { name: 'Подкрепление', text: 'каждые 8 секунд к врагу подходит свежая фигура' },
+  darkness: { name: 'Наступающая тьма', text: 'каждые 6 секунд тьма захватывает новые клетки вашей половины' },
+  mirror: { name: 'Зеркало', text: 'против вас ваша же расстановка, только чёрная' },
+};
 
 /** A telegraphed boss blow: cells light up, then get hit. */
 export interface BossWarning {
@@ -213,6 +230,11 @@ export interface Battle {
   bossAsks: number;
   allyCrit: number;
   allyOpening: number;
+  eliteRule?: EliteRule;
+  /** Elite rule uses so far (shades risen, reinforcements sent). */
+  eliteCount: number;
+  /** Uids of the Black Queen's reflections: while one stands, she cannot be hurt. */
+  reflections: number[];
 }
 
 export interface UnitReport {
@@ -315,7 +337,14 @@ export function createBattle(setup: BattleSetup): Battle {
     legends: new Set(setup.legends ?? []), perks: new Set(setup.perks ?? []), castled: false, shadows: 0,
     bossCycle: 0, handTimer: setup.handMeddle ? HAND_FIRST : 0,
     movesLeft: setup.playerMoves ?? 0, decisions: !!setup.decisions, decision: null, checkAsked: false, bossAsks: 0,
-    allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1 };
+    allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1, eliteRule: setup.eliteRule, eliteCount: 0, reflections: [] };
+  if (b.eliteRule === 'frenzy') {
+    for (const u of units) {
+      if (u.side !== 'enemy') continue;
+      u.attackCd = Math.max(1, Math.round(u.attackCd * 0.67));
+      if (u.moveCd) u.moveCd = Math.max(1, Math.round(u.moveCd * 0.67));
+    }
+  }
   // "Туман войны": the enemy is blind for the first 3 seconds.
   if (b.perks.has('fog')) for (const u of units) if (u.side === 'enemy') u.wait += 30;
   const boss = setup.bossId ? units.find((u) => u.side === 'enemy' && u.boss) : undefined;
@@ -323,6 +352,8 @@ export function createBattle(setup: BattleSetup): Battle {
     b.bossId = setup.bossId;
     b.bossUid = boss.uid;
     b.bossTimer = Math.round(BOSSES[setup.bossId].cooldown * 0.6);
+    // The fortress never moves: it is a building.
+    if (setup.bossId === 'fortress') boss.moveCd = 0;
   }
   for (const u of units) {
     resetAbilityTimer(b, u, 0.5);
@@ -594,7 +625,14 @@ function defense(b: Battle, target: Unit): number {
   if (b.tick < target.cursedUntil) m *= target.curseMult;
   if (b.terrain[target.y * BOARD_SIZE + target.x] === 'forest') m *= FOREST_DEFENSE;
   if (target.uid === b.bossUid && b.bossId === 'fortress' && b.bossPhase === 2) m *= 0.6;
+  if (target.uid === b.bossUid && b.bossId === 'captain' && shieldWall(b, target)) m *= 0.35;
+  if (target.uid === b.bossUid && b.bossId === 'queen' && b.reflections.some((id) => b.units.some((u) => u.uid === id && u.hp > 0))) m = 0;
   return m;
+}
+
+/** "Стена щитов": two of the captain's pawns next to him take the blows for him. */
+export function shieldWall(b: Battle, captain: Unit): boolean {
+  return alive(b, captain.side).filter((p) => p.kind === 'pawn' && chebyshev(captain, p.x, p.y) === 1).length >= 2;
 }
 
 function strike(b: Battle, u: Unit, target: Unit): void {
@@ -695,6 +733,8 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
   let damage = raw * defense(b, target);
   const shot = RANGED.has(u.kind) && chebyshev(u, target.x, target.y) > 1;
   if (target.trait === 'armored' && shot) damage *= 0.6;
+  // "Неуловимый": shooters barely touch the Black Rider; catch him in melee.
+  if (target.uid === b.bossUid && b.bossId === 'rider' && shot) damage *= 0.4;
   if (target.kind === 'pawn' && has(b, target.side, 'phalanx')) {
     const buddy = [-1, 1].some((dx) => unitAt(b, target.x + dx, target.y)?.kind === 'pawn'
       && unitAt(b, target.x + dx, target.y)?.side === target.side);
@@ -748,6 +788,8 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     if (target.side === 'ally' && target.kind === 'pawn' && b.legends.has('phoenix') && !target.reborn) rebirth(b, target);
     else if (target.side === 'ally' && target.kind !== 'king' && b.perks.has('shadowReserve') && b.shadows < 2 && !target.shade) {
       returnAsShade(b, target);
+    } else if (target.side === 'enemy' && b.eliteRule === 'undying' && b.eliteCount < 3 && !target.shade && !target.boss && target.kind !== 'king') {
+      riseAsShade(b, target);
     }
   } else if (target.trait === 'furious' && !target.raged && target.hp < target.maxHp * 0.5) {
     target.raged = true;
@@ -772,6 +814,24 @@ function returnAsShade(b: Battle, u: Unit): void {
       b.allyLosses = Math.max(0, b.allyLosses - 1);
       delete b.report[u.uid].killedBy;
       traitEvent(b, u, 'Тень!');
+      return;
+    }
+  }
+}
+
+/** Elite "Бессмертные": a fallen enemy rises in the enemy's rear with 40% of its health. */
+function riseAsShade(b: Battle, u: Unit): void {
+  for (const y of [0, 1, 2]) {
+    for (const x of [3, 4, 2, 5, 1, 6, 0, 7]) {
+      if (!standable(b.terrain, x, y) || unitAt(b, x, y)) continue;
+      b.eliteCount++;
+      u.shade = true;
+      u.x = x;
+      u.y = y;
+      u.hp = u.maxHp * 0.4;
+      u.wait = 12;
+      b.allyStats.kills = Math.max(0, b.allyStats.kills - 1);
+      traitEvent(b, u, 'Встаёт!');
       return;
     }
   }
@@ -1140,7 +1200,10 @@ export function stepBattle(b: Battle): void {
   }
   if (b.relics.has('royalHealer') && b.tick % HEAL_EVERY === 0) royalHeal(b);
   if (b.tick % 10 === 0 && b.terrain.includes('dark')) darkTick(b);
-  if (!sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) bossTick(b);
+  if (!sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) {
+    bossTick(b);
+    eliteTick(b);
+  }
   if (b.decisions && !b.checkAsked && !b.decision) offerCheck(b);
   if (b.handTimer > 0 && --b.handTimer === 0 && !sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) {
     meddle(b);
@@ -1150,6 +1213,25 @@ export function stepBattle(b: Battle): void {
   if (sideDefeated(b, 'ally')) b.result = 'loss';
   else if (sideDefeated(b, 'enemy')) b.result = 'win';
   else if (b.tick >= MAX_TICKS) b.result = 'loss';
+}
+
+// ---------- Elite rules ----------
+
+function eliteTick(b: Battle): void {
+  if (!b.eliteRule) return;
+  const src = alive(b, 'enemy').find((u) => u.kind === 'king') ?? alive(b, 'enemy')[0];
+  if (!src) return;
+  if (b.eliteRule === 'waves' && b.tick % 80 === 0 && b.eliteCount < 5) {
+    // Reinforcements: pawns, and every third one a knight.
+    if (summon(b, src, b.eliteCount % 3 === 2 ? 'knight' : 'pawn', true)) {
+      b.eliteCount++;
+      traitEvent(b, src, 'Подкрепление!');
+    }
+  }
+  if (b.eliteRule === 'darkness' && b.tick % 60 === 0 && b.eliteCount < 8) {
+    b.eliteCount++;
+    spreadDark(b, src, 2);
+  }
 }
 
 // ---------- Bosses ----------
@@ -1275,14 +1357,27 @@ function enrage(b: Battle, boss: Unit): void {
       }
       break;
     case 'rider':
+      // "Табун": two black knights ride in.
+      summon(b, boss, 'knight', true);
+      summon(b, boss, 'knight', true);
+      boss.atkMult *= 1.2;
+      applyStats(boss, boss.kind);
+      break;
     case 'guardian':
       boss.atkMult *= 1.3;
       applyStats(boss, boss.kind);
       break;
-    case 'queen':
-      summon(b, boss);
-      summon(b, boss);
+    case 'queen': {
+      // "Отражения": two copies of the queen; while one stands, she cannot be hurt.
+      for (let i = 0; i < 2; i++) {
+        const r = summon(b, boss, 'queen', true, 0.3, 0.5);
+        if (r) {
+          r.shade = true;
+          b.reflections.push(r.uid);
+        }
+      }
       break;
+    }
     case 'blackKing':
       for (let i = 0; i < 4; i++) distort(b, boss, i);
       boss.atkMult *= 1.3;
@@ -1299,21 +1394,24 @@ function enrage(b: Battle, boss: Unit): void {
   }
 }
 
-/** Put a fresh enemy pawn on a free cell of the enemy's middle rows, close to the boss. */
-function summon(b: Battle, boss: Unit): boolean {
+/**
+ * Put a fresh piece (a pawn by default) on a free cell of the enemy's back rows,
+ * close to the summoner. `free` summons do not count against the boss limit.
+ */
+function summon(b: Battle, boss: Unit, kind: PieceKind = 'pawn', free = false, hpMult = 1, atkMult = 1): Unit | null {
   const cells: [number, number][] = [];
   for (const y of [1, 2]) for (let x = 0; x < BOARD_SIZE; x++) if (standable(b.terrain, x, y) && !unitAt(b, x, y)) cells.push([x, y]);
-  if (!cells.length) return false;
+  if (!cells.length) return null;
   cells.sort((a, c) => chebyshev(boss, a[0], a[1]) - chebyshev(boss, c[0], c[1]) || a[0] - c[0]);
   const [x, y] = cells[0];
   const uid = Math.max(...b.units.map((u) => u.uid), ...Object.keys(b.report).map(Number)) + 1;
-  const u = makeUnit(uid, boss.side, { kind: 'pawn', x, y, level: boss.level }, 1, 1, 1, true);
+  const u = makeUnit(uid, boss.side, { kind, x, y, level: boss.level }, hpMult, atkMult, 1, true);
   u.wait = 10;
   b.units.push(u);
-  b.report[uid] = { uid, side: u.side, kind: 'pawn', boss: false, promoted: false, startX: x, startY: y, dealt: 0, taken: 0, healed: 0, kills: 0 };
-  b.summons++;
-  b.events.push({ type: 'summon', uid, side: u.side, x, y, amount: 0, fromX: boss.x, fromY: boss.y, fromUid: boss.uid, fromKind: boss.kind });
-  return true;
+  b.report[uid] = { uid, side: u.side, kind, boss: false, promoted: false, startX: x, startY: y, dealt: 0, taken: 0, healed: 0, kills: 0 };
+  if (!free) b.summons++;
+  b.events.push({ type: 'summon', uid, side: u.side, x, y, amount: 0, fromX: boss.x, fromY: boss.y, fromUid: boss.uid, fromKind: kind });
+  return u;
 }
 
 function warn(b: Battle, boss: Unit, cells: number[], damage: number, rock = false): void {
@@ -1355,6 +1453,15 @@ function castBoss(b: Battle, boss: Unit): boolean {
       return false;
     }
     case 'fortress': {
+      // Enraged, every other cast is "Залп": the whole row with most of your pieces.
+      if (b.bossPhase === 2 && b.bossCycle++ % 2 === 0) {
+        const perRow = new Array(BOARD_SIZE).fill(0);
+        for (const f of foes) if (f.y >= 3) perRow[f.y]++;
+        const row = perRow.indexOf(Math.max(...perRow));
+        warn(b, boss, Array.from({ length: BOARD_SIZE }, (_, x) => idx(x, row)), damage * 1.3);
+        bossEvent(b, boss, 'boss', 'Залп');
+        return true;
+      }
       const target = [...foes].sort((a, c) => c.hp - a.hp || a.uid - c.uid)[0];
       const cells = [idx(target.x, target.y)];
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, -1], [0, 1]]) {

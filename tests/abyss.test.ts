@@ -42,7 +42,7 @@ describe('abyss', () => {
     const b = createBattle(battleSetup(s, abyssId(11)));
     b.result = 'loss';
     expect(recordResult(s, abyssId(11), b).runOver).toBe(true);
-    expect(s.run.over).toMatchObject({ won: true, abyss: 10, crowns: 8 + 3 + 2 });
+    expect(s.run.over).toMatchObject({ won: true, abyss: 10, crowns: 4 + 2 + 1 });
   });
 
   it('every 10th floor grants a relic pick', () => {
@@ -68,7 +68,7 @@ describe('prestige', () => {
     s.abyss = { floor: 21, best: 20 };
     s.achievements = ['first_win'];
     const expected = crownsForPrestige(s);
-    expect(expected).toBe(8 + 3 + 3 + 4);
+    expect(expected).toBe(4 + 2 + 2);
     expect(prestige(s, 0)).toBe(expected);
     expect(s.crowns).toBe(expected);
     expect(s.prestige).toBe(1);

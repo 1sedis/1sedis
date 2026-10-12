@@ -9,6 +9,9 @@ export interface BossDef {
   /** Rage phase (below 50% health). */
   rage: string;
   rageText: string;
+  /** A rule that holds for the whole fight, if any. */
+  passive?: string;
+  passiveText?: string;
   /** Ticks between skill casts, normal and enraged. */
   cooldown: number;
   rageCooldown: number;
@@ -18,21 +21,24 @@ export const BOSSES: Record<BossId, BossDef> = {
   captain: {
     id: 'captain', skill: 'Подкрепление', skillText: 'призывает пешку в строй (до 4 за бой)',
     rage: 'Сомкнуть ряды', rageText: 'все его пешки получают щит, подкрепление чаще',
+    passive: 'Стена щитов', passiveText: 'пока рядом с капитаном стоят две его пешки, он получает на 65% меньше урона — сначала снимите строй',
     cooldown: 110, rageCooldown: 70,
   },
   rider: {
     id: 'rider', skill: 'Прыжок смерти', skillText: 'прыгает к вашему стрелку или королю, бьёт и оглушает',
-    rage: 'Тень', rageText: '+30% к атаке, прыгает чаще',
+    rage: 'Табун', rageText: 'зовёт двух чёрных коней, +20% к атаке, прыгает чаще',
+    passive: 'Неуловимый', passiveText: 'стрелки наносят ему лишь 40% урона — ловите его вблизи',
     cooldown: 90, rageCooldown: 55,
   },
   fortress: {
     id: 'fortress', skill: 'Обвал', skillText: 'красные клетки — сюда упадут камни: урон и новый камень на доске',
-    rage: 'Каменная кожа', rageText: 'получает на 40% меньше урона, обвалы чаще',
+    rage: 'Каменная кожа и залп', rageText: 'получает на 40% меньше урона, через раз бьёт залпом по целому ряду — уводите фигуры ходами',
+    passive: 'Твердыня', passiveText: 'крепость не двигается с места',
     cooldown: 100, rageCooldown: 70,
   },
   queen: {
     id: 'queen', skill: 'Тёмная корона', skillText: 'красная вертикаль — через миг по ней ударит тьма',
-    rage: 'Гвардия', rageText: 'призывает двух пешек, удары тьмы чаще',
+    rage: 'Отражения', rageText: 'создаёт две свои копии; пока жива хоть одна, ферзь неуязвим',
     cooldown: 120, rageCooldown: 80,
   },
   guardian: {

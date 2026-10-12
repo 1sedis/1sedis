@@ -17,7 +17,9 @@ import {
   nextLevelId,
 } from '../../game/levels';
 import { ELITE_GOLD, RUN_GOLD, availableNodes, enterNode, lives } from '../../game/run';
+import { ELITE_RULES } from '../../game/battle';
 import { livesRow, openRunEnd } from '../runNodes';
+import { bossArtUrl, hasBossArt } from '../bossArt';
 import { ABILITIES, abilityTier } from '../../game/abilities';
 import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
@@ -340,11 +342,16 @@ export class ArenaScreen implements Screen {
         .map((t) => `${TRAITS[t].name[0]}: ${TRAITS[t].text}.`).join('\n') + '\nЭлиту видно по значку над фигурой.'));
     }
     const bossId = bossFor(this.levelId);
-    this.bossInfo.hidden = !bossId;
+    const rule = battleSetup(s, this.levelId).eliteRule;
+    this.bossInfo.hidden = !bossId && !rule;
     if (bossId) {
       const d = BOSSES[bossId];
-      this.bossInfo.replaceChildren(el('span', '', `★ ${d.skill} · ☠ ${d.rage}`), infoBtn(getLevel(this.levelId).boss ?? 'Босс',
-        `У босса втрое больше здоровья.\n★ ${d.skill}: ${d.skillText}.\n☠ ${d.rage} (ниже 50% здоровья): ${d.rageText}.`));
+      this.bossInfo.replaceChildren(el('span', '', `${d.passive ? `◆ ${d.passive} · ` : ''}★ ${d.skill} · ☠ ${d.rage}`), infoBtn(getLevel(this.levelId).boss ?? 'Босс',
+        `У босса втрое больше здоровья.\n${d.passive ? `◆ ${d.passive}: ${d.passiveText}.\n` : ''}★ ${d.skill}: ${d.skillText}.\n☠ ${d.rage} (ниже 50% здоровья): ${d.rageText}.`));
+    } else if (rule) {
+      const r = ELITE_RULES[rule];
+      this.bossInfo.replaceChildren(el('span', 'elite-rule', `☠ Элита: ${r.name}`), infoBtn(`Элита: ${r.name}`,
+        `Правило этого боя: ${r.text}.\nВраги на уровень сильнее, за победу — реликвия.`));
     }
     const enemies = this.enemies();
     setText(this.enemyText, `Враги: ${enemies.length} · ур. ${enemies[0]?.level ?? level.level}${level.boss ? ` · ${level.boss}` : ''}`);
@@ -575,11 +582,15 @@ export class ArenaScreen implements Screen {
       const boss = this.battle.units.find((u) => u.uid === this.battle!.bossUid)!;
       this.board.intro({
         name: getLevel(this.levelId).boss ?? 'Босс',
-        sprite: bossId === 'hand' ? handUrl() : spriteUrl(boss.kind, 'enemy', boss.tier as Tier),
+        sprite: bossId === 'hand' ? handUrl() : hasBossArt(bossId) ? bossArtUrl(bossId) : spriteUrl(boss.kind, 'enemy', boss.tier as Tier),
         skill: BOSSES[bossId].skill, rage: BOSSES[bossId].rage,
       });
       this.introUntil = performance.now() + 2200;
       audio.play('roar');
+    } else if (this.battle.eliteRule) {
+      // Elites announce their rule.
+      this.board.callout(`☠ ${ELITE_RULES[this.battle.eliteRule].name}`, 'rage');
+      audio.play('warn');
     } else audio.play('start');
     document.body.classList.toggle('finale-hand', bossId === 'hand');
     this.ctx.save();
@@ -1131,7 +1142,7 @@ export class ArenaScreen implements Screen {
     this.enemies().forEach((p, i) => {
       views.push({
         key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss, trait: p.trait,
-        tier: abilityTier(p.level) as Tier, skin: p.boss && this.levelId === 'final-3' ? 'hand' : undefined,
+        tier: abilityTier(p.level) as Tier, skin: p.boss ? this.bossSkin() : undefined,
       });
     });
     return views;
@@ -1142,9 +1153,15 @@ export class ArenaScreen implements Screen {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
       shield: u.shield / u.maxHp, tier: abilityTier(u.level) as Tier,
       boss: u.boss, trait: u.trait, dead: u.hp <= 0, selected: u.uid === this.movePick,
-      skin: this.battle?.bossId === 'hand' && u.uid === this.battle.bossUid ? 'hand'
+      skin: u.uid === this.battle?.bossUid ? this.bossSkin()
         : u.side === 'ally' && u.boss && u.kind === 'king' ? 'blackKing' : undefined,
     };
+  }
+
+  /** How the boss of this level is drawn: the Hand, a giant portrait, or a plain piece. */
+  private bossSkin(): UnitView['skin'] {
+    const id = bossFor(this.levelId);
+    return id === 'hand' ? 'hand' : hasBossArt(id) ? id : undefined;
   }
 }
 

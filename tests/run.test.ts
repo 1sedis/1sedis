@@ -81,14 +81,14 @@ describe('run progress', () => {
     const node = availableNodes(s.run)[0];
     const out = fight(s, node, false);
     expect(out).toMatchObject({ win: false, runOver: true, spared: false });
-    expect(s.run.over).toMatchObject({ won: false, bosses: 1, elites: 2, crowns: 4 });
-    expect(s.crowns).toBe(8);
+    expect(s.run.over).toMatchObject({ won: false, bosses: 1, elites: 2, crowns: 1 });
+    expect(s.crowns).toBe(5);
     expect(availableNodes(s.run)).toHaveLength(1); // the map waits behind the end screen
     startNextRun(s, 0);
     expect(s.run.over).toBeNull();
     expect(s.prestige).toBe(0); // the same game again
     expect(s.army.knight).toBe(0);
-    expect(s.crowns).toBe(8);
+    expect(s.crowns).toBe(5);
     expect(s.shards).toBe(9);
     expect(s.crownTree).toEqual(['doubleStep']);
     expect(isLevelOpen(s, '1-1')).toBe(true);
@@ -111,7 +111,7 @@ describe('run progress', () => {
     s.run.complete = true;
     s.run.bosses = 4;
     expect(isAbyssOpen(s)).toBe(true);
-    expect(prestige(s, 0)).toBe(8 + 3);
+    expect(prestige(s, 0)).toBe(4 + 2);
     expect(s.prestige).toBe(1);
     expect(s.run.complete).toBe(false);
     expect(isAbyssOpen(s)).toBe(false);

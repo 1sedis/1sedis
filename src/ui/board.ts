@@ -8,6 +8,8 @@ import { TERRAIN_INFO, walkable, type Terrain } from '../game/terrain';
 import { terrainUrl } from './terrainArt';
 import { traitUrl } from './traitIcons';
 import { handUrl } from './handArt';
+import { bossArtUrl, hasBossArt } from './bossArt';
+import type { BossId } from '../game/bosses';
 import type { Trait } from '../game/elites';
 
 export interface UnitView {
@@ -28,7 +30,7 @@ export interface UnitView {
   selected?: boolean;
   dead?: boolean;
   /** Drawn as something other than a chess piece (the finale's Hand). */
-  skin?: 'hand' | 'blackKing';
+  skin?: 'hand' | 'blackKing' | 'captain' | 'rider' | 'fortress' | 'queen';
 }
 
 export class BoardView {
@@ -177,8 +179,11 @@ export class BoardView {
         node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
         this.unitLayer.append(node);
         u = { node, body, img, fill, shield, kind: v.kind, team: v.team, tier: v.tier ?? 0 };
-        img.src = v.skin === 'hand' ? handUrl() : v.skin === 'blackKing' ? spriteUrl('king', 'enemy', 2) : spriteUrl(v.kind, v.team, u.tier);
+        img.src = v.skin === 'hand' ? handUrl() : v.skin === 'blackKing' ? spriteUrl('king', 'enemy', 2)
+          : hasBossArt(v.skin as BossId) ? bossArtUrl(v.skin as BossId) : spriteUrl(v.kind, v.team, u.tier);
         node.classList.toggle('hand-unit', v.skin === 'hand');
+        node.classList.toggle('giant-unit', hasBossArt(v.skin as BossId));
+        if (hasBossArt(v.skin as BossId)) node.dataset.giant = v.skin;
         this.units.set(v.key, u);
       }
       if (!v.skin && (u.kind !== v.kind || u.tier !== (v.tier ?? 0))) {
