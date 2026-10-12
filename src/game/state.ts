@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { nicePrice } from './price';
 import { BOARD_SIZE, MOVES_PER_BATTLE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
   CHAPTERS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, replayReward, isFinale, finalePhase,
@@ -235,7 +236,7 @@ function legendMult(s: GameState): number {
 // ---------- Economy ----------
 
 export function recruitCost(s: GameState, kind: PieceKind): number {
-  return Math.round(PIECES[kind].cost * 1.2 ** s.army[kind]);
+  return nicePrice(PIECES[kind].cost * 1.2 ** s.army[kind]);
 }
 
 /** Upgrades grow gently: a run has only its own gold, and several piece types to raise. */
@@ -246,7 +247,7 @@ export const SQUAD_COST = 0.15;
 
 export function upgradeCost(s: GameState, kind: PieceKind): number {
   const squad = 1 + SQUAD_COST * Math.max(0, (kind === 'king' ? 1 : s.army[kind]) - 1);
-  return Math.round(UPGRADE_BASE[kind] * UPGRADE_GROWTH ** (s.levels[kind] - 1) * squad);
+  return nicePrice(UPGRADE_BASE[kind] * UPGRADE_GROWTH ** (s.levels[kind] - 1) * squad);
 }
 
 /** Enemies of later chapters gain levels faster than the level table alone says. */
@@ -254,7 +255,7 @@ export const CHAPTER_ENEMY_LEVELS = [0, 0, -1, 1, 2];
 
 export function buildingCost(s: GameState, id: BuildingId): number {
   const def = BUILDINGS[id];
-  return Math.round(def.baseCost * def.growth ** s.buildings[id]);
+  return nicePrice(def.baseCost * def.growth ** s.buildings[id]);
 }
 
 export function hasRelic(s: GameState, id: RelicId): boolean {
