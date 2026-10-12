@@ -10,7 +10,8 @@
     "test": "vitest run tests/",
     "bot:story": "vitest run scripts/story-bot.test.ts --silent=false",
     "typecheck": "tsc --noEmit",
-    "build:artifact": "node scripts/build-artifact.mjs"
+    "build:artifact": "node scripts/build-artifact.mjs",
+    "bot:matrix": "node scripts/bot-matrix.mjs"
   },
   "devDependencies": {
     "typescript": "5.9",

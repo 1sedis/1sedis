@@ -9,6 +9,7 @@ import {
 import { PIECES, RANGED, levelMultiplier, type PieceKind } from '../src/game/pieces';
 import { NODES, nodeCost, nodeState } from '../src/game/crownTree';
 import type { RelicId } from '../src/game/relics';
+import { ARMIES, type ArmyId } from '../src/game/armies';
 import {
   BUILDINGS, battleSetup, buildingCost, buyBuilding, buyNode, chooseRelic, commandLimit,
   forgeMultiplier, gameNumber, isUnlocked, newGame, prestige, startNextRun, armyCap, recordResult,
@@ -63,7 +64,21 @@ const TREE_PLAN = ['heritage', 'doubleStep', 'fork', 'heralds', 'hunger', 'banne
  * minor piece) instead of whatever is most efficient.
  */
 const CHESS_CAP: Partial<Record<PieceKind, number>> = { pawn: 8, knight: 2, bishop: 2, rook: 2, archbishop: 1, chancellor: 1, ghost: 1 };
-const capped = (s: GameState, k: PieceKind) => !!process.env.CHESS && s.army[k] >= (CHESS_CAP[k] ?? 99);
+/**
+ * STRAT=riders: a player who builds on knights and shooters and keeps only a
+ * thin screen of pawns. STRAT=chess is the same as CHESS=1; the default
+ * (swarm) buys whatever adds the most power per gold.
+ */
+const RIDERS_CAP: Partial<Record<PieceKind, number>> = { pawn: 2, rook: 1, queen: 2 };
+/** STRAT=chess (bot matrix): a balanced set, so the cap really bites: four pawns, two of each minor piece and rook. */
+const SET_CAP: Partial<Record<PieceKind, number>> = { pawn: 4, knight: 2, bishop: 2, rook: 2, queen: 1, archbishop: 1, chancellor: 1, ghost: 1 };
+const STRAT = process.env.STRAT ?? (process.env.CHESS ? 'chess-legacy' : 'swarm');
+const CAPS = STRAT === 'chess' ? SET_CAP : STRAT === 'chess-legacy' ? CHESS_CAP : STRAT === 'riders' ? RIDERS_CAP : {};
+const capped = (s: GameState, k: PieceKind) => s.army[k] >= (CAPS[k] ?? 99);
+/** ARMY=<id>: every run starts with this starting army (all of them open, as for a returning player). */
+const ARMY = process.env.ARMY as ArmyId | undefined;
+/** SEED=n: another set of maps and wheel spins (the run seed comes from the clock). */
+const T0 = Number(process.env.SEED ?? 0) * 104_729_000;
 
 /** Rough fighting value of one piece: health times damage, both growing with level. */
 function pieceValue(kind: PieceKind, level: number): number {
@@ -108,12 +123,19 @@ function options(s: GameState, limit: number): { cost: number; score: number; bu
 }
 
 test('story bot', () => {
-  const s = newGame(0);
-  let rngSeed = 12345;
+  const s = newGame(T0);
+  if (ARMY) {
+    s.armies = Object.keys(ARMIES) as ArmyId[];
+    startNextRun(s, T0, ARMY);
+  }
+  let rngSeed = 12345 + Number(process.env.SEED ?? 0) * 7919;
   const rand = () => ((rngSeed = (rngSeed * 1103515245 + 12345) >>> 0) / 4294967296);
   let t = 0;
   const log: string[] = [];
   let timeouts = 0;
+  /** Deaths by chapter and runs per game, for the bot matrix (scripts/bot-matrix.mjs). */
+  const deaths: Record<number, number> = {};
+  const runsPerGame: number[] = [];
   /** Battle lengths in ticks (100 ms of game time), by kind, for the pace summary. */
   const lengths: Record<'battle' | 'boss', number[]> = { battle: [], boss: [] };
 
@@ -187,7 +209,8 @@ test('story bot', () => {
     for (let guard = 0; !s.run.complete && guard < 4000 && runs <= 40; guard++) {
       if (s.run.over) {
         hard.push(`смерть гл.${s.run.over.chapter} на ${s.run.over.at} (+${s.run.over.crowns}♛)`);
-        startNextRun(s, t * 1000);
+        deaths[s.run.over.chapter] = (deaths[s.run.over.chapter] ?? 0) + 1;
+        startNextRun(s, T0 + t * 1000);
         runs++;
         continue;
       }
@@ -224,6 +247,7 @@ test('story bot', () => {
     const chapters: Record<number, number> = {};
     const hard: string[] = [];
     const runs = playRun(chapters, hard);
+    runsPerGame.push(s.run.complete ? runs : -runs);
     hard.push(`забегов: ${runs}`);
     const chText = Object.entries(chapters).map(([c, m]) => `ch${c} ${m.toFixed(0)}м`).join(' · ');
     log.push(`Партия ${game}: ${((t - start) / 3600).toFixed(1)} ч (${chText}) · ${hard.join(' · ') || '—'}`);
@@ -231,7 +255,7 @@ test('story bot', () => {
       + ` · уровни ${JSON.stringify(Object.fromEntries(Object.entries(s.levels).filter(([k]) => s.army[k as PieceKind] > 0)))}`
       + ` · кузница ${s.buildings.forge} · реликвий ${s.relics.length}`);
     if (game < 3) {
-      const crowns = prestige(s, t * 1000);
+      const crowns = prestige(s, T0 + t * 1000);
       log.push(`  → новая партия: +${crowns} ♛, древо: ${s.crownTree.join(', ') || '—'}`);
     }
   }
@@ -244,5 +268,6 @@ test('story bot', () => {
   for (const [kind, a] of Object.entries(lengths)) {
     log.push(`Темп (${kind}, ${a.length} боёв): медиана ${pct(a, 0.5)} с, 10–90% ${pct(a, 0.1)}–${pct(a, 0.9)} с игрового времени`);
   }
+  log.push(`MATRIX ${JSON.stringify({ army: ARMY ?? 'guard', strat: STRAT, moves: USE_MOVES, seed: Number(process.env.SEED ?? 0), runs: runsPerGame, deaths, hours: +(t / 3600).toFixed(2), finale: phases.map((p) => p.attempts) })}`);
   console.log(log.join('\n'));
 }, 1_800_000);
