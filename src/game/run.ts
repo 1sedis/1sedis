@@ -509,6 +509,11 @@ export function eventFits(id: EventId, chapter: number): boolean {
 }
 
 /** Non-king piece kinds the army has, the most valuable first. */
+/** The piece the lake copies: the most trained one that can have a twin (no pawns, no second queen). */
+function reflectable(s: GameState): PieceKind | undefined {
+  return ownedKinds(s).filter((k) => k !== 'pawn' && k !== 'queen').sort((a, b) => s.levels[b] - s.levels[a])[0];
+}
+
 function ownedKinds(s: GameState): PieceKind[] {
   const order: PieceKind[] = ['queen', 'chancellor', 'archbishop', 'rook', 'ghost', 'bishop', 'knight', 'pawn'];
   return order.filter((k) => s.army[k] > 0);
@@ -561,7 +566,10 @@ export const EVENTS: Record<EventId, EventDef> = {
     title: t('Перебежчик'),
     text: t('Чёрный конь бросил строй и просится под ваше знамя. Говорит, Чёрный король не прощает ошибок.'),
     choices: [
-      { label: t('Принять'), hint: t('+1 конь в армию'), apply: (s) => { s.levels.knight = recruitLevel(s, 'knight'); s.army.knight++; return t('Конь встал в строй.'); } },
+      {
+        label: t('Принять'), hint: t('+1 конь, и все кони +1 уровень'),
+        apply: (s) => { s.levels.knight = recruitLevel(s, 'knight') + 1; s.army.knight++; return t('Конь встал в строй и научил своих: кони +1 уровень.'); },
+      },
       { label: t('Взять выкуп'), hint: t('+ немного золота'), apply: (s) => { const g = Math.round(chapterGold(s.run.chapter) * 0.6); s.gold += g; return t('Конь откупился: +{g} золота', { g }); } },
     ],
   },
@@ -827,13 +835,13 @@ export const EVENTS: Record<EventId, EventDef> = {
     from: 3,
     choices: [
       {
-        label: t('Позвать отражение'), hint: t('Копия лучшей фигуры, но −15% здоровья на 3 боя'),
-        blocked: (s) => (ownedKinds(s).some((k) => k !== 'pawn') ? null : t('Нужна фигура сильнее пешки')),
+        label: t('Позвать отражение'), hint: t('Копия самой опытной фигуры, но −10% здоровья на 2 боя'),
+        blocked: (s) => (reflectable(s) ? null : t('Нужна фигура сильнее пешки')),
         apply: (s) => {
-          const kind = ownedKinds(s).find((k) => k !== 'pawn')!;
+          const kind = reflectable(s)!;
           s.army[kind]++;
-          addBoon(s, { name: t('Холод отражения'), atk: 1, hp: 0.85, left: 3 });
-          return t('Отражение вышло на берег и встало в резерв. Армию знобит: −15% здоровья на 3 боя.');
+          addBoon(s, { name: t('Холод отражения'), atk: 1, hp: 0.9, left: 2 });
+          return t('Отражение вышло на берег и встало в резерв. Армию знобит: −10% здоровья на 2 боя.');
         },
       },
       {
@@ -858,14 +866,14 @@ export const EVENTS: Record<EventId, EventDef> = {
         },
       },
       {
-        label: t('Выпить зелье'), hint: t('+2 уровня короля или −20% здоровья на 2 боя'),
+        label: t('Выпить зелье'), hint: t('+2 уровня короля или −15% здоровья на 2 боя'),
         apply: (s, roll) => {
-          if (roll < 0.55) {
+          if (roll < 0.65) {
             s.levels.king += 2;
             return t('Король помолодел: +2 уровня.');
           }
-          addBoon(s, { name: t('Отрава'), atk: 1, hp: 0.8, left: 2 });
-          return t('Зелье оказалось ядом. −20% здоровья на 2 боя.');
+          addBoon(s, { name: t('Отрава'), atk: 1, hp: 0.85, left: 2 });
+          return t('Зелье оказалось ядом. −15% здоровья на 2 боя.');
         },
       },
       { label: t('Уйти'), hint: t('Ничего'), apply: () => t('Ведьма хихикнула вслед.') },
