@@ -84,35 +84,7 @@ export function parseTerrain(rows: string[] | undefined): Terrain[] {
   return out;
 }
 
-/** Abyss floors get random features in the middle rows, more as you go deeper. */
-function abyssMap(floor: number): string[] {
-  let seed = (floor * 2246822519) >>> 0;
-  const rand = () => {
-    seed = (seed + 0x6d2b79f5) >>> 0;
-    let t = seed;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  const rows = [[...'........'], [...'........']];
-  const pool = ['#', '~', 'f', '^'];
-  const count = Math.min(6, 1 + Math.floor(floor / 4));
-  for (let i = 0; i < count; i++) {
-    const x = Math.floor(rand() * 4);
-    const y = Math.floor(rand() * 2);
-    const ch = pool[Math.floor(rand() * pool.length)];
-    // Mirror the feature so floors stay fair to both flanks.
-    rows[y][x] = ch;
-    rows[y][7 - x] = ch;
-  }
-  return mid(rows[0].join(''), rows[1].join(''));
-}
-
 export function levelTerrainRows(levelId: string): string[] | undefined {
-  if (levelId.startsWith('abyss-')) {
-    const floor = Number(levelId.slice(6));
-    return floor >= 3 ? abyssMap(floor) : undefined;
-  }
   return MAPS[levelId];
 }
 

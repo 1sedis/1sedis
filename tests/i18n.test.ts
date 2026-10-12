@@ -64,4 +64,13 @@ describe('localization', () => {
     expect(plural(5, ['бой', 'боя', 'боёв'], ['battle', 'battles'])).toBe('battles');
     setLangForTests('ru');
   });
+
+  it('no text mentions systems that are gone (the Abyss) or stale numbers', () => {
+    const gone = /Бездн|бездн|втрое больше здоровья/;
+    const stale: string[] = [];
+    for (const [f, code] of SOURCES) {
+      for (const k of keys(code)) if (gone.test(k) || /Abyss/i.test(EN[k] ?? '')) stale.push(`${f}: ${k}`);
+    }
+    expect(stale).toEqual([]);
+  });
 });

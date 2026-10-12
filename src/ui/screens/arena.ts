@@ -13,7 +13,7 @@ import { traitUrl } from '../traitIcons';
 import { TRAITS, traitAdjective } from '../../game/elites';
 import { buildReport, pieceName } from '../../game/report';
 import {
-  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, getLevel, isAbyss, isFinale,
+  CHAPTERS, UNLOCKED_BY, chapterOf, finalePhase, getLevel, isFinale,
   nextLevelId,
 } from '../../game/levels';
 import { activeBoons, availableNodes, boonText, enterNode, lives } from '../../game/run';
@@ -21,7 +21,6 @@ import { ELITE_RULES } from '../../game/battle';
 import { livesRow, openRunEnd } from '../runNodes';
 import { bossArtUrl, hasBossArt } from '../bossArt';
 import { ABILITIES, abilityTier } from '../../game/abilities';
-import { shardsForFloor } from '../../game/altar';
 import { PIECES, type PieceKind } from '../../game/pieces';
 import {
   available, battleGold, battleSetup, clearFormation, isEliteBattle, playerMoves, levelDistortions, terrainFor, commandLimit, fieldedCount, isLevelOpen, isPlayerCell,
@@ -108,9 +107,6 @@ export class ArenaScreen implements Screen {
   private relicSlot = el('div');
   private kingBars: Record<'ally' | 'enemy', { fill: HTMLElement; text: HTMLElement; name: HTMLElement }>;
   private battleTime = el('div', 'battle-time');
-  private autoBtn2 = el('button', 'toggle');
-  private autoDescend = false;
-  private autoTimer: number | null = null;
 
   constructor(private ctx: Ctx) {
     this.board = new BoardView((x, y) => this.onCell(x, y));
@@ -132,12 +128,8 @@ export class ArenaScreen implements Screen {
       this.speedBtns.push({ b, sp });
     }
     this.fightBtn.addEventListener('click', () => (this.phase === 'prep' ? this.startBattle() : this.retreat()));
-    this.autoBtn2.title = t('После победы сразу спускаться на следующий этаж');
-    this.autoBtn2.addEventListener('click', () => {
-      this.autoDescend = !this.autoDescend;
-    });
     this.movesEl.title = t('Ваши ходы в этом бою: нажмите на свою фигуру во время боя');
-    controls.append(this.movesEl, seg, this.autoBtn2, this.fightBtn);
+    controls.append(this.movesEl, seg, this.fightBtn);
     top.append(back, titles, controls);
 
     // Board column with the reserve tray.
@@ -205,7 +197,8 @@ export class ArenaScreen implements Screen {
     const codexBtn = el('button', 'btn btn-ghost btn-small', t('Фигуры'));
     codexBtn.addEventListener('click', () => openCodex(this.ctx.state));
     taskHead.append(el('span', 'panel-title', t('Задача')), codexBtn, infoBtn(t('Как играть'),
-      t('Сразите вражеского короля. Если падёт ваш — бой проигран.\nВыберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.')));
+      t('Сразите вражеского короля. Если падёт ваш — бой проигран.\nВыберите фигуру в резерве и нажмите на клетку в трёх нижних рядах. Нажмите на свою фигуру, чтобы переставить её, или на резерв, чтобы убрать.') + '\n\n'
+      + t('Словарь:\n• Бой — одна схватка на доске.\n• Глава — карта с развилками, в конце босс.\n• Забег — четыре главы на одну жизнь; поражение начинает новый забег.\n• Партия — выигранный забег; следующая партия труднее.\n• Угроза — усложнение, которое вы выбираете сами после победы.')));
     this.hintText.classList.add('task-hint');
     infoCard.append(taskHead, this.enemyText, this.distortionRow, this.bossInfo, this.eliteRow, this.rewardText, this.terrainRow, this.hintText, this.relicCard);
     this.infoPanel.append(infoCard);
@@ -299,15 +292,12 @@ export class ArenaScreen implements Screen {
     const s = this.ctx.state;
     const level = getLevel(this.levelId);
     const chapter = chapterOf(this.levelId);
-    const abyss = isAbyss(this.levelId);
     const finale = isFinale(this.levelId);
     const eliteTitle = isEliteBattle(s, this.levelId) ? t('Элита · ') : '';
-    setText(this.title, abyss ? t('Бездна · {name}', { name: level.name }) : finale ? t('Финал · {name}', { name: level.name }) : `${eliteTitle}${level.id} · ${level.name}`);
-    setText(this.subtitle, abyss
-      ? t('Рекорд: этаж {n}', { n: s.abyss.best })
-      : finale
-        ? t('{name} · фаза {n} из 3', { name: chapter.name, n: finalePhase(this.levelId) })
-        : t('Глава {n}. {name}', { n: chapter.id, name: chapter.name }) + (s.prestige ? t(' · партия {n}', { n: s.prestige + 1 }) : ''));
+    setText(this.title, finale ? t('Финал · {name}', { name: level.name }) : `${eliteTitle}${level.id} · ${level.name}`);
+    setText(this.subtitle, finale
+      ? t('{name} · фаза {n} из 3', { name: chapter.name, n: finalePhase(this.levelId) })
+      : t('Глава {n}. {name}', { n: chapter.id, name: chapter.name }) + (s.prestige ? t(' · партия {n}', { n: s.prestige + 1 }) : ''));
     this.board.setTheme(chapter.id);
     this.board.setElite(isEliteBattle(s, this.levelId));
     this.root.dataset.theme = String(chapter.id);
@@ -347,7 +337,7 @@ export class ArenaScreen implements Screen {
       this.eliteRow.append(infoBtn(t('Элитные враги'), [...new Set(elites.map((p) => p.trait!))]
         .map((t) => `${TRAITS[t].name[0]}: ${TRAITS[t].text}.`).join('\n') + '\n' + t('Элиту видно по значку над фигурой.')));
     }
-    if (!abyss && !finale) {
+    if (!finale) {
       for (const x of activeBoons(s.run, !!level.boss)) {
         const good = x.atk * x.hp >= 1 && (x.foe ?? 1) <= 1;
         const chip = el('span', `terrain-chip boon-chip ${good ? 'good' : 'bad'}`, x.name);
@@ -361,7 +351,7 @@ export class ArenaScreen implements Screen {
     if (bossId) {
       const d = BOSSES[bossId];
       this.bossInfo.replaceChildren(el('span', '', `${d.passive ? `◆ ${d.passive} · ` : ''}★ ${d.skill} · ☠ ${d.rage}`), infoBtn(getLevel(this.levelId).boss ?? t('Босс'),
-        t('У босса втрое больше здоровья.') + '\n' + (d.passive ? `◆ ${d.passive}: ${d.passiveText}.\n` : '') + `★ ${d.skill}: ${d.skillText}.\n`
+        t('У босса в разы больше здоровья, чем у обычной фигуры.') + '\n' + (d.passive ? `◆ ${d.passive}: ${d.passiveText}.\n` : '') + `★ ${d.skill}: ${d.skillText}.\n`
         + t('☠ {rage} (ниже 50% здоровья): {text}.', { rage: d.rage, text: d.rageText })));
     } else if (rule) {
       const r = ELITE_RULES[rule];
@@ -370,20 +360,11 @@ export class ArenaScreen implements Screen {
     }
     const enemies = this.enemies();
     setText(this.enemyText, t('Враги: {n} · ур. {lv}', { n: enemies.length, lv: enemies[0]?.level ?? level.level }) + (level.boss ? ` · ${level.boss}` : ''));
-    this.autoBtn2.hidden = !abyss;
     if (finale) {
       const phase = finalePhase(this.levelId);
       setText(this.rewardText, phase < 3
         ? t('Победа сохраняет прогресс финала')
         : s.finale.beaten ? t('Рука уже опущена — это бой на память') : t('Награда: +{n} ♛ и конец истории', { n: FINALE_CROWNS }));
-      setText(this.hintText, level.hint);
-      this.relicCard.hidden = s.relics.length === 0;
-      this.relicSlot.replaceChildren(relicStrip(s.relics));
-      return;
-    }
-    if (abyss) {
-      const floor = abyssFloor(this.levelId);
-      setText(this.rewardText, t('Награда: +{gold} золота · +{shards} ◆', { gold: fmt(Math.round(abyssReward(floor))), shards: shardsForFloor(floor) }));
       setText(this.hintText, level.hint);
       this.relicCard.hidden = s.relics.length === 0;
       this.relicSlot.replaceChildren(relicStrip(s.relics));
@@ -591,7 +572,7 @@ export class ArenaScreen implements Screen {
     audio.setTrack(getLevel(this.levelId).boss ? 'boss' : 'battle');
     this.acc = 0;
     const bossId = this.battle.bossId;
-    if (bossId && !(isAbyss(this.levelId) && this.autoDescend)) {
+    if (bossId) {
       const boss = this.battle.units.find((u) => u.uid === this.battle!.bossUid)!;
       this.board.intro({
         name: getLevel(this.levelId).boss ?? t('Босс'),
@@ -621,11 +602,7 @@ export class ArenaScreen implements Screen {
 
   private leave(): void {
     skipScenes();
-    if (this.autoTimer !== null) {
-      clearTimeout(this.autoTimer);
-      this.autoTimer = null;
-    }
-    if (this.phase === 'battle' || isAbyss(this.levelId)) this.enterPrep();
+    if (this.phase === 'battle') this.enterPrep();
     this.ctx.go('map');
   }
 
@@ -636,17 +613,6 @@ export class ArenaScreen implements Screen {
     this.phase = 'result';
     this.board.showBanner(outcome.win ? t('Победа') : t('Поражение'), outcome.win);
     audio.play(outcome.win ? 'win' : 'lose');
-    // Auto-descent: skip the dialog and go straight to the next floor.
-    if (outcome.win && isAbyss(this.levelId) && this.autoDescend && outcome.relicsEarned === 0) {
-      toast(t('Этаж {n}: +{gold} золота, +{shards} ◆', { n: abyssFloor(this.levelId), gold: fmt(outcome.reward), shards: outcome.shards }), 'good');
-      this.autoTimer = window.setTimeout(() => {
-        this.autoTimer = null;
-        if (!this.root.isConnected || this.root.closest('[hidden]') || this.phase !== 'result') return;
-        this.show(nextLevelId(this.levelId)!);
-        this.startBattle();
-      }, 1300);
-      return;
-    }
     if (outcome.ending) {
       this.setTimeLock(false);
       setTimeout(() => {
@@ -739,7 +705,7 @@ export class ArenaScreen implements Screen {
       });
       actions.append(b);
     };
-    const campaign = !isAbyss(this.levelId) && !isFinale(this.levelId);
+    const campaign = !isFinale(this.levelId);
     if (o.runOver) {
       // A dead run: one way on — the summary, then a new run from 1-1.
       button(t('Итоги забега ▶'), 'btn-primary', () => {
@@ -778,7 +744,7 @@ export class ArenaScreen implements Screen {
         this.enterPrep();
         this.ctx.go('camp');
       });
-      if (!isAbyss(this.levelId)) button(t('Переиграть'), '', () => this.enterPrep());
+      button(t('Переиграть'), '', () => this.enterPrep());
       const next = nextLevelId(this.levelId);
       if (next) button(t('Дальше ▶'), 'btn-primary', () => this.show(next));
     } else {
@@ -926,8 +892,6 @@ export class ArenaScreen implements Screen {
       void this.ctx.tip('t_tokens', this.movesEl, t('Это твои ходы: осталось {n}. Нажми на свою фигуру, когда захочешь сходить.', { n: left }));
     }
     setText(this.fightBtn, prep ? t('▶ В бой') : t('■ Отступить'));
-    setText(this.autoBtn2, t('Авто-спуск: {state}', { state: this.autoDescend ? t('вкл') : t('выкл') }));
-    this.autoBtn2.classList.toggle('on', this.autoDescend);
     this.fightBtn.classList.toggle('btn-danger', !prep);
     setDisabled(this.fightBtn, this.phase === 'result');
     this.speedBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === speed));
@@ -1035,6 +999,7 @@ export class ArenaScreen implements Screen {
     if (!b) return;
     for (const e of events) {
       if (e.type === 'order' && e.label && e.label !== t('Ход')) this.board.callout(e.label, 'skill');
+      if (e.type === 'overtime') this.board.callout(t('⌛ Время на исходе'), 'rage');
       if (e.type === 'hand') {
         this.board.handGrab(e.fromX, e.fromY, e.x, e.y);
         if (!b.bossId) this.board.callout(t('Рука переставляет фигуру!'), 'skill');
@@ -1078,7 +1043,7 @@ export class ArenaScreen implements Screen {
     const freeReserve = [...this.trayItems.values()].find((i) => !i.btn.hidden && !i.btn.classList.contains('empty'))?.btn;
     // A free square in the front row, as close to the centre as possible, for the first placement.
     const spot = [3, 4, 2, 5, 1, 6].map((x) => [x, 5] as const).find(([x, y]) => isPlayerCell(x, y, this.levelId) && !slotAt(s, x, y));
-    const firstWin = (s.stars['1-1'] ?? 0) > 0;
+    const firstWin = !!s.cleared['1-1'];
     void ((freeReserve && spot && ctx.tip('t_reserve', freeReserve,
       t('Нажми на пешку в резерве, потом на клетку — поставь её в строй.'), board.cellNode(spot[0], spot[1])))
       || ctx.tip('t_fight', this.fightBtn, t('Армия готова. В бой!'))
@@ -1191,7 +1156,7 @@ const DECISION_TEXT: Record<Decision['kind'], { title: string; hint: string; opt
 
 const RAGE_LINES: Partial<Record<string, string>> = {
   captain: t('Сомкнуть ряды!'), rider: t('Ты не уйдёшь!'), fortress: t('Камень не сдаётся!'), queen: t('На колени!'),
-  guardian: t('Бездна голодна!'), blackKing: t('Все искажения — сейчас!'), hand: t('ПЕРЕВЕРНУТЬ.'),
+  blackKing: t('Все искажения — сейчас!'), hand: t('ПЕРЕВЕРНУТЬ.'),
 };
 
 // Keyed by the boss skill label from the battle (translated the same way there).

@@ -10,7 +10,7 @@ function veteran(lv: number, forge: number, relics: number, tree: string[]): Gam
   s.prestige = 5;
   s.army = { ...s.army, pawn: 6, knight: 2, bishop: 2, rook: 2, queen: 1 };
   for (const k of Object.keys(s.levels) as (keyof typeof s.levels)[]) s.levels[k] = lv;
-  s.buildings = { treasury: 10, hq: 3, forge };
+  s.buildings = { hq: 3, forge };
   s.relics = RELIC_IDS.slice(0, relics);
   s.crownTree = tree as GameState['crownTree'];
   return s;

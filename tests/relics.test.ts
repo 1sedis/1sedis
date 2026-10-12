@@ -10,7 +10,7 @@ const p = (kind: Placement['kind'], x: number, y: number, level = 1): Placement 
 describe('relic picks', () => {
   it('a first boss clear grants a pick with a stable 1-of-3 offer', () => {
     const s = newGame(0);
-    for (const id of ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8']) s.stars[id] = 1;
+    for (const id of ['1-1', '1-2', '1-3', '1-4', '1-5', '1-6', '1-7', '1-8']) s.cleared[id] = true;
     const b = createBattle(battleSetup(s, '1-9'));
     b.result = 'win';
     const out = recordResult(s, '1-9', b);
@@ -23,9 +23,9 @@ describe('relic picks', () => {
     expect(s.relics).toEqual([offer[1]]);
   });
 
-  it('stars alone no longer grant picks', () => {
+  it('cleared levels alone grant no picks', () => {
     const s = newGame(0);
-    for (let i = 1; i <= 4; i++) s.stars[`1-${i}`] = 3;
+    for (let i = 1; i <= 4; i++) s.cleared[`1-${i}`] = true;
     const b = createBattle(battleSetup(s, '1-5'));
     b.result = 'loss';
     expect(recordResult(s, '1-5', b).relicsEarned).toBe(0);

@@ -17,11 +17,11 @@ describe('distortions', () => {
     expect([4, 5, 6, 7, 8].map((g) => distortionsFor(g, 1)[0])).toEqual([...DISTORTION_ORDER, DISTORTION_ORDER[0]]);
   });
 
-  test('never in the abyss', () => {
+  test('never in the finale', () => {
     const s = newGame(0);
     s.prestige = 2;
     expect(levelDistortions(s, '1-1')).toContain('darkness');
-    expect(levelDistortions(s, 'abyss-5')).toEqual([]);
+    expect(levelDistortions(s, 'final-1')).toEqual([]);
   });
 
   test('the chronicle is told over games 2 and 3 and every chapter has a moment', () => {

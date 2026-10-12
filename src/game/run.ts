@@ -46,12 +46,11 @@ export interface RunMap {
 export interface RunOver {
   won: boolean;
   chapter: number;
-  /** Where it ended: the level of the lost battle, or the Abyss floor. */
+  /** Where it ended: the level of the lost battle. */
   at: string;
   wins: number;
   elites: number;
   bosses: number;
-  abyss: number;
   crowns: number;
 }
 
@@ -362,12 +361,12 @@ export function lives(s: GameState): number {
 }
 
 /** A lost battle: a spare banner burns and the battle can be fought again, or the run is over. */
-export function loseNode(s: GameState, at: string, won = false): 'spared' | 'over' {
+export function loseNode(s: GameState, at: string): 'spared' | 'over' {
   if (s.relics.includes(SPARE)) {
     s.relics = s.relics.filter((id) => id !== SPARE);
     return 'spared';
   }
-  endRun(s, won, at);
+  endRun(s, false, at);
   return 'over';
 }
 
@@ -386,8 +385,7 @@ export function endRun(s: GameState, won: boolean, at: string): RunOver {
   if (won) s.stats.bestThreat = Math.max(s.stats.bestThreat ?? -1, threat);
   s.stats.runs++;
   s.run.over = {
-    won, chapter: s.run.chapter, at, wins: s.run.wins, elites: s.run.elites, bosses: s.run.bosses,
-    abyss: Math.max(0, s.abyss.floor - 1), crowns,
+    won, chapter: s.run.chapter, at, wins: s.run.wins, elites: s.run.elites, bosses: s.run.bosses, crowns,
   };
   s.run.at = null;
   return s.run.over;

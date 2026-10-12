@@ -29,9 +29,9 @@ describe('finale', () => {
     expect(isFinaleOpen(s)).toBe(false);
     s.prestige = 2;
     expect(isFinaleOpen(s)).toBe(false);
-    s.stars['4-9'] = 1;
+    s.cleared['4-9'] = true;
     expect(isFinaleOpen(s)).toBe(true);
-    s.stars = {};
+    s.cleared = {};
     s.prestige = 3;
     expect(isFinaleOpen(s)).toBe(true);
     expect(levelDistortions(s, 'final-1')).toEqual([]);
@@ -44,7 +44,7 @@ describe('finale', () => {
     s.finale.phase = 1;
     expect(isCleared(s, 'final-1')).toBe(true);
     expect(isLevelOpen(s, 'final-2')).toBe(true);
-    s.stars['4-9'] = 1;
+    s.cleared['4-9'] = true;
     prestige(s);
     expect(s.finale.phase).toBe(1);
     expect(parseSave(JSON.stringify({ version: 2 }))!.finale).toEqual({ phase: 0, beaten: false });

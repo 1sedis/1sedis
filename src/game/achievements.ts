@@ -12,7 +12,7 @@ export interface AchievementDef {
   progress: (s: GameState) => number;
 }
 
-const cleared = (id: string) => (s: GameState) => ((s.stars[id] ?? 0) > 0 ? 1 : 0);
+const cleared = (id: string) => (s: GameState) => (s.cleared[id] ? 1 : 0);
 
 const A = (id: string, name: string, description: string, goal: number, crowns: number, progress: (s: GameState) => number): AchievementDef =>
   ({ id, name, description, goal, crowns, progress });

@@ -10,7 +10,7 @@ import { levelScene, loreScene, openingScene, revealScene } from './scenes';
 export function playStory(s: GameState, levelId: string, save: () => void, board: BoardView, cast: UnitView[]): Promise<void> {
   const steps = levelScene(levelId);
   const key = storyKey(levelId);
-  if (!STORY[levelId] || !steps || s.tutorial.includes(key) || (s.stars[levelId] ?? 0) > 0) return Promise.resolve();
+  if (!STORY[levelId] || !steps || s.tutorial.includes(key) || s.cleared[levelId]) return Promise.resolve();
   s.tutorial.push(key);
   save();
   return new Stage(board, cast).run(steps);

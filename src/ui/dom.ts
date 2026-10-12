@@ -102,10 +102,6 @@ export function confirmDialog(title: string, text: string, yesLabel = t('Да'))
   });
 }
 
-export function stars(n: number, max = 3): string {
-  return '★'.repeat(n) + '☆'.repeat(Math.max(0, max - n));
-}
-
 /** A small "?" button that shows an explanation in a dialog, keeping panels free of long text. */
 export function infoBtn(title: string, text: string | (() => string)): HTMLButtonElement {
   const b = el('button', 'info-btn', '?');

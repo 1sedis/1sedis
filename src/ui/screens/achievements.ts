@@ -24,7 +24,6 @@ function badgeFor(id: string): IconId {
   if (/promote|prestige|crown|boss|captain|rider|fortress|queen|mate/.test(id)) return 'crown';
   if (/kill/.test(id)) return 'skull';
   if (/crit|abilit|relic/.test(id)) return 'spark';
-  if (/abyss|deep|floor/.test(id)) return 'shard';
   if (/architect|hq|build/.test(id)) return 'lock';
   return 'star';
 }

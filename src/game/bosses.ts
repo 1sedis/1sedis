@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 /** Boss mechanics: one signature skill on a timer, and a rage phase below half health. */
-export type BossId = 'captain' | 'rider' | 'fortress' | 'queen' | 'guardian' | 'blackKing' | 'hand';
+export type BossId = 'captain' | 'rider' | 'fortress' | 'queen' | 'blackKing' | 'hand';
 
 export interface BossDef {
   id: BossId;
@@ -42,11 +42,6 @@ export const BOSSES: Record<BossId, BossDef> = {
     rage: t('Отражения'), rageText: t('создаёт две свои копии; пока жива хоть одна, ферзь неуязвим'),
     cooldown: 120, rageCooldown: 80,
   },
-  guardian: {
-    id: 'guardian', skill: t('Сотрясение'), skillText: t('красный квадрат 3×3 — через миг удар по площади'),
-    rage: t('Голод бездны'), rageText: t('+30% к атаке, сотрясения чаще'),
-    cooldown: 100, rageCooldown: 70,
-  },
   blackKing: {
     id: 'blackKing', skill: t('Искажение'), skillText: t('по очереди: тьма на доске, пробуждение приёмов, новая элита, королевская кровь'),
     rage: t('Все искажения'), rageText: t('всё сразу, +30% к атаке, искажения чаще'),
@@ -63,9 +58,8 @@ const BY_LEVEL: Record<string, BossId> = {
   '1-9': 'captain', '2-9': 'rider', '3-9': 'fortress', '4-9': 'queen', 'final-1': 'blackKing', 'final-3': 'hand',
 };
 
-/** The boss mechanic of a level, if any (every 10th Abyss floor has the guardian). */
+/** The boss mechanic of a level, if any. */
 export function bossFor(levelId: string): BossId | undefined {
-  if (levelId.startsWith('abyss-')) return Number(levelId.slice(6)) % 10 === 0 ? 'guardian' : undefined;
   return BY_LEVEL[levelId];
 }
 

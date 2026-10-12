@@ -48,15 +48,11 @@ const GUARD_POOL: Trait[] = ['swift', 'thorns', 'furious', 'banner'];
 /** How many elites a level has; "Чёрная гвардия" adds one everywhere and opens chapter 1. */
 function eliteCount(levelId: string, guard: boolean): { count: number; pool: Trait[] } {
   const base = baseEliteCount(levelId);
-  if (!guard || levelId.startsWith('abyss-')) return base;
+  if (!guard) return base;
   return base.count ? { ...base, count: base.count + 1 } : { count: 1, pool: GUARD_POOL };
 }
 
 function baseEliteCount(levelId: string): { count: number; pool: Trait[] } {
-  if (levelId.startsWith('abyss-')) {
-    const floor = Number(levelId.slice(6));
-    return { count: floor < 4 ? 0 : Math.min(4, 1 + Math.floor(floor / 8)), pool: TRAIT_ORDER };
-  }
   const [chapter, n] = levelId.split('-').map(Number);
   const pool = POOLS[chapter];
   if (!pool) return { count: 0, pool: [] };

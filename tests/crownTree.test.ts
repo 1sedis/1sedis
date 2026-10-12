@@ -60,7 +60,7 @@ describe('crown tree', () => {
     expect(queenCap(s)).toBe(2);
     expect(spinCost(s)).toBe(2); // hunger was taken, so luck is closed
     s.gold = 1e6;
-    for (const k of ['1-1', '1-2', '1-9', '2-9', '3-9'] as const) s.stars[k] = 1;
+    for (const k of ['1-1', '1-2', '1-9', '2-9', '3-9'] as const) s.cleared[k] = true;
     expect(recruit(s, 'ghost')).toBe(true);
   });
 
@@ -68,7 +68,7 @@ describe('crown tree', () => {
     const s = fresh(2, 10);
     buyNode(s, 'trophies');
     buyNode(s, 'heritage');
-    for (let c = 1; c <= 4; c++) for (let n = 1; n <= 9; n++) s.stars[`${c}-${n}`] = 1;
+    for (let c = 1; c <= 4; c++) for (let n = 1; n <= 9; n++) s.cleared[`${c}-${n}`] = true;
     s.run.complete = true;
     prestige(s, 0);
     expect(s.crownTree).toEqual(['trophies', 'heritage']);

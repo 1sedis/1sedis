@@ -234,18 +234,3 @@ export function migrateRoulette(old: Partial<RouletteState> | undefined): { roul
 }
 
 export const ROMAN = ['', 'I', 'II', 'III'];
-
-/** Shards the old Altar perks cost, refunded when the Altar became the roulette. */
-export function altarRefund(altar: Partial<Record<string, number>> | undefined): number {
-  if (!altar) return 0;
-  const defs: Record<string, [number, number]> = {
-    darkSteel: [5, 1.5], deepHide: [5, 1.5], mantle: [8, 1.7], voidGold: [6, 1.6], veterans: [25, 2.2], echo: [30, 2.5],
-  };
-  let total = 0;
-  for (const [id, lvl] of Object.entries(altar)) {
-    const d = defs[id];
-    if (!d || !lvl) continue;
-    for (let i = 0; i < lvl; i++) total += Math.round(d[0] * d[1] ** i);
-  }
-  return total;
-}

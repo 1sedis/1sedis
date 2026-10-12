@@ -7,7 +7,7 @@ import {
   enterNode, lives, shopItems, type RunNode,
 } from '../src/game/run';
 import {
-  battleSetup, claimAchievement, commandLimit, isAbyssOpen, isEliteBattle, isLevelOpen, newGame, parseSave, prestige, recordResult, recruit, startNextRun, type GameState,
+  battleSetup, claimAchievement, commandLimit, isEliteBattle, isLevelOpen, newGame, parseSave, prestige, recordResult, recruit, startNextRun, type GameState,
 } from '../src/game/state';
 
 /** Win or lose the battle at a node the quick way. */
@@ -114,7 +114,6 @@ describe('run progress', () => {
     expect(prestige(s, 0)).toBe(4 + 2);
     expect(s.prestige).toBe(1);
     expect(s.run.complete).toBe(false);
-    expect(isAbyssOpen(s)).toBe(false);
   });
 
   it('elites are stronger and grant a relic', () => {
@@ -256,7 +255,7 @@ describe('starting armies', () => {
     b.result = 'win';
     recordResult(s, '1-9', b);
     expect(s.armies).toContain('cavalry');
-    s.run.over = { won: false, chapter: 2, at: '2-1', wins: 0, elites: 0, bosses: 1, abyss: 0, crowns: 1 };
+    s.run.over = { won: false, chapter: 2, at: '2-1', wins: 0, elites: 0, bosses: 1, crowns: 1 };
     startNextRun(s, 0, 'cavalry');
     expect(s.run.army).toBe('cavalry');
     expect(s.army.knight).toBe(2);
@@ -267,7 +266,7 @@ describe('starting armies', () => {
 
   it('a locked army cannot be chosen', () => {
     const s = newGame(0);
-    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, crowns: 0 };
     startNextRun(s, 0, 'warrior');
     expect(s.run.army).toBe('guard');
   });
@@ -278,7 +277,7 @@ describe('difficulty', () => {
     const s = newGame(0);
     s.levels.pawn = 12;
     s.gold = 10_000;
-    s.stars['1-2'] = s.stars['1-3'] = s.stars['1-4'] = 1;
+    s.cleared['1-2'] = s.cleared['1-3'] = s.cleared['1-4'] = true;
     expect(recruit(s, 'knight')).toBe(true);
     expect(s.levels.knight).toBe(1);
   });
@@ -314,7 +313,7 @@ describe('threat levels', () => {
     s.run.complete = true;
     prestige(s, 0);
     expect(s.threatMax).toBe(1);
-    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, crowns: 0 };
     startNextRun(s, 0, 'guard', 1);
     expect(s.run.threat).toBe(1);
     s.run.bosses = 4;
@@ -327,7 +326,7 @@ describe('threat levels', () => {
   it('a threat cannot be picked above the one opened, and its rules bite', () => {
     const s = newGame(0);
     s.threatMax = 3;
-    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, crowns: 0 };
     startNextRun(s, 0, 'guard', 9);
     expect(s.run.threat).toBe(3);
     const node = availableNodes(s.run)[0];

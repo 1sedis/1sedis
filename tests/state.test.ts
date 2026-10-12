@@ -23,7 +23,7 @@ describe('army', () => {
     s.gold = 1e9;
     expect(recruit(s, 'knight')).toBe(false);
     expect(recruit(s, 'king')).toBe(false);
-    s.stars['3-9'] = 1;
+    s.cleared['3-9'] = true;
     expect(isUnlocked(s, 'queen')).toBe(true);
     expect(recruit(s, 'queen')).toBe(true);
     expect(recruit(s, 'queen')).toBe(false);
@@ -84,19 +84,20 @@ describe('progress', () => {
     expect(isLevelOpen(s, '1-2')).toBe(true);
   });
 
-  it('a loss gives no stars or gold', () => {
+  it('a loss gives no gold and clears nothing', () => {
     const s = newGame(0);
     const b = createBattle(battleSetup(s, '1-1'));
     b.result = 'loss';
     const out = recordResult(s, '1-1', b);
-    expect(out).toMatchObject({ win: false, stars: 0, reward: 0 });
+    expect(out).toMatchObject({ win: false, reward: 0 });
+    expect(s.cleared['1-1']).toBeUndefined();
     expect(isLevelOpen(s, '1-2')).toBe(false);
   });
 
   it('knights unlock after level 1-2', () => {
     const s = newGame(0);
     expect(isUnlocked(s, 'knight')).toBe(false);
-    s.stars['1-2'] = 1;
+    s.cleared['1-2'] = true;
     expect(isUnlocked(s, 'knight')).toBe(true);
   });
 });

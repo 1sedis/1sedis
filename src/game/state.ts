@@ -1,8 +1,7 @@
 import { t } from '../i18n';
 import { BOARD_SIZE, MOVES_PER_BATTLE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
-  CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
-  isAbyss, replayReward, isFinale, finalePhase,
+  CHAPTERS, UNLOCKED_BY, chapterOf, enemyPlacements, firstReward, getLevel, replayReward, isFinale, finalePhase,
 } from './levels';
 import type { Branch } from './abilities';
 import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId } from './crownTree';
@@ -15,9 +14,8 @@ import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
 import { threatMods } from './ascension';
 import { ARMIES, START_SQUARES, type ArmyId } from './armies';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
-import { shardsForFloor } from './altar';
 import {
-  SPIN_COST, altarRefund, emptyRoulette, wheelExhausted, migrateRoulette, rouletteBonuses, runStartGifts, spinWheel, takeGift, BUFF_BY_ID,
+  SPIN_COST, emptyRoulette, wheelExhausted, migrateRoulette, rouletteBonuses, runStartGifts, spinWheel, takeGift, BUFF_BY_ID,
   type BuffDef, type RouletteState,
 } from './roulette';
 import { RELICS, rollOffer, type RelicId } from './relics';
@@ -61,8 +59,8 @@ export interface GameState {
   /** Upgrade level per kind (1 = base). */
   levels: Record<PieceKind, number>;
   buildings: Record<BuildingId, number>;
-  /** Levels won in this game (1 = cleared); unlocks pieces and opens the finale. */
-  stars: Record<string, number>;
+  /** Levels won in this game; unlocks pieces and opens the finale. */
+  cleared: Record<string, boolean>;
   /** Last used formation, reused between battles. */
   formation: FormationSlot[];
   /** Chosen ability per piece type: 0 = the first, 1 = the alternative. */
@@ -72,8 +70,6 @@ export interface GameState {
   relicPicks: number;
   /** The current 1-of-3 offer, kept so reloading does not reroll it. */
   relicOffer: RelicId[] | null;
-  /** Star milestones already turned into relic picks. */
-  starMilestones: number;
   /** Achievement ids unlocked, and those whose reward was taken. */
   achievements: string[];
   achievementsClaimed: string[];
@@ -85,13 +81,8 @@ export interface GameState {
   prestige: number;
   /** The highest threat level opened (a won game at the top level opens the next). */
   threatMax: number;
-  /** Next abyss floor to fight and the deepest floor ever cleared. */
-  /** `guardian`: the kind of the last Abyss guardian beaten (fights for you with "Страж на службе"). */
-  abyss: { floor: number; best: number; guardian?: PieceKind };
   /** Crown Tree nodes owned; they survive new games. */
   crownTree: NodeId[];
-  /** Abyss shards: no longer earned (the Abyss is closed); old ones became crowns. */
-  shards: number;
   /** The Crown Wheel: gifts bought with crowns, kept forever. */
   roulette: RouletteState;
   /** The finale: phases cleared (a checkpoint kept across games) and whether the Hand is beaten. */
@@ -102,7 +93,7 @@ export interface GameState {
   armies: ArmyId[];
   stats: {
     battles: number; wins: number; goldEarned: number;
-    flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
+    flawless: number; promotions: number; kills: number; crits: number; abilities: number;
     elites: number; events: number; cleanChapters: number; runs: number;
     /** The highest threat level a game was won at. */
     bestThreat?: number;
@@ -121,7 +112,7 @@ export function newGame(now = Date.now()): GameState {
     levels: perKind(1),
     abilityBranch: perKind(0) as Record<PieceKind, Branch>,
     buildings: { hq: 0, forge: 0 },
-    stars: {},
+    cleared: {},
     // The third pawn waits in the reserve: placing it is the first thing the game teaches.
     formation: [
       { kind: 'king', x: 3, y: 7 },
@@ -131,23 +122,20 @@ export function newGame(now = Date.now()): GameState {
     relics: [],
     relicPicks: 0,
     relicOffer: null,
-    starMilestones: 0,
     achievements: [],
     achievementsClaimed: [],
     tutorial: [],
     crowns: 0,
     prestige: 0,
     threatMax: 0,
-    abyss: { floor: 1, best: 0 },
     crownTree: [],
-    shards: 0,
     roulette: emptyRoulette(),
     finale: { phase: 0, beaten: false },
     run: newRun((now % 1_000_000_007) >>> 0),
     armies: ['guard'],
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
-      flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
+      flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0,
       elites: 0, events: 0, cleanChapters: 0, runs: 0,
     },
   };
@@ -158,20 +146,11 @@ export function newGame(now = Date.now()): GameState {
 // ---------- Progress ----------
 
 export function isCleared(s: GameState, id: string): boolean {
-  if (isAbyss(id)) return abyssFloor(id) < s.abyss.floor;
   if (isFinale(id)) return s.finale.beaten || finalePhase(id) <= s.finale.phase;
-  return (s.stars[id] ?? 0) > 0;
+  return !!s.cleared[id];
 }
 
-/**
- * The Abyss is closed: the Crown Wheel took its place. Its floor generator stays
- * in levels.ts for a future endless mode.
- */
-export function isAbyssOpen(_s: GameState): boolean {
-  return false;
-}
-
-/** The finale opens in game 3 after the Black Queen (and stays open after it), or at Abyss floor 30. */
+/** The finale opens in game 3 after the Black Queen (and stays open after it). */
 export const FINALE_GAME = 3;
 
 export function isFinaleOpen(s: GameState): boolean {
@@ -181,7 +160,6 @@ export function isFinaleOpen(s: GameState): boolean {
 }
 
 export function isLevelOpen(s: GameState, id: string): boolean {
-  if (isAbyss(id)) return isAbyssOpen(s) && abyssFloor(id) === s.abyss.floor;
   if (isFinale(id)) return isFinaleOpen(s) && (s.finale.beaten || finalePhase(id) <= s.finale.phase + 1);
   // Campaign levels open through the run map: the battle node being fought or one that can be entered.
   return runLevelOpen(s.run, id);
@@ -193,10 +171,6 @@ export function currentLevelId(s: GameState): string {
   if (next?.level) return next.level;
   const chapter = CHAPTERS[s.run.chapter - 1];
   return chapter.levels[chapter.levels.length - 1].id;
-}
-
-export function totalStars(s: GameState): number {
-  return Object.values(s.stars).reduce((a, b) => a + b, 0);
 }
 
 export function isUnlocked(s: GameState, kind: PieceKind): boolean {
@@ -284,7 +258,7 @@ export function hasRelic(s: GameState, id: RelicId): boolean {
 
 export function commandLimit(s: GameState, levelId: string): number {
   return chapterOf(levelId).limit + s.buildings.hq + (hasRelic(s, 'reserve') ? 1 : 0) + (hasNode(s, 'banner') ? 1 : 0)
-    + (isAbyss(levelId) || isFinale(levelId) ? 0 : threatMods(s.run.threat ?? 0).limit);
+    + (isFinale(levelId) ? 0 : threatMods(s.run.threat ?? 0).limit);
 }
 
 export function forgeMultiplier(s: GameState): number {
@@ -323,10 +297,10 @@ export function chooseGift(s: GameState, id: string): BuffDef | null {
 /**
  * Enemy levels added by the current prestige. The campaign ramps up by chapter
  * (+0.5 per game in the first two chapters, +1 from chapter 3 on: the distortions already make the later chapters harder) so a fresh army can still
- * win the first fields; the Abyss always gets the full +2.
+ * win the first fields; without a level the full +2 is returned.
  */
 export function prestigeEnemyBonus(s: GameState, levelId?: string): number {
-  if (!levelId || isAbyss(levelId)) return 2 * s.prestige;
+  if (!levelId) return 2 * s.prestige;
   return Math.round((chapterOf(levelId).id <= 2 ? 0.5 : 1) * s.prestige);
 }
 
@@ -488,7 +462,7 @@ const BATTLE_PERKS: ReadonlySet<NodeId> = new Set<NodeId>([
 
 /** The distortion bending this level's rules (campaign levels only). */
 export function levelDistortions(s: GameState, levelId: string): DistortionId[] {
-  return isAbyss(levelId) || isFinale(levelId) ? [] : distortionsFor(gameNumber(s), chapterOf(levelId).id);
+  return isFinale(levelId) ? [] : distortionsFor(gameNumber(s), chapterOf(levelId).id);
 }
 
 function hasDistortion(s: GameState, levelId: string, id: DistortionId): boolean {
@@ -564,7 +538,7 @@ function finaleSetup(s: GameState, levelId: string, base: BattleSetup): BattleSe
 /** Is this level fought at an elite node of the run map (stronger enemies, a relic for the win)? */
 export function isEliteBattle(s: GameState, levelId: string): boolean {
   const node = currentNode(s.run);
-  return !isAbyss(levelId) && !isFinale(levelId) && node?.kind === 'elite' && node.level === levelId;
+  return !isFinale(levelId) && node?.kind === 'elite' && node.level === levelId;
 }
 
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
@@ -602,7 +576,7 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const distortions = levelDistortions(s, levelId);
   const elite = isEliteBattle(s, levelId);
   const rule = elite ? currentNode(s.run)?.rule : undefined;
-  const campaignLevel = !isAbyss(levelId) && !isFinale(levelId);
+  const campaignLevel = !isFinale(levelId);
   const tm = threatMods(campaignLevel ? s.run.threat ?? 0 : 0);
   const eliteUp = elite ? ELITE_LEVELS + tm.eliteLevels : 0;
   let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard') || elite)
@@ -621,7 +595,7 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
       pick.trait ??= 'furious';
     }
   }
-  if (!isAbyss(levelId) && !isFinale(levelId)) {
+  if (!isFinale(levelId)) {
     const terrain = levelTerrain(levelId);
     const free = (x: number, y: number) => walkable(terrain[y * BOARD_SIZE + x])
       && !allies.some((a) => a.x === x && a.y === y) && !enemies.some((e) => e.x === x && e.y === y);
@@ -648,7 +622,7 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   if (hasRelic(s, 'ironKing')) relicKind.king = { atk: 1.4, hp: 1 };
   const lone = hasRelic(s, 'loneWolf') && allies.filter((a) => a.kind !== 'king').length <= 3 ? 1.4 : 1;
   // Event blessings and curses.
-  const campaign = !isAbyss(levelId) && !isFinale(levelId);
+  const campaign = !isFinale(levelId);
   const boons = campaign ? activeBoons(s.run, !!getLevel(levelId).boss) : [];
   const boon = (key: 'atk' | 'hp' | 'foe') => boons.reduce((v, x) => v * (x[key] ?? 1), 1);
   return {
@@ -694,16 +668,10 @@ function mergeKind(
 
 export interface BattleOutcome {
   win: boolean;
-  stars: number;
-  /** Stars above the previous best. */
-  newStars: number;
   firstClear: boolean;
   reward: number;
-  conditions: { win: boolean; king: boolean; losses: boolean };
   /** Relic picks earned by this battle. */
   relicsEarned: number;
-  /** Abyss shards earned by this battle. */
-  shards: number;
   /** Share of enemy health removed (1 on a win). */
   damageShare: number;
   /** "Трофеи": the boss gave a free spin of the Crown Wheel. */
@@ -724,18 +692,9 @@ export const CONSOLATION_SHARE = 0.5;
 export function recordResult(s: GameState, levelId: string, b: Battle): BattleOutcome {
   const level = getLevel(levelId);
   const win = b.result === 'win';
-  const conditions = {
-    win,
-    king: win && b.kingMinRatio >= 0.5,
-    losses: win && b.allyLosses <= level.maxLosses,
-  };
-  const stars = win ? 1 + Number(conditions.king) + Number(conditions.losses) : 0;
   const damageShare = enemyDamageShare(b);
-  if (isAbyss(levelId)) return recordAbyss(s, levelId, b, stars, conditions, damageShare);
-  if (isFinale(levelId)) return recordFinale(s, levelId, b, stars, conditions, damageShare);
-  const prev = s.stars[levelId] ?? 0;
-  const firstClear = win && prev === 0;
-  const newStars = Math.max(0, stars - prev);
+  if (isFinale(levelId)) return recordFinale(s, levelId, b, damageShare);
+  const firstClear = win && !s.cleared[levelId];
   // A battle started straight from a level (not through the map) still enters its node.
   if (!s.run.at) {
     const node = availableNodes(s.run).find((n) => n.level === levelId);
@@ -748,7 +707,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   } else {
     reward = Math.round(replayReward(levelId) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
   }
-  s.stars[levelId] = Math.max(prev, win ? 1 : 0);
+  if (win) s.cleared[levelId] = true;
   // A relic for every boss and every elite.
   const relicsEarned = win && (elite || (firstClear && level.boss)) ? 1 : 0;
   s.relicPicks += relicsEarned;
@@ -781,7 +740,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     runOver = !spared;
   }
   return {
-    win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0, damageShare, trophy,
+    win, firstClear, reward, relicsEarned, damageShare, trophy,
     spared, runOver, chapterDone, elite,
   };
 }
@@ -797,44 +756,12 @@ function countBattle(s: GameState, b: Battle, win: boolean, reward: number): voi
   s.stats.goldEarned += reward;
 }
 
-/** Abyss floors: no stars are stored; a win pays and opens the next floor, every 10th floor grants a relic. */
-function recordAbyss(
-  s: GameState, levelId: string, b: Battle, stars: number, conditions: BattleOutcome['conditions'], damageShare: number,
-): BattleOutcome {
-  const floor = abyssFloor(levelId);
-  const win = b.result === 'win';
-  let reward = 0;
-  let relicsEarned = 0;
-  let shards = 0;
-  if (win) {
-    shards = shardsForFloor(floor) + (hasNode(s, 'hunger') ? 1 : 0);
-    s.shards += shards;
-    if (floor % 10 === 0) s.abyss.guardian = enemyPlacements(getLevel(levelId)).find((p) => p.boss)?.kind ?? s.abyss.guardian;
-    reward = abyssReward(floor) * (hasRelic(s, 'plunder') ? 1.3 : 1);
-    reward = Math.round(reward * goldMultiplier(s));
-    s.abyss.floor = floor + 1;
-    s.abyss.best = Math.max(s.abyss.best, floor);
-    if (floor % 10 === 0) relicsEarned = 1;
-    s.relicPicks += relicsEarned;
-    s.gold += reward;
-  }
-  countBattle(s, b, win, reward);
-  // The Abyss is the end of a won run: the first loss closes it (a spare banner still saves once).
-  let spared = false;
-  let runOver = false;
-  if (!win) {
-    spared = loseNode(s, levelId, true) === 'spared';
-    runOver = !spared;
-  }
-  return { win, stars, newStars: 0, firstClear: win, reward, conditions, relicsEarned, shards, damageShare, spared, runOver };
-}
-
 /** Crowns for beating the Hand the first time. */
 export const FINALE_CROWNS = 10;
 
 /** The finale: a won phase is a checkpoint; beating the Hand ends the story (once) and pays crowns. */
 function recordFinale(
-  s: GameState, levelId: string, b: Battle, stars: number, conditions: BattleOutcome['conditions'], damageShare: number,
+  s: GameState, levelId: string, b: Battle, damageShare: number,
 ): BattleOutcome {
   const phase = finalePhase(levelId);
   const win = b.result === 'win';
@@ -849,7 +776,7 @@ function recordFinale(
     }
   }
   countBattle(s, b, win, 0);
-  return { win, stars, newStars: 0, firstClear, reward: 0, conditions, relicsEarned: 0, shards: 0, damageShare, ending };
+  return { win, firstClear, reward: 0, relicsEarned: 0, damageShare, ending };
 }
 
 // ---------- Prestige ----------
@@ -893,8 +820,6 @@ export function startNextRun(s: GameState, now = Date.now(), army: ArmyId = s.ru
   fresh.tutorial = s.tutorial;
   fresh.abilityBranch = s.abilityBranch;
   fresh.stats = s.stats;
-  fresh.abyss = { floor: 1, best: s.abyss.best, guardian: s.abyss.guardian };
-  fresh.shards = 0;
   fresh.roulette = s.roulette;
   fresh.finale = s.finale;
   fresh.crownTree = s.crownTree;
@@ -983,9 +908,27 @@ function pawnRefund(count: number): number {
   return gold;
 }
 
+/** Fields of older saves that the game no longer keeps; parseSave reads them once and drops them. */
+interface LegacySave {
+  /** Before `cleared`: a star rating per level (any value above 0 = cleared). */
+  stars?: Record<string, number>;
+  starMilestones?: number;
+  /** The closed Abyss and its shards (shards become crowns). */
+  abyss?: unknown;
+  shards?: number;
+  /** The old Altar: shards spent on it are refunded first. */
+  altar?: Record<string, number>;
+  /** The removed treasury. */
+  treasury?: number;
+  lastTick?: number;
+}
+
+/** Keys of older saves to drop after migration. */
+const LEGACY_KEYS = ['stars', 'starMilestones', 'abyss', 'shards', 'altar', 'treasury', 'lastTick'] as const;
+
 export function parseSave(raw: string, now = Date.now()): GameState | null {
   try {
-    const data = JSON.parse(raw) as Partial<GameState>;
+    const data = JSON.parse(raw) as Partial<GameState> & LegacySave;
     if (!data || data.version !== 2) return null;
     const state = newGame(now);
     const merged = {
@@ -998,43 +941,60 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       abilityBranch: { ...state.abilityBranch, ...data.abilityBranch },
       buildings: { ...state.buildings, ...data.buildings },
       stats: { ...state.stats, ...data.stats },
-      abyss: { ...state.abyss, ...data.abyss },
+      // Older saves kept a star rating per level: any star means the level is cleared.
+      cleared: { ...legacyCleared(data.stars), ...data.cleared },
       finale: { ...state.finale, ...data.finale },
       run: data.run ? { ...state.run, ...data.run } : state.run,
       armies: data.armies?.length ? [...data.armies] : state.armies,
       crownTree: [...(data.crownTree ?? [])],
       roulette: { ...state.roulette, ...data.roulette, owned: { ...data.roulette?.owned } },
-      // The old Altar became the roulette: give back every shard spent on it.
-      shards: (data.shards ?? 0) + altarRefund((data as { altar?: Record<string, number> }).altar),
-      // A save from before the Crown Wheel (no `free` field): its roulette is converted below.
-      ...(data.roulette && data.roulette.free === undefined ? { _oldRoulette: true } : {}),
-      altar: undefined,
     } as GameState;
-    if (!data.run) migrateToRun(merged);
-    // The treasury is gone (a run earns gold on its map only); relics that no longer exist are dropped.
-    const old = merged as GameState & { treasury?: number; lastTick?: number };
-    delete old.treasury;
-    delete old.lastTick;
+    for (const key of LEGACY_KEYS) delete (merged as unknown as Record<string, unknown>)[key];
+    // The treasury is gone (a run earns gold on its map only).
     delete (merged.buildings as Record<string, number>).treasury;
+    delete (merged.stats as Record<string, number>).treasuryCollected;
+    if (merged.run.over) delete (merged.run.over as { abyss?: number }).abyss;
+    if (!data.run) migrateToRun(merged);
+    // Relics that no longer exist are dropped.
     merged.relics = merged.relics.filter((id) => RELICS[id]);
-    // The Abyss and its shards are gone: shards and old roulette buffs become crowns, legendaries stay.
-    const flagged = merged as GameState & { _oldRoulette?: boolean };
-    if (flagged._oldRoulette || !data.roulette) {
+    // A save from before the Crown Wheel (no `free` field): old roulette buffs become crowns, legendaries stay.
+    if (!data.roulette || data.roulette.free === undefined) {
       const { roulette, crowns } = migrateRoulette(data.roulette);
       merged.roulette = roulette;
       merged.crowns += crowns;
     }
-    delete flagged._oldRoulette;
     // Starting armies came later: open the ones whose bosses this save has beaten.
     const opened: [string, ArmyId][] = [['boss_1', 'cavalry'], ['boss_2', 'archers'], ['boss_3', 'fortress']];
     for (const [ach, id] of opened) if (merged.achievements.includes(ach) && !merged.armies.includes(id)) merged.armies.push(id);
     if (merged.prestige > 0 && !merged.armies.includes('warrior')) merged.armies.push('warrior');
-    merged.crowns += Math.floor(merged.shards / 10);
-    merged.shards = 0;
+    // The Abyss and the Altar are gone: their shards (plus every shard spent on the Altar) become crowns.
+    merged.crowns += Math.floor(((data.shards ?? 0) + altarRefund(data.altar)) / 10);
     return merged;
   } catch {
     return null;
   }
+}
+
+/** Shards the old Altar perks cost, refunded when the Altar became the roulette. */
+function altarRefund(altar: Partial<Record<string, number>> | undefined): number {
+  if (!altar) return 0;
+  const defs: Record<string, [number, number]> = {
+    darkSteel: [5, 1.5], deepHide: [5, 1.5], mantle: [8, 1.7], voidGold: [6, 1.6], veterans: [25, 2.2], echo: [30, 2.5],
+  };
+  let total = 0;
+  for (const [id, lvl] of Object.entries(altar)) {
+    const d = defs[id];
+    if (!d || !lvl) continue;
+    for (let i = 0; i < lvl; i++) total += Math.round(d[0] * d[1] ** i);
+  }
+  return total;
+}
+
+/** Cleared levels of a save from before `cleared` (a star rating per level). */
+function legacyCleared(stars: Record<string, number> | undefined): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  for (const [id, n] of Object.entries(stars ?? {})) if (n > 0) out[id] = true;
+  return out;
 }
 
 /** A save from before the run map: the run starts at the first chapter whose boss still stands. */

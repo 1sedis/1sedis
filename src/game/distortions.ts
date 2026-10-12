@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 /**
  * Distortions: the Black King bends the rules of the campaign as the story goes.
- * They never touch the Abyss or the finale.
+ * They never touch the finale.
  */
 export type DistortionId = 'awakening' | 'darkness' | 'guard' | 'blackKing';
 

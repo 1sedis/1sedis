@@ -704,13 +704,9 @@ img { image-rendering: pixelated; }
 
 .level-name { font-size: 16px; text-align: center; line-height: 1.1; }
 .level-node.locked .level-name { color: var(--muted); }
-.level-stars { color: var(--gold); letter-spacing: 2px; min-height: 18px; }
 
 .map-side { display: flex; flex-direction: column; gap: 24px; }
-.treasury-amount { font-size: 24px; margin-top: 6px; }
-.treasury-amount b { font-size: 40px; font-weight: 400; color: var(--gold); display: inline-block; transform-origin: left center; }
-.treasury-info { color: var(--muted); font-size: 16px; margin-bottom: 12px; }
-.treasury .btn { width: calc(100% - 8px); }
+.side-info { color: var(--muted); font-size: 16px; margin-bottom: 12px; }
 
 .camp-link {
   display: grid;
@@ -798,7 +794,6 @@ img { image-rendering: pixelated; }
 .row-actions { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
 .army-row .row-level { display: block; margin-top: 4px; }
 
-.badge-treasury::after { background: var(--gold); clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
 .badge-hq::after { background: var(--violet); clip-path: polygon(0 100%, 0 30%, 50% 0, 100% 30%, 100% 100%, 65% 100%, 65% 60%, 35% 60%, 35% 100%); }
 .badge-forge::after { background: var(--coral); clip-path: polygon(40% 0, 60% 0, 60% 70%, 80% 70%, 80% 85%, 60% 85%, 60% 100%, 40% 100%, 40% 85%, 20% 85%, 20% 70%, 40% 70%); }
 
@@ -1171,21 +1166,11 @@ img { image-rendering: pixelated; }
   15%, 45%, 100% { filter: none; transform: scale(1); }
 }
 
-/* ---------- Abyss & new game ---------- */
-.board-frame[data-theme='5'] { --cell-light: #2b2f4a; --cell-dark: #1d2036; --board-edge: #0b0d1c; --board-label: #7fe0ff; }
-.abyss-card { position: relative; background: linear-gradient(180deg, var(--card), #120f27); }
-.abyss-card .btn, .prestige-card .btn { width: calc(100% - 8px); }
-.abyss-img { position: absolute; right: 16px; top: 12px; width: 44px; height: 44px; filter: drop-shadow(0 0 8px rgba(255, 79, 123, 0.7)); animation: bob 1.2s steps(2) infinite; }
-.abyss-card.locked .abyss-img { filter: brightness(0.4); animation: none; }
+/* ---------- New game ---------- */
+.prestige-card .btn { width: calc(100% - 8px); }
 .prestige-card { --frame: var(--gold-deep); }
 
-/* ---------- Abyss shards & altar ---------- */
 .camp-side { display: flex; flex-direction: column; gap: 28px; }
-.camp-altar { display: flex; flex-direction: column; gap: 14px; background: linear-gradient(180deg, var(--card), #150f2c); --frame: #4b2f86; }
-.shard-count { color: #c9a6ff; font-size: 20px; }
-.btn-shard { --face: #8a5cf0; --frame: #3a2075; --depth: #261550; color: #fff; min-width: 92px; }
-.badge-shard::after { background: #c9a6ff; clip-path: polygon(50% 0, 90% 35%, 50% 100%, 10% 35%); }
-.result-unlock.shard { color: #c9a6ff; }
 .relic-icon img { width: 34px; height: 34px; }
 
 /* ---------- Threats & battle report ---------- */
@@ -1251,10 +1236,9 @@ img { image-rendering: pixelated; }
 .task-hint { margin: 2px 0 0; padding-left: 10px; color: var(--muted); font-size: 16px; line-height: 1.4; box-shadow: inset 3px 0 0 var(--violet); }
 .task-relics:not([hidden]) { padding-top: 4px; }
 .task-relics .relic-strip { padding: 4px 0; }
-.treasury-info { margin-top: 2px; }
-.abyss-img { right: 54px; top: 10px; width: 36px; height: 36px; }
+.side-info { margin-top: 2px; }
 @media (min-width: 561px) { .army-row .row-actions { flex-direction: row; } }
-.camp-altar .row-name, .camp-buildings .row-name { flex-wrap: wrap; }
+.camp-buildings .row-name { flex-wrap: wrap; }
 .result .conditions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; }
 
 /* Save export / import */
@@ -1448,7 +1432,6 @@ button.ability-chip:hover { opacity: 1; }
 .arena-screen[data-theme="2"] { --glow: #3fbf7f; --mote: #7fe08f; }
 .arena-screen[data-theme="3"] { --glow: #8a9ad0; --mote: #d8dcf0; }
 .arena-screen[data-theme="4"] { --glow: #ff5d6d; --mote: #ffb347; }
-.arena-screen[data-theme="5"] { --glow: #7f5bff; --mote: #b78cff; }
 .board-wrap { position: relative; isolation: isolate; padding: 12px 0; }
 .board-wrap::before {
   content: ''; position: absolute; inset: -40px -20px; z-index: -2; pointer-events: none;
@@ -1489,7 +1472,6 @@ button.ability-chip:hover { opacity: 1; }
 .arena-screen[data-theme="2"] { --glow-a: rgba(63, 191, 127, 0.30); }
 .arena-screen[data-theme="3"] { --glow-a: rgba(138, 154, 208, 0.32); }
 .arena-screen[data-theme="4"] { --glow-a: rgba(255, 93, 109, 0.30); }
-.arena-screen[data-theme="5"] { --glow-a: rgba(127, 91, 255, 0.36); }
 .board-wrap::before { background: radial-gradient(ellipse 60% 55% at 50% 50%, var(--glow-a), transparent 80%); }
 .board-wrap::before { inset: -50px -10px; background: radial-gradient(ellipse 58% 62% at 50% 50%, var(--glow-a) 0 52%, transparent 78%); }
 
@@ -1655,7 +1637,7 @@ body[data-chapter="5"] { --frame-accent: #43327e; --accent-ink: #d8c8ff; }
 @keyframes relic-flip { 0% { transform: scaleX(1); } 50% { transform: scaleX(0.02); } 100% { transform: scaleX(1); } }
 .relic-card:not(.face-down):not(.flipping):hover { transform: translateY(-4px); }
 
-/* ---------- Roulette of the Abyss ---------- */
+/* ---------- Roulette ---------- */
 .spin-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
 .spin-btn { flex: 1; min-width: 130px; }
 .pity-line { color: var(--muted); font-size: 16px; }

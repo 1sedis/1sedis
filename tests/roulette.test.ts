@@ -57,7 +57,7 @@ describe('crown wheel', () => {
     expect(setup.allyAtkMult).toBeCloseTo(battleSetup(newGame(0), '1-1').allyAtkMult! * 1.16);
     expect(setup.legends).toEqual(['wrath']);
     expect(playerMoves(s, '1-9')).toBe(playerMoves(s, '1-1') + 1);
-    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, crowns: 0 };
     startNextRun(s, 0);
     expect(s.army.knight).toBe(1);
     expect(s.army.pawn).toBe(newGame(0).army.pawn + 1);
@@ -75,7 +75,7 @@ describe('crown wheel', () => {
     const loaded = parseSave(JSON.stringify(old))!;
     expect(loaded.roulette.owned).toEqual({ l_chain: 1 });
     expect(loaded.crowns).toBe(1 + 2 + 3);
-    expect(loaded.shards).toBe(0);
+    expect('shards' in loaded).toBe(false);
     expect(parseSave(JSON.stringify(loaded))!.crowns).toBe(loaded.crowns);
   });
 });

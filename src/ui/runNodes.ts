@@ -135,16 +135,14 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
   const o: RunOver | null = s.run.over;
   if (!o) return;
   const content = el('div', `run-end ${o.won ? 'won' : 'lost'}`);
-  const where = o.at.startsWith('abyss-')
-    ? t('в Бездне на этаже {n}', { n: o.abyss + 1 })
-    : o.won ? t('после победы над Чёрным ферзём') : t('в главе {n} «{chapter}», бой «{level}»', { n: o.chapter, chapter: CHAPTERS[o.chapter - 1].name, level: levelOf(o.at).name });
+  const where = o.won ? t('после победы над Чёрным ферзём') : t('в главе {n} «{chapter}», бой «{level}»', { n: o.chapter, chapter: CHAPTERS[o.chapter - 1].name, level: levelOf(o.at).name });
   content.append(
     el('h2', 'run-end-title', o.won ? t('Партия выиграна!') : t('Забег окончен')),
     el('p', 'run-end-where', o.won ? t('Забег завершён {where}.', { where }) : t('Армия пала {where}.', { where })),
   );
   const stats = el('ul', 'run-end-stats');
   for (const [label, value] of [
-    [t('Побед в боях'), o.wins], [t('Элитных отрядов'), o.elites], [t('Боссов'), o.bosses], ...(o.abyss ? [[t('Этажей Бездны'), o.abyss]] : []),
+    [t('Побед в боях'), o.wins], [t('Элитных отрядов'), o.elites], [t('Боссов'), o.bosses],
   ] as [string, number][]) {
     stats.append(el('li', '', `${label}: ${value}`));
   }

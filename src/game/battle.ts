@@ -1476,10 +1476,6 @@ function enrage(b: Battle, boss: Unit): void {
       boss.atkMult *= 1.2;
       applyStats(boss, boss.kind);
       break;
-    case 'guardian':
-      boss.atkMult *= 1.3;
-      applyStats(boss, boss.kind);
-      break;
     case 'queen': {
       // "Отражения": two copies of the queen; while one stands, she cannot be hurt.
       for (let i = 0; i < 2; i++) {
@@ -1590,14 +1586,6 @@ function castBoss(b: Battle, boss: Unit): boolean {
       for (const f of foes) perFile[f.x]++;
       const file = perFile.indexOf(Math.max(...perFile));
       warn(b, boss, Array.from({ length: BOARD_SIZE }, (_, y) => idx(file, y)), damage);
-      break;
-    }
-    case 'guardian': {
-      const crowd = (u: Unit) => foes.filter((f) => chebyshev(u, f.x, f.y) <= 1).length;
-      const centre = [...foes].sort((a, c) => crowd(c) - crowd(a) || a.uid - c.uid)[0];
-      const cells: number[] = [];
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside(centre.x + dx, centre.y + dy)) cells.push(idx(centre.x + dx, centre.y + dy));
-      warn(b, boss, cells, damage * 1.2);
       break;
     }
     case 'blackKing': {

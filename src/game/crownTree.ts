@@ -1,6 +1,6 @@
 /**
  * Crown Tree: crowns from new games buy doctrines that change the rules of
- * battle, the court and the Abyss. Each branch has four tiers; on every tier
+ * battle, the court and the run. Each branch has four tiers; on every tier
  * the player picks one of two nodes. Deep tiers open in later games.
  */
 import { t } from '../i18n';

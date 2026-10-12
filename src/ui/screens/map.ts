@@ -45,14 +45,14 @@ export class MapScreen implements Screen {
   private prestigeCard = el('div', 'card prestige-card');
   /** Wide screens: the run at a glance beside the map. */
   private runCard = el('div', 'card run-card');
-  private prestigeInfo = el('div', 'treasury-info');
+  private prestigeInfo = el('div', 'side-info');
   private prestigeBtn = el('button', 'btn btn-up', t('Новая партия'));
   private treeBtn = el('button', 'btn btn-buy tree-btn', t('♛ Древо короны'));
   private wheelBtn = el('button', 'btn btn-up wheel-btn', t('◎ Колесо короны'));
   private chronicleBtn = el('button', 'btn btn-small chronicle-btn', t('Летопись'));
-  private distortionInfo = el('div', 'distortion-info treasury-info');
+  private distortionInfo = el('div', 'distortion-info side-info');
   private finaleCard = el('div', 'card finale-card');
-  private finaleInfo = el('div', 'treasury-info');
+  private finaleInfo = el('div', 'side-info');
   private finalePips = el('div', 'finale-pips');
   private finaleBtn = el('button', 'btn btn-danger finale-btn');
   private creditsBtn = el('button', 'btn btn-small', t('Титры'));

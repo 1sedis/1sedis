@@ -22,8 +22,8 @@ import {
  * (so rooks and queens get bought), runs replayed until each game is won,
  * and finally the three phases of the finale.
  *
- * Time model: battles at x2 speed plus 10 s of fiddling each, and waiting for
- * the treasury when nothing is affordable. Run: npm run bot:story
+ * Time model: battles at x2 speed plus 10 s of fiddling each.
+ * Run: npm run bot:story
  */
 
 /**
@@ -84,7 +84,7 @@ function armyPower(s: GameState, limit: number): number {
   return fielded * forgeMultiplier(s) ** 2;
 }
 
-/** Every purchase on offer with its gain in power per gold (treasury upgrades by payback). */
+/** Every purchase on offer with its gain in power per gold. */
 function options(s: GameState, limit: number): { cost: number; score: number; buy: () => boolean }[] {
   const out: { cost: number; score: number; buy: () => boolean }[] = [];
   const base = armyPower(s, limit);
@@ -226,7 +226,7 @@ test('story bot', () => {
     log.push(`Партия ${game}: ${((t - start) / 3600).toFixed(1)} ч (${chText}) · ${hard.join(' · ') || '—'}`);
     log.push(`  армия ${JSON.stringify(Object.fromEntries(Object.entries(s.army).filter(([, n]) => n > 0)))}`
       + ` · уровни ${JSON.stringify(Object.fromEntries(Object.entries(s.levels).filter(([k]) => s.army[k as PieceKind] > 0)))}`
-      + ` · кузница ${s.buildings.forge} · реликвий ${s.relics.length} · Бездна ${s.abyss.best}`);
+      + ` · кузница ${s.buildings.forge} · реликвий ${s.relics.length}`);
     if (game < 3) {
       const crowns = prestige(s, t * 1000);
       log.push(`  → новая партия: +${crowns} ♛, древо: ${s.crownTree.join(', ') || '—'}`);

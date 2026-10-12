@@ -9,7 +9,7 @@ const withRow = (y: number, row: string) => plain.map((r, i) => (i === y ? row :
 
 describe('terrain maps', () => {
   it('are 8x8 and never put an enemy on rock or water', () => {
-    const ids = [...ALL_LEVELS.map((l) => l.id), ...Array.from({ length: 40 }, (_, i) => `abyss-${i + 1}`)];
+    const ids = ALL_LEVELS.map((l) => l.id);
     for (const id of ids) {
       const rows = levelTerrainRows(id);
       if (!rows) continue;

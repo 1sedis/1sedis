@@ -52,7 +52,7 @@ test('moves sim', () => {
   for (const name of Object.keys(policies)) rows[name] = { wins: 0, share: 0 };
   for (const level of ALL_LEVELS) {
     const s = newGame(0);
-    for (let c = 1; c <= 4; c++) for (let n = 1; n <= 9; n++) s.stars[`${c}-${n}`] = 1;
+    for (let c = 1; c <= 4; c++) for (let n = 1; n <= 9; n++) s.cleared[`${c}-${n}`] = true;
     s.army = { ...s.army, pawn: 8, knight: 2, bishop: 2, rook: 2, queen: 1 };
     for (const k of Object.keys(s.levels) as PieceKind[]) s.levels[k] = Math.max(1, level.level - 1);
     bestFormation(s, level.id, commandLimit(s, level.id));
