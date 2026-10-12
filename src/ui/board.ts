@@ -341,7 +341,16 @@ export class BoardView {
 
   /** A short line shouted by a piece in battle. */
   bark(x: number, y: number, text: string, team: Team | 'hand'): void {
-    const b = el('div', `bark ${team}${y < 2 ? ' below' : ''}${x <= 1 ? ' edge-left' : x >= 6 ? ' edge-right' : ''}`, text);
+    // A new line pushes out older ones nearby, so speech bubbles never pile on top of each other.
+    const below = y < 2;
+    for (const old of this.fxLayer.querySelectorAll<HTMLElement>('.bark')) {
+      const ox = Number(old.dataset.x);
+      const oy = Number(old.dataset.y);
+      if (Math.abs(ox - x) <= 3 && Math.abs(oy - y) <= 1 && (oy < 2) === below) old.remove();
+    }
+    const b = el('div', `bark ${team}${below ? ' below' : ''}${x <= 1 ? ' edge-left' : x >= 6 ? ' edge-right' : ''}`, text);
+    b.dataset.x = String(x);
+    b.dataset.y = String(y);
     b.style.left = `${(x + 0.5) * 12.5}%`;
     b.style.top = `${(y < 2 ? y + 1 : y) * 12.5}%`;
     b.addEventListener('animationend', () => b.remove());

@@ -2306,3 +2306,13 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 @keyframes move-hint { 50% { border-color: #fff; inset: -12%; } }
 @media (width <= 560px) { .moves-tokens { height: 38px; gap: 6px; } .move-token { width: 16px; height: 16px; } .moves-label { font-size: 13px; } }
 @media (prefers-reduced-motion: reduce) { .moves-tokens.hot, .unit.move-hint .unit-body::after { animation: none; } }
+
+/* ---------- Phone readability (polish 2.5) ---------- */
+@media (width <= 560px) {
+  .hp { left: 8%; right: 8%; height: 10%; min-height: 5px; bottom: 2%; }
+  .fx-dmg { font-size: 17px; }
+  .fx-dmg.crit { font-size: 23px; }
+  .trait-badge { width: 30%; height: 30%; top: -8%; right: -8%; padding: 1px; }
+  .unit.champion .trait-badge { transform: scale(1.15); }
+  .bark { font-size: 13px; padding: 2px 6px; max-width: 46vw; white-space: normal; text-align: center; line-height: 1.2; }
+}
