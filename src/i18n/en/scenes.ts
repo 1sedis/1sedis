@@ -15,8 +15,6 @@ export const scenes: Record<string, string> = {
   'Значит, я буду первым.': 'Then I shall be the first.',
   'Довольно игр!': 'Enough games!',
   'Ферзь, сотри их с доски. Эта партия — моя.': 'Queen, wipe them from the board. This game is mine.',
-  'Ты победил меня… но под доской есть Бездна.': 'You have beaten me… but beneath the board lies the Abyss.',
-  'И она голодна. Спускайся, если не боишься.': 'And it is hungry. Come down, if you dare.',
   // src/ui/scenes.ts — the opening
   'Тысячу лет Белое королевство жило в мире.': 'For a thousand years the White Kingdom lived in peace.',
   'Пока с севера не пришёл Чёрный король.': 'Until the Black King came out of the north.',
@@ -43,8 +41,8 @@ export const scenes: Record<string, string> = {
   'Я играю её тысячу лет. Проиграв, я переворачиваю доску — и всё начинается заново.': 'I have played it for a thousand years. When I lose, I flip the board, and it all begins anew.',
   'Но ты… ты помнишь. Этого раньше не случалось.': 'But you… you remember. That has never happened before.',
   'Из трещин сочится тьма. Мои фигуры её пьют, а твои — растворяются.': 'Darkness seeps from the cracks. My pieces drink it; yours dissolve.',
-  'Бездна под доской — не пустота. Это все фигуры, сброшенные за тысячу партий.': 'The Abyss beneath the board is not empty. It holds every piece cast down in a thousand games.',
-  'Осколки, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.': 'The shards you gather are their memory. That is why the Wheel whispers in the voices of the fallen.',
+  'Под доской — не пустота. Там лежат все фигуры, сброшенные за тысячу партий.': 'Beneath the board is not emptiness. There lie all the pieces swept away in a thousand games.',
+  'Короны, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.': 'The crowns you gather are their memory. That is why the Wheel whispers in the voices of the fallen.',
   'Я больше не посылаю новобранцев.': 'I send no more raw recruits.',
   'Моя гвардия стоит на каждой клетке — с первой до последней.': 'My guard stands on every square, from the first to the last.',
   'Пробуждение и тьма никуда не делись. Искажения копятся.': 'The Awakening and the darkness remain. The distortions pile up.',
@@ -113,5 +111,5 @@ export const scenes: Record<string, string> = {
   'Пропустить': 'Skip',
   'Дальше': 'Next',
   // src/ui/tutorial.ts
-  'Понятно': 'Got It',
+  'Понятно': 'Got it',
 };

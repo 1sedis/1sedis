@@ -50,13 +50,6 @@ export function levelScene(levelId: string): Step[] | null {
         say(bk, t('Ферзь, сотри их с доски. Эта партия — моя.')),
         { t: 'roar', id: 'boss' },
       ];
-    case 'abyss-1':
-      return [
-        say(bk, t('Ты победил меня… но под доской есть Бездна.')),
-        { t: 'crack' },
-        { t: 'dark', cells: [C(2, 3), C(5, 3), C(3, 4), C(4, 4)] },
-        say(bk, t('И она голодна. Спускайся, если не боишься.')),
-      ];
     default:
       return null;
   }
@@ -223,7 +216,7 @@ export function loreScene(lore: number, game: number): Step[] {
     case 2:
       return [
         ...opening(), ...head,
-        { t: 'caption', text: t('Бездна под доской — не пустота. Это все фигуры, сброшенные за тысячу партий.') },
+        { t: 'caption', text: t('Под доской — не пустота. Там лежат все фигуры, сброшенные за тысячу партий.') },
         { t: 'spawn', id: 'g1', kind: 'rook', team: 'ally', x: 1, y: 5, hidden: true },
         { t: 'spawn', id: 'g2', kind: 'queen', team: 'enemy', x: 3, y: 4, hidden: true },
         { t: 'spawn', id: 'g3', kind: 'bishop', team: 'ally', x: 5, y: 4, hidden: true },
@@ -232,7 +225,7 @@ export function loreScene(lore: number, game: number): Step[] {
         { t: 'wait', ms: 600 },
         ...['g1', 'g2', 'g3', 'g4'].map((id, i): Step => ({ t: 'move', id, x: [1, 3, 5, 6][i], y: 2, ms: 1400, par: true })),
         ...['g1', 'g2', 'g3', 'g4'].map((id): Step => ({ t: 'fade', id, to: 0, ms: 1400, par: true })),
-        { t: 'caption', text: t('Осколки, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.') },
+        { t: 'caption', text: t('Короны, что ты собираешь, — их память. Поэтому рулетка шепчет голосами павших.') },
         say('bk', t('Я больше не посылаю новобранцев.')),
         { t: 'badge', id: 'bp1', trait: 'swift' },
         { t: 'badge', id: 'bp2', trait: 'thorns' },

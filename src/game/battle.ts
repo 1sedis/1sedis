@@ -13,6 +13,8 @@ import type { RelicId } from './relics';
 export const BOARD_SIZE = 8;
 /** A battle that drags on longer than this (90 s) counts as a loss. */
 export const MAX_TICKS = 900;
+/** Sudden death: from this tick every piece on both sides loses health, more each second. */
+export const OVERTIME_AT = 600;
 /** Allies adjacent to their king hit this much harder. */
 export const KING_AURA = 1.2;
 const BOSS_HP = 3;
@@ -177,7 +179,9 @@ export interface BattleEvent {
     /** The Hand turned the board over: every piece mirrored left to right. */
     | 'flip'
     /** The player's own move (fromX/fromY → x/y); label says which. */
-    | 'order';
+    | 'order'
+    /** Sudden death began: from now on every piece loses health each second. */
+    | 'overtime';
   /** Cells for 'warn', 'blast' and 'terrain' events (index y * 8 + x). */
   cells?: number[];
   /** Ability name for 'ability' events. */
@@ -1259,6 +1263,25 @@ function act(b: Battle, u: Unit): void {
   else moveUnit(b, u);
 }
 
+/** "Время на исходе": each second every living piece loses a growing share of its health. */
+function overtimeTick(b: Battle): void {
+  const share = Math.min(0.25, 0.02 * ((b.tick - OVERTIME_AT) / 10 + 1));
+  for (const u of b.units) {
+    if (u.hp <= 0) continue;
+    const amount = u.maxHp * share;
+    const base = { uid: u.uid, side: u.side, x: u.x, y: u.y, fromX: u.x, fromY: u.y, fromUid: u.uid, big: u.kind === 'king' || u.boss };
+    u.hp -= amount;
+    u.flash = 2;
+    b.report[u.uid].taken += amount;
+    if (u.side === 'ally' && u.kind === 'king') b.kingMinRatio = Math.min(b.kingMinRatio, Math.max(0, u.hp) / u.maxHp);
+    b.events.push({ ...base, type: 'hit', amount, crit: false });
+    if (u.hp <= 0) {
+      b.events.push({ ...base, type: 'death', amount: 0 });
+      if (u.side === 'ally' && u.kind !== 'king') b.allyLosses++;
+    }
+  }
+}
+
 function sideDefeated(b: Battle, side: Side): boolean {
   const units = b.units.filter((u) => u.side === side);
   const living = units.filter((u) => u.hp > 0);
@@ -1290,6 +1313,10 @@ export function stepBattle(b: Battle): void {
     eliteTick(b);
     if (b.tick % 10 === 0) traitTick(b);
   }
+  if (b.tick === OVERTIME_AT) {
+    b.events.push({ type: 'overtime', uid: 0, side: 'enemy', x: 0, y: 0, amount: 0, fromX: 0, fromY: 0, fromUid: 0 });
+  }
+  if (b.tick >= OVERTIME_AT && b.tick % 10 === 0 && !sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) overtimeTick(b);
   if (b.decisions && !b.checkAsked && !b.decision) offerCheck(b);
   if (b.handTimer > 0 && --b.handTimer === 0 && !sideDefeated(b, 'ally') && !sideDefeated(b, 'enemy')) {
     meddle(b);
