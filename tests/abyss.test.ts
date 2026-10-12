@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createBattle } from '../src/game/battle';
 import { abyssId, abyssLevel, enemyPlacements } from '../src/game/levels';
 import {
-  battleSetup, canPrestige, crownsForPrestige, goldMultiplier, isLevelOpen, newGame, prestige, recordResult, totalStars,
+  battleSetup, canPrestige, crownsForPrestige, goldMultiplier, isLevelOpen, newGame, prestige, totalStars,
 } from '../src/game/state';
 
 describe('abyss', () => {
@@ -19,40 +18,12 @@ describe('abyss', () => {
     expect(enemyPlacements(abyssLevel(30)).length).toBeGreaterThan(enemyPlacements(abyssLevel(1)).length);
   });
 
-  it('opens after a won game, only on the current floor, and a win goes one floor deeper', () => {
+  it('is closed: the Crown Wheel took its place', () => {
     const s = newGame(0);
+    s.run.complete = true;
     expect(isLevelOpen(s, abyssId(1))).toBe(false);
-    s.run.complete = true;
-    expect(isLevelOpen(s, abyssId(1))).toBe(true);
-    expect(isLevelOpen(s, abyssId(2))).toBe(false);
-    const b = createBattle(battleSetup(s, abyssId(1)));
-    b.result = 'win';
-    const out = recordResult(s, abyssId(1), b);
-    expect(out.reward).toBeGreaterThan(0);
-    expect(s.abyss).toEqual({ floor: 2, best: 1 });
-    expect(isLevelOpen(s, abyssId(2))).toBe(true);
-    expect(totalStars(s)).toBe(0); // abyss floors do not add campaign stars
   });
 
-  it('a loss in the Abyss ends the won run', () => {
-    const s = newGame(0);
-    s.run.complete = true;
-    s.run.bosses = 4;
-    s.abyss.floor = 11;
-    const b = createBattle(battleSetup(s, abyssId(11)));
-    b.result = 'loss';
-    expect(recordResult(s, abyssId(11), b).runOver).toBe(true);
-    expect(s.run.over).toMatchObject({ won: true, abyss: 10, crowns: 4 + 2 + 1 });
-  });
-
-  it('every 10th floor grants a relic pick', () => {
-    const s = newGame(0);
-    s.run.complete = true;
-    s.abyss.floor = 10;
-    const b = createBattle(battleSetup(s, abyssId(10)));
-    b.result = 'win';
-    expect(recordResult(s, abyssId(10), b).relicsEarned).toBe(1);
-  });
 });
 
 describe('prestige', () => {
@@ -68,7 +39,7 @@ describe('prestige', () => {
     s.abyss = { floor: 21, best: 20 };
     s.achievements = ['first_win'];
     const expected = crownsForPrestige(s);
-    expect(expected).toBe(4 + 2 + 2);
+    expect(expected).toBe(4 + 2);
     expect(prestige(s, 0)).toBe(expected);
     expect(s.crowns).toBe(expected);
     expect(s.prestige).toBe(1);

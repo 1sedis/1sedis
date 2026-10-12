@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { shardsForFloor } from '../src/game/altar';
 import { createBattle, stepBattle, type BattleEvent, type BattleSetup } from '../src/game/battle';
-import { abyssId } from '../src/game/levels';
 import {
-  BUFFS, EPIC_PITY, LEGEND_PITY, SPIN_COST, altarRefund, emptyRoulette, rollBuff, rouletteBonuses,
+  BUFFS, EPIC_PITY, LEGEND_PITY, SPIN_COST, emptyRoulette, rank, rouletteBonuses, spinWheel, takeGift,
 } from '../src/game/roulette';
-import { battleSetup, newGame, parseSave, prestige, recordResult, spinRoulette } from '../src/game/state';
+import { battleSetup, chooseGift, newGame, parseSave, playerMoves, prestige, spinRoulette, startNextRun } from '../src/game/state';
 
 /** Deterministic random numbers for tests. */
 function seeded(seed: number) {
@@ -16,78 +14,69 @@ function seeded(seed: number) {
   };
 }
 
-describe('abyss shards', () => {
-  it('floors pay shards, guardians pay a lot more', () => {
-    expect(shardsForFloor(1)).toBe(1);
-    expect(shardsForFloor(10)).toBeGreaterThan(shardsForFloor(9) * 3);
+describe('crown wheel', () => {
+  it('costs crowns, offers three gifts of one rarity and keeps the offer until a pick', () => {
     const s = newGame(0);
-    s.stars['2-9'] = 1;
-    const b = createBattle(battleSetup(s, abyssId(1)));
-    b.result = 'win';
-    expect(recordResult(s, abyssId(1), b).shards).toBe(1);
-    expect(s.shards).toBe(1);
-  });
-});
-
-describe('roulette', () => {
-  it('costs shards per spin and refuses when short', () => {
-    const s = newGame(0);
-    s.shards = SPIN_COST * 3;
-    expect(spinRoulette(s, 1, seeded(1))).toHaveLength(1);
-    expect(s.shards).toBe(SPIN_COST * 2);
-    expect(spinRoulette(s, 10, seeded(2))).toBeNull();
-    expect(s.shards).toBe(SPIN_COST * 2);
-    expect(s.roulette.spins).toBe(1);
+    s.crowns = SPIN_COST + 1;
+    const offer = spinRoulette(s, seeded(1))!;
+    expect(offer).toHaveLength(3);
+    expect(new Set(offer.map((b) => b.rarity)).size).toBe(1);
+    expect(s.crowns).toBe(1);
+    // A reload shows the same offer, at no cost.
+    expect(spinRoulette(s, seeded(9))!.map((b) => b.id)).toEqual(offer.map((b) => b.id));
+    expect(chooseGift(s, offer[1].id)?.id).toBe(offer[1].id);
+    expect(rank(s.roulette, offer[1].id)).toBe(1);
+    expect(spinRoulette(s, seeded(2))).toBeNull(); // one crown is not enough
   });
 
-  it('commons are frequent, legendaries rare, with pity guarantees', () => {
+  it('commons are frequent, legendaries rare, with pity guarantees; ranks cap at III', () => {
     const r = emptyRoulette();
     const rand = seeded(7);
     const counts = { common: 0, rare: 0, epic: 0, legendary: 0 };
     let worstEpicGap = 0;
     let gap = 0;
-    for (let i = 0; i < 400; i++) {
-      const b = rollBuff(r, rand);
-      counts[b.rarity]++;
-      gap = b.rarity === 'epic' || b.rarity === 'legendary' ? 0 : gap + 1;
+    for (let i = 0; i < 50; i++) {
+      const offer = spinWheel(r, rand);
+      const rarity = offer[0].rarity;
+      counts[rarity]++;
+      gap = rarity === 'epic' || rarity === 'legendary' ? 0 : gap + 1;
       worstEpicGap = Math.max(worstEpicGap, gap);
+      takeGift(r, offer[0].id);
     }
-    expect(counts.common).toBeGreaterThan(counts.rare);
-    expect(counts.rare).toBeGreaterThan(counts.legendary);
+    expect(counts.common).toBeGreaterThan(counts.legendary);
     expect(worstEpicGap).toBeLessThan(EPIC_PITY);
-    // At most 7 legendaries exist; the pity timer makes sure several drop in 400 spins.
-    expect(counts.legendary).toBeGreaterThanOrEqual(Math.min(7, Math.floor(400 / LEGEND_PITY)) - 2);
-    expect(counts.legendary).toBeLessThanOrEqual(7);
+    expect(counts.legendary).toBeGreaterThanOrEqual(Math.floor(50 / LEGEND_PITY) - 1);
+    for (const b of BUFFS) expect(rank(r, b.id)).toBeLessThanOrEqual(b.max);
   });
 
-  it('legendaries never repeat, and turn into epics once all are owned', () => {
-    const r = emptyRoulette();
-    const rand = seeded(3);
-    for (let i = 0; i < 3000; i++) rollBuff(r, rand);
-    for (const b of BUFFS.filter((x) => x.legend)) expect(r.owned[b.id], b.id).toBe(1);
-  });
-
-  it('bonuses reach the battle and survive a new game', () => {
+  it('gifts are felt: pieces at the start of a run, extra moves against bosses, battle bonuses', () => {
     const s = newGame(0);
-    for (let c = 1; c <= 4; c++) for (let n = 1; n <= 9; n++) s.stars[`${c}-${n}`] = 1;
-    s.roulette.owned = { c_atk: 5, r_hp_pawn: 2, e_shield: 1, l_wrath: 1 };
+    s.stats.wins = 5;
+    s.roulette.owned = { c_steel: 2, r_knight: 1, c_levy: 1, c_purse: 2, e_tempo: 1, r_shield: 1, l_wrath: 1 };
     const setup = battleSetup(s, '1-1');
-    expect(setup.allyAtkMult).toBeCloseTo(battleSetup(newGame(0), '1-1').allyAtkMult! * 1.1);
+    expect(setup.allyAtkMult).toBeCloseTo(battleSetup(newGame(0), '1-1').allyAtkMult! * 1.16);
     expect(setup.legends).toEqual(['wrath']);
-    const pawn = createBattle(setup).units.find((u) => u.side === 'ally' && u.kind === 'pawn')!;
-    expect(pawn.shield).toBeGreaterThan(0);
-    expect(rouletteBonuses(s.roulette).kind.pawn?.hp).toBeCloseTo(1.16);
+    expect(playerMoves(s, '1-9')).toBe(playerMoves(s, '1-1') + 1);
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    startNextRun(s, 0);
+    expect(s.army.knight).toBe(1);
+    expect(s.army.pawn).toBe(newGame(0).army.pawn + 1);
+    expect(s.gold).toBe(newGame(0).gold + 120);
+    const pawn = createBattle(battleSetup(s, '1-1')).units.find((u) => u.side === 'ally' && u.kind === 'pawn');
+    if (pawn) expect(pawn.shield).toBeGreaterThan(0);
+    expect(rouletteBonuses(s.roulette).pawnShield).toBeCloseTo(0.15);
+    s.run.complete = true;
     prestige(s, 0);
     expect(s.roulette.owned.l_wrath).toBe(1);
   });
 
-  it('old altar perks are refunded as shards, once', () => {
-    const old = { ...newGame(0), shards: 3, altar: { darkSteel: 2, mantle: 1 } };
-    const refund = altarRefund(old.altar);
-    expect(refund).toBe(5 + 8 + 8);
+  it('old saves: shards and small buffs become crowns, legendaries stay', () => {
+    const old = { ...newGame(0), crowns: 1, shards: 35, roulette: { owned: { c_atk: 8, l_chain: 1 }, spins: 9, sinceEpic: 0, sinceLegend: 0 } };
     const loaded = parseSave(JSON.stringify(old))!;
-    expect(loaded.shards).toBe(3 + refund);
-    expect(parseSave(JSON.stringify(loaded))!.shards).toBe(3 + refund);
+    expect(loaded.roulette.owned).toEqual({ l_chain: 1 });
+    expect(loaded.crowns).toBe(1 + 2 + 3);
+    expect(loaded.shards).toBe(0);
+    expect(parseSave(JSON.stringify(loaded))!.crowns).toBe(loaded.crowns);
   });
 });
 

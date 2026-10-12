@@ -45,8 +45,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     (s) => Object.values(s.army).filter((n) => n > 0).length),
   A('runs_5', 'Упорство', 'Начните шестой забег', 5, 2000, (s) => s.stats.runs),
   A('architect', 'Архитектор', 'Достройте Штаб до максимума', 3, 4000, (s) => s.buildings.hq),
-  A('abyss_10', 'Глубины', 'Пройдите 10 этажей Бездны', 10, 2000, (s) => s.abyss.best),
-  A('abyss_30', 'Бездонный', 'Пройдите 30 этажей Бездны', 30, 15000, (s) => s.abyss.best),
+  A('gifts_5', 'Щедрость короны', 'Соберите 5 даров Колеса короны', 5, 2000, (s) => Object.keys(s.roulette.owned).length),
+  A('legend_1', 'Легенда', 'Получите легендарный дар', 1, 15000, (s) => Object.keys(s.roulette.owned).filter((id) => id.startsWith('l_')).length),
   A('prestige_1', 'Новая партия', 'Начните новую партию с коронами', 1, 10000, (s) => s.prestige),
   A('finale', 'Доска не перевернётся', 'Дойдите до конца истории', 1, 50000, (s) => (s.finale?.beaten ? 1 : 0)),
 ];

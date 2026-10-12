@@ -572,7 +572,7 @@ export class ArenaScreen implements Screen {
       return;
     }
     this.selection = null;
-    this.battle = createBattle({ ...battleSetup(s, this.levelId), playerMoves: playerMoves(s), decisions: true });
+    this.battle = createBattle({ ...battleSetup(s, this.levelId), playerMoves: playerMoves(s, this.levelId), decisions: true });
     this.cancelPick();
     this.phase = 'battle';
     audio.setTrack(getLevel(this.levelId).boss ? 'boss' : 'battle');
@@ -698,8 +698,7 @@ export class ArenaScreen implements Screen {
       else if (!o.win) content.append(el('div', 'result-unlock', 'Рука ждёт. Улучшите армию — враги финала растут вместе с ней, но реликвии, кузница и древо — нет.'));
     } else if (o.win) {
       content.append(el('div', 'result-reward', `+${fmt(o.reward)} золота`));
-      if (o.trophy) content.append(el('div', 'result-unlock relic', `Трофей: «${o.trophy.name}» — ${o.trophy.text}`));
-      if (o.shards > 0) content.append(el('div', 'result-unlock shard', `+${o.shards} ◆ осколков бездны — крутите за них рулетку в «Улучшениях»`));
+      if (o.trophy) content.append(el('div', 'result-unlock relic', 'Трофей: бесплатная крутка Колеса короны'));
       if (o.firstClear) {
         const unlocked = (Object.keys(UNLOCKED_BY) as PieceKind[]).find((k) => UNLOCKED_BY[k] === this.levelId);
         if (unlocked) content.append(el('div', 'result-unlock', `Новая фигура: ${PIECES[unlocked].name}! Наймите в лагере.`));
@@ -904,7 +903,7 @@ export class ArenaScreen implements Screen {
     }
     if (events.length && this.ctx.settings.effects && events.length <= 60) this.board.fx(events);
 
-    const total = playerMoves(s);
+    const total = playerMoves(s, this.levelId);
     const left = this.battle && !prep ? this.battle.movesLeft : total;
     const tokens = `${left}/${total}`;
     if (this.movesEl.dataset.left !== tokens) {

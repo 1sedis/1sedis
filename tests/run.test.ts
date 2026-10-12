@@ -73,7 +73,7 @@ describe('run progress', () => {
   it('one loss ends the run; the next starts at 1-1 with a new army and keeps the meta', () => {
     const s = newGame(0);
     s.crowns = 4;
-    s.shards = 9;
+    s.roulette.owned = { c_steel: 1 };
     s.crownTree = ['doubleStep'];
     s.run.bosses = 1;
     s.run.elites = 2;
@@ -89,7 +89,7 @@ describe('run progress', () => {
     expect(s.prestige).toBe(0); // the same game again
     expect(s.army.knight).toBe(0);
     expect(s.crowns).toBe(5);
-    expect(s.shards).toBe(9);
+    expect(s.roulette.owned).toEqual({ c_steel: 1 });
     expect(s.crownTree).toEqual(['doubleStep']);
     expect(isLevelOpen(s, '1-1')).toBe(true);
     expect(s.stats.runs).toBe(1);
@@ -106,11 +106,10 @@ describe('run progress', () => {
     expect(fight(s, node, false).runOver).toBe(true);
   });
 
-  it('a won game opens the Abyss and moves on to the next game', () => {
+  it('a won game moves on to the next game', () => {
     const s = newGame(0);
     s.run.complete = true;
     s.run.bosses = 4;
-    expect(isAbyssOpen(s)).toBe(true);
     expect(prestige(s, 0)).toBe(4 + 2);
     expect(s.prestige).toBe(1);
     expect(s.run.complete).toBe(false);

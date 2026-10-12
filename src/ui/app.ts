@@ -297,9 +297,6 @@ export class App implements Ctx {
     if (claimableAchievements(s) > 0 && this.screenId !== 'achievements') {
       this.tip('t_achievements', this.navAch, 'Открыто достижение! Загляните сюда, чтобы забрать награду.');
     }
-    if (s.shards >= 5 && s.roulette.spins === 0 && this.screenId !== 'camp') {
-      this.tip('t_altar', this.navCamp, 'У вас есть осколки бездны! Крутите за них «Рулетку бездны» здесь: случайные вечные улучшения, вплоть до легендарных.');
-    }
     if (s.stats.wins >= 2 && canAffordUpgrade(s) && this.screenId !== 'camp') {
       this.tip('t_upgrades', this.navCamp, 'Золота хватает на улучшения. Здесь нанимают фигуры и повышают их уровень.');
     }

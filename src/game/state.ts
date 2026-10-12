@@ -13,7 +13,10 @@ import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionsFor, type Di
 import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { shardsForFloor } from './altar';
-import { SPIN_COST, altarRefund, emptyRoulette, rollBuff, rouletteBonuses, type BuffDef, type RouletteState } from './roulette';
+import {
+  SPIN_COST, altarRefund, emptyRoulette, wheelExhausted, migrateRoulette, rouletteBonuses, runStartGifts, spinWheel, takeGift, BUFF_BY_ID,
+  type BuffDef, type RouletteState,
+} from './roulette';
 import { RELICS, rollOffer, type RelicId } from './relics';
 import {
   ELITE_GOLD, ELITE_LEVELS, RUN_GOLD, availableNodes, recruitLevel, crownsForRun, currentNode, endRun, loseNode, newRun, runLevelOpen,
@@ -82,9 +85,9 @@ export interface GameState {
   abyss: { floor: number; best: number; guardian?: PieceKind };
   /** Crown Tree nodes owned; they survive new games. */
   crownTree: NodeId[];
-  /** Abyss shards and Altar of the Abyss perk levels; both survive a new game. */
+  /** Abyss shards: no longer earned (the Abyss is closed); old ones became crowns. */
   shards: number;
-  /** Roulette of the Abyss: buffs bought with shards, kept across new games. */
+  /** The Crown Wheel: gifts bought with crowns, kept forever. */
   roulette: RouletteState;
   /** The finale: phases cleared (a checkpoint kept across games) and whether the Hand is beaten. */
   finale: { phase: number; beaten: boolean };
@@ -149,18 +152,20 @@ export function isCleared(s: GameState, id: string): boolean {
   return (s.stars[id] ?? 0) > 0;
 }
 
-/** The Abyss is the endless road after a won story: it opens once the fourth boss of this run falls. */
-export function isAbyssOpen(s: GameState): boolean {
-  return s.run.complete && !s.run.over;
+/**
+ * The Abyss is closed: the Crown Wheel took its place. Its floor generator stays
+ * in levels.ts for a future endless mode.
+ */
+export function isAbyssOpen(_s: GameState): boolean {
+  return false;
 }
 
 /** The finale opens in game 3 after the Black Queen (and stays open after it), or at Abyss floor 30. */
 export const FINALE_GAME = 3;
-export const FINALE_FLOOR = 30;
 
 export function isFinaleOpen(s: GameState): boolean {
   const game = gameNumber(s);
-  return s.finale.beaten || s.finale.phase > 0 || s.abyss.best >= FINALE_FLOOR || game > FINALE_GAME
+  return s.finale.beaten || s.finale.phase > 0 || game > FINALE_GAME
     || (game === FINALE_GAME && isCleared(s, PRESTIGE_UNLOCK));
 }
 
@@ -217,10 +222,6 @@ export function resetTree(s: GameState): boolean {
   return true;
 }
 
-export function spinCost(s: GameState): number {
-  return hasNode(s, 'luck') ? 4 : SPIN_COST;
-}
-
 function legendMult(s: GameState): number {
   return hasNode(s, 'echo') ? 2 : 1;
 }
@@ -260,12 +261,28 @@ export function goldMultiplier(s: GameState): number {
   return (1 + 0.5 * s.prestige) * rouletteBonuses(s.roulette).gold;
 }
 
-/** Spin the roulette `count` times. Null when there are not enough shards. */
-export function spinRoulette(s: GameState, count = 1, rand: () => number = Math.random): BuffDef[] | null {
-  const cost = spinCost(s) * count;
-  if (s.shards < cost) return null;
-  s.shards -= cost;
-  return Array.from({ length: count }, () => rollBuff(s.roulette, rand, legendMult(s)));
+/** Crowns the next spin costs (a free spin from "Голод" or "Трофеи" costs none). */
+export function spinCost(s: GameState): number {
+  return s.roulette.free > 0 ? 0 : SPIN_COST;
+}
+
+/**
+ * Spin the Crown Wheel: pay, land on a rarity and get gifts to choose from
+ * (three, or four with "Удача"). A waiting offer is returned again for free.
+ * Null when there are not enough crowns.
+ */
+export function spinRoulette(s: GameState, rand: () => number = Math.random): BuffDef[] | null {
+  if (s.roulette.offer) return s.roulette.offer.map((id) => BUFF_BY_ID[id]);
+  const cost = spinCost(s);
+  if (s.crowns < cost || wheelExhausted(s.roulette)) return null;
+  if (cost === 0) s.roulette.free--;
+  else s.crowns -= cost;
+  return spinWheel(s.roulette, rand, legendMult(s), hasNode(s, 'luck') ? 4 : 3);
+}
+
+/** Take one gift of the waiting offer. */
+export function chooseGift(s: GameState, id: string): BuffDef | null {
+  return takeGift(s.roulette, id);
 }
 
 /**
@@ -298,10 +315,12 @@ export function queenCap(s: GameState): number {
 }
 
 /** The player's own moves per battle ("Темп" in the Crown Tree adds one). */
-export function playerMoves(s: GameState): number {
+export function playerMoves(s: GameState, levelId?: string): number {
   // The very first battle is about placing pieces; moves come with the second.
   if (!featureOpen(s, 'moves')) return 0;
-  return MOVES_PER_BATTLE + (hasNode(s, 'castling') ? 1 : 0);
+  // "Лишний ход" of the Crown Wheel: more moves against elites and bosses.
+  const big = !!levelId && (isEliteBattle(s, levelId) || !!getLevel(levelId).boss);
+  return MOVES_PER_BATTLE + (hasNode(s, 'castling') ? 1 : 0) + (big ? rouletteBonuses(s.roulette).bigMoves : 0);
 }
 
 /** At most 8 pawns, as on a chessboard: one upgrade must not lift an endless swarm. */
@@ -533,24 +552,24 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
     const lv = getLevel(levelId).level + bonus + ELITE_LEVELS;
     enemies = s.formation.map((f) => ({ kind: f.kind, x: f.x, y: BOARD_SIZE - 1 - f.y, level: lv }));
   }
-  if (isAbyss(levelId)) {
+  if (!isAbyss(levelId) && !isFinale(levelId)) {
     const terrain = levelTerrain(levelId);
     const free = (x: number, y: number) => walkable(terrain[y * BOARD_SIZE + x])
       && !allies.some((a) => a.x === x && a.y === y) && !enemies.some((e) => e.x === x && e.y === y);
-    // "Переманивание": one enemy piece changes sides and takes the mirrored square.
-    if (hasNode(s, 'lure')) {
+    // "Переманивание": in an elite battle one enemy piece changes sides and takes the mirrored square.
+    if (elite && rule !== 'mirror' && hasNode(s, 'lure')) {
       const pool = enemies.filter((p) => p.kind !== 'king' && !p.boss);
-      const pick = pool[abyssFloor(levelId) % Math.max(1, pool.length)];
+      const pick = pool[levelId.length % Math.max(1, pool.length)];
       if (pick && free(pick.x, BOARD_SIZE - 1 - pick.y)) {
         enemies = enemies.filter((p) => p !== pick);
         allies.push({ kind: pick.kind, x: pick.x, y: BOARD_SIZE - 1 - pick.y, level: pick.level, trait: pick.trait });
       }
     }
-    // "Страж на службе": the last beaten guardian fights for you.
-    if (hasNode(s, 'guardian') && s.abyss.guardian) {
+    // "Страж на службе": the last boss beaten in this run fights for you.
+    if (hasNode(s, 'guardian') && s.run.guardian) {
       const spot = [[3, 6], [4, 6], [2, 6], [5, 6], [3, 5], [4, 5], [1, 6], [6, 6]].find(([x, y]) => free(x, y));
-      const level = enemies.find((p) => p.kind !== 'king')?.level ?? enemies[0]?.level ?? 1;
-      if (spot) allies.push({ kind: s.abyss.guardian, x: spot[0], y: spot[1], level, boss: true });
+      const level = Math.max(1, (enemies.find((p) => p.kind !== 'king')?.level ?? 1) - 1);
+      if (spot) allies.push({ kind: s.run.guardian, x: spot[0], y: spot[1], level, boss: true });
     }
   }
   return {
@@ -591,8 +610,8 @@ export interface BattleOutcome {
   shards: number;
   /** Share of enemy health removed (1 on a win). */
   damageShare: number;
-  /** A free roulette buff from "Трофеи" on a first clear. */
-  trophy?: BuffDef;
+  /** "Трофеи": the boss gave a free spin of the Crown Wheel. */
+  trophy?: boolean;
   /** The Hand fell for the first time: roll the credits. */
   ending?: boolean;
   /** Run map: a spare banner burned for this loss (fight again), or the run is over. */
@@ -632,6 +651,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     // Every battle of the run is fought once: it pays like a first clear, elites more.
     reward = firstReward(levelId) * RUN_GOLD * (elite ? ELITE_GOLD : 1);
     if ((elite || level.boss) && hasNode(s, 'tribute')) reward *= 2;
+    if (elite || level.boss) reward *= rouletteBonuses(s.roulette).loot;
     if (hasRelic(s, 'plunder')) reward *= 1.3;
     reward = Math.round(reward * goldMultiplier(s));
   } else {
@@ -643,7 +663,10 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   s.relicPicks += relicsEarned;
   s.gold += reward;
   countBattle(s, b, win, reward);
-  const trophy = firstClear && hasNode(s, 'trophies') ? rollBuff(s.roulette, Math.random, legendMult(s)) : undefined;
+  // "Трофеи": every boss beaten gives a free spin of the Crown Wheel.
+  const trophy = win && !!level.boss && hasNode(s, 'trophies');
+  if (trophy) s.roulette.free++;
+  if (win && level.boss) s.run.guardian = enemyPlacements(level).find((p) => p.boss)?.kind;
   // The run map: a win moves on, a loss costs a banner.
   const atNode = currentNode(s.run)?.level === levelId;
   let spared = false;
@@ -767,12 +790,21 @@ export function startNextRun(s: GameState, now = Date.now()): void {
   fresh.abilityBranch = s.abilityBranch;
   fresh.stats = s.stats;
   fresh.abyss = { floor: 1, best: s.abyss.best, guardian: s.abyss.guardian };
-  fresh.shards = s.shards;
+  fresh.shards = 0;
   fresh.roulette = s.roulette;
   fresh.finale = s.finale;
   fresh.crownTree = s.crownTree;
   if (s.crownTree.includes('heritage')) fresh.relics.push('spareBanner');
   if (s.crownTree.includes('vault')) fresh.relicPicks += 1;
+  // Gifts of the Crown Wheel shape the start of every run.
+  const gifts = runStartGifts(s.roulette);
+  fresh.gold += gifts.gold;
+  fresh.army.pawn = Math.min(PAWN_CAP, fresh.army.pawn + gifts.pawns);
+  fresh.army.knight += gifts.knights;
+  fresh.buildings.forge += gifts.forge;
+  fresh.relicPicks += gifts.relicPicks;
+  // "Голод": the first spin after every run is free.
+  if (s.crownTree.includes('hunger')) fresh.roulette.free = Math.max(fresh.roulette.free, 1);
   fresh.run.seed = (s.run.seed * 13 + 7 + s.stats.runs) >>> 0;
   startChapter(fresh, 1);
   Object.assign(s, fresh);
@@ -812,19 +844,19 @@ export function checkAchievements(s: GameState): string[] {
   return fresh;
 }
 
-/** Abyss shards an achievement pays, by how hard it is. */
-export function achievementShards(goldValue: number): number {
-  return goldValue <= 500 ? 2 : goldValue <= 2000 ? 4 : goldValue <= 6000 ? 8 : goldValue <= 20000 ? 15 : 25;
+/** Crowns an achievement pays: one, or two for the hardest. */
+export function achievementCrowns(goldValue: number): number {
+  return goldValue >= 20000 ? 2 : 1;
 }
 
 export function claimAchievement(s: GameState, id: string): number {
   const def = getAchievement(id);
   if (!def || !s.achievements.includes(id) || s.achievementsClaimed.includes(id)) return 0;
   s.achievementsClaimed.push(id);
-  // Shards, not gold: gold belongs to the run, and a big reward would decide it.
-  const shards = achievementShards(def.reward);
-  s.shards += shards;
-  return shards;
+  // Crowns, not gold: gold belongs to the run, and a big reward would decide it.
+  const crowns = achievementCrowns(def.reward);
+  s.crowns += crowns;
+  return crowns;
 }
 
 export function claimableAchievements(s: GameState): number {
@@ -872,6 +904,8 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       roulette: { ...state.roulette, ...data.roulette, owned: { ...data.roulette?.owned } },
       // The old Altar became the roulette: give back every shard spent on it.
       shards: (data.shards ?? 0) + altarRefund((data as { altar?: Record<string, number> }).altar),
+      // A save from before the Crown Wheel (no `free` field): its roulette is converted below.
+      ...(data.roulette && data.roulette.free === undefined ? { _oldRoulette: true } : {}),
       altar: undefined,
     } as GameState;
     if (!data.run) migrateToRun(merged);
@@ -881,6 +915,16 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
     delete old.lastTick;
     delete (merged.buildings as Record<string, number>).treasury;
     merged.relics = merged.relics.filter((id) => RELICS[id]);
+    // The Abyss and its shards are gone: shards and old roulette buffs become crowns, legendaries stay.
+    const flagged = merged as GameState & { _oldRoulette?: boolean };
+    if (flagged._oldRoulette || !data.roulette) {
+      const { roulette, crowns } = migrateRoulette(data.roulette);
+      merged.roulette = roulette;
+      merged.crowns += crowns;
+    }
+    delete flagged._oldRoulette;
+    merged.crowns += Math.floor(merged.shards / 10);
+    merged.shards = 0;
     return merged;
   } catch {
     return null;

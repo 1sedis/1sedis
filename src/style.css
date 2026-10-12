@@ -2119,3 +2119,36 @@ body:has(.modal-overlay) .toast-layer { top: auto; bottom: 24px; }
 .boss-intro-img { image-rendering: pixelated; }
 .elite-rule { color: var(--coral); }
 .level-tile img, .chapter-boss { object-fit: contain; image-rendering: pixelated; }
+
+/* ---------- Crown Wheel ---------- */
+.wheel-modal { width: min(94vw, 640px); max-height: 92vh; overflow-y: auto; }
+.wheel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wheel-head h2 { margin: 0; }
+.wheel-crowns { color: var(--gold); font-size: 22px; }
+.wheel-spin { width: calc(100% - 8px); margin: 6px 4px 8px; font-size: 20px; padding: 12px; }
+.wheel-subtitle { margin: 14px 0 8px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-size: 14px; }
+.gift-shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.gift-shelf .buff-card.big { max-width: none; width: 100%; margin: 0; padding: 10px 8px; gap: 4px; }
+.gift-shelf .buff-card.big .buff-icon { width: 40px; height: 40px; }
+.gift-shelf .buff-card.big .buff-name { font-size: 16px; }
+.gift-shelf .buff-card .buff-text { font-size: 13px; }
+.gift-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 14px 0 6px; }
+.gift-choice .buff-card.big { max-width: none; width: 100%; margin: 0; cursor: pointer; border: 0; font: inherit; color: var(--ink);
+  animation: title-pop .45s steps(5, end) backwards; }
+.gift-choice .buff-card.big:nth-child(2) { animation-delay: .12s; }
+.gift-choice .buff-card.big:nth-child(3) { animation-delay: .24s; }
+.gift-choice .buff-card.big:nth-child(4) { animation-delay: .36s; }
+.gift-choice .buff-card.big:hover { transform: translateY(-4px); box-shadow: inset 0 0 0 3px var(--rc), 0 0 18px var(--rc); }
+.buff-rank { font-size: 13px; color: var(--rc); letter-spacing: 1px; }
+.wheel-landed { text-align: center; }
+.wheel-landed.r-rare { color: #4aa8ff; } .wheel-landed.r-epic { color: #b06bff; } .wheel-landed.r-legendary { color: var(--gold); }
+.rarity-tile { --rc: #a8b0c8; flex: none; width: 112px; height: 128px; display: grid; place-items: center; font-size: 16px; text-align: center;
+  color: var(--rc); background: #1a1530; box-shadow: inset 0 0 0 3px var(--rc); }
+.rarity-tile.r-rare { --rc: #4aa8ff; } .rarity-tile.r-epic { --rc: #b06bff; background: #2a1d48; } .rarity-tile.r-legendary { --rc: #ffcf4a; background: #4a3410; }
+.wheel-btn { width: calc(100% - 8px); margin-top: 10px; }
+@media (width <= 560px) { .rarity-tile { width: 96px; height: 110px; font-size: 14px; } .gift-choice { grid-template-columns: 1fr; } }
+@media (width <= 560px) {
+  .gift-choice .buff-card.big { padding: 10px; gap: 4px; }
+  .gift-choice .buff-card.big .buff-icon { width: 48px; height: 48px; }
+  .gift-choice .buff-card.big .buff-name { font-size: 20px; }
+}

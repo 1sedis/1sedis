@@ -84,7 +84,7 @@ export function playCredits(s: GameState): Promise<void> {
       `Пешек стали ферзями: ${fmt(s.stats.promotions)}`,
       `Приёмов применено: ${fmt(s.stats.abilities)}`,
       `Золота добыто: ${fmt(Math.round(s.stats.goldEarned))}`,
-      `Глубина Бездны: ${s.abyss.best}`);
+      `Забегов: ${fmt(s.stats.runs)} · даров короны: ${Object.keys(s.roulette.owned).length}`);
     block('Над игрой работали',
       'Полководец, геймдизайнер и главный тестер — ты',
       'Код, пиксели и 8-битная музыка — Claude');

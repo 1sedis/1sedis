@@ -8,7 +8,7 @@ import {
 
 function opened() {
   const s = newGame(0);
-  s.abyss.best = 30;
+  s.prestige = 3;
   s.army = { ...s.army, pawn: 4, knight: 2, bishop: 2, rook: 1, queen: 1 };
   for (const k of Object.keys(s.levels) as (keyof typeof s.levels)[]) s.levels[k] = 12;
   return s;
@@ -24,12 +24,9 @@ describe('finale', () => {
     expect(getLevel(finaleId(3)).boss).toBe('Рука над доской');
   });
 
-  test('opens in game 3 after the Black Queen, or at Abyss floor 30, and stays open', () => {
+  test('opens in game 3 after the Black Queen and stays open', () => {
     const s = newGame(0);
     expect(isFinaleOpen(s)).toBe(false);
-    s.abyss.best = 30;
-    expect(isFinaleOpen(s)).toBe(true);
-    s.abyss.best = 10;
     s.prestige = 2;
     expect(isFinaleOpen(s)).toBe(false);
     s.stars['4-9'] = 1;

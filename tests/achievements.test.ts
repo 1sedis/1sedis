@@ -23,10 +23,10 @@ describe('achievements', () => {
     expect(fresh).toContain('first_win');
     expect(checkAchievements(s)).toEqual([]);
     expect(claimableAchievements(s)).toBe(fresh.length);
-    const shards = s.shards;
-    // Rewards are shards now: gold belongs to the run.
-    expect(claimAchievement(s, 'first_win')).toBe(2);
-    expect(s.shards).toBe(shards + 2);
+    const crowns = s.crowns;
+    // Rewards are crowns now: gold belongs to the run.
+    expect(claimAchievement(s, 'first_win')).toBe(1);
+    expect(s.crowns).toBe(crowns + 1);
     expect(claimAchievement(s, 'first_win')).toBe(0);
   });
 

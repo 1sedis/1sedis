@@ -69,6 +69,8 @@ export interface RunState {
   wins: number;
   elites: number;
   bosses: number;
+  /** The last boss beaten in this run ("Страж на службе" brings it along). */
+  guardian?: PieceKind;
 }
 
 /** Rows of a chapter map, the boss row included. */
@@ -302,9 +304,9 @@ export function loseNode(s: GameState, at: string, won = false): 'spared' | 'ove
   return 'over';
 }
 
-/** Crowns a run pays: one for every boss, two for the victory, one for every ten Abyss floors. */
+/** Crowns a run pays: one for every boss, two for the victory. */
 export function crownsForRun(s: GameState, won: boolean): number {
-  return s.run.bosses + (won ? 2 : 0) + Math.floor(Math.max(0, s.abyss.floor - 1) / 10);
+  return s.run.bosses + (won ? 2 : 0);
 }
 
 /** Close the run: pay its crowns and keep a summary for the end screen. */

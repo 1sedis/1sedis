@@ -1,9 +1,11 @@
 import type { PieceKind } from './pieces';
 
 /**
- * Roulette of the Abyss: shards buy random permanent buffs. Commons drop often
- * and stack; legendaries are rare, unique and change how a piece fights.
- * Everything here survives a new game.
+ * The Crown Wheel: crowns buy a spin, the wheel decides the rarity, and the
+ * player picks one of three gifts of that rarity. Gifts are kept forever and
+ * each one is felt in play: a piece to start the run with, an extra move
+ * against bosses, shields, gold, legendary fighting styles. Taking a gift
+ * again raises its rank (up to III); legendaries come once.
  */
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
@@ -13,96 +15,151 @@ export interface BuffDef {
   id: string;
   rarity: Rarity;
   name: string;
+  /** What one rank does. */
   text: string;
-  /** Icon: a piece kind, or a generic glyph for army-wide buffs. */
+  /** Icon: a piece kind, or a generic glyph for army-wide gifts. */
   icon: PieceKind | 'army' | 'gold';
   legend?: LegendId;
+  /** Highest rank (1 for legendaries). */
+  max: number;
 }
 
 export const RARITY: Record<Rarity, { name: string; weight: number; color: string }> = {
-  common: { name: 'Обычная', weight: 62, color: '#a8b0c8' },
-  rare: { name: 'Редкая', weight: 26, color: '#4aa8ff' },
-  epic: { name: 'Эпическая', weight: 10, color: '#b06bff' },
-  legendary: { name: 'Легендарная', weight: 2, color: '#ffcf4a' },
+  common: { name: 'Обычный', weight: 55, color: '#a8b0c8' },
+  rare: { name: 'Редкий', weight: 30, color: '#4aa8ff' },
+  epic: { name: 'Эпический', weight: 12, color: '#b06bff' },
+  legendary: { name: 'Легендарный', weight: 3, color: '#ffcf4a' },
 };
 
-export const SPIN_COST = 5;
+/** Crowns per spin. */
+export const SPIN_COST = 2;
 /** An epic or better at least every N spins; a legendary at the latest on spin M. */
-export const EPIC_PITY = 10;
-export const LEGEND_PITY = 50;
+export const EPIC_PITY = 5;
+export const LEGEND_PITY = 12;
 
 const KINDS: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen'];
 const KIND_NAME: Record<PieceKind, string> = { king: 'короля', pawn: 'пешек', knight: 'коней', bishop: 'слонов', rook: 'ладей', queen: 'ферзей',
   archbishop: 'архиепископов', chancellor: 'канцлеров', ghost: 'призраков' };
 
+const B = (id: string, rarity: Rarity, name: string, text: string, icon: BuffDef['icon'], max = 3, legend?: LegendId): BuffDef =>
+  ({ id, rarity, name, text, icon, max, legend });
+
 export const BUFFS: BuffDef[] = [
-  { id: 'c_atk', rarity: 'common', name: 'Осколок ярости', text: '+2% к атаке армии', icon: 'army' },
-  { id: 'c_hp', rarity: 'common', name: 'Осколок камня', text: '+2% к здоровью армии', icon: 'army' },
-  { id: 'c_gold', rarity: 'common', name: 'Тусклое золото', text: '+3% к золоту', icon: 'gold' },
-  { id: 'c_king', rarity: 'common', name: 'Корона из тени', text: '+5% к здоровью короля', icon: 'king' },
-  ...KINDS.map((k): BuffDef => ({ id: `r_atk_${k}`, rarity: 'rare', name: 'Клинок глубин', text: `+8% к атаке ${KIND_NAME[k]}`, icon: k })),
-  ...KINDS.map((k): BuffDef => ({ id: `r_hp_${k}`, rarity: 'rare', name: 'Панцирь глубин', text: `+8% к здоровью ${KIND_NAME[k]}`, icon: k })),
-  { id: 'r_army', rarity: 'rare', name: 'Знамя бездны', text: '+4% к атаке и здоровью армии', icon: 'army' },
-  { id: 'e_shield', rarity: 'epic', name: 'Щиты глубин', text: 'Пешки начинают бой со щитом в 20% здоровья', icon: 'pawn' },
-  { id: 'e_crit', rarity: 'epic', name: 'Глаз бездны', text: '+5% к шансу крита', icon: 'army' },
-  { id: 'e_opening', rarity: 'epic', name: 'Рывок из тьмы', text: 'Первые 5 с боя армия бьёт на 25% сильнее', icon: 'army' },
-  ...KINDS.map((k): BuffDef => ({ id: `e_power_${k}`, rarity: 'epic', name: 'Сила глубин', text: `+20% к атаке и здоровью ${KIND_NAME[k]}`, icon: k })),
-  { id: 'l_phoenix', rarity: 'legendary', legend: 'phoenix', name: 'Пешки-фениксы', text: 'Павшая пешка один раз за бой возрождается в тылу с половиной здоровья', icon: 'pawn' },
-  { id: 'l_chain', rarity: 'legendary', legend: 'chain', name: 'Цепной прыжок', text: 'Сразив врага, конь тут же прыгает и бьёт снова', icon: 'knight' },
-  { id: 'l_beam', rarity: 'legendary', legend: 'beam', name: 'Пронзающий луч', text: 'Выстрел слона бьёт всех врагов на диагонали', icon: 'bishop' },
-  { id: 'l_ram', rarity: 'legendary', legend: 'ram', name: 'Таран', text: 'Выстрел ладьи пробивает камни и бьёт ещё и врага за целью', icon: 'rook' },
-  { id: 'l_double', rarity: 'legendary', legend: 'double', name: 'Теневой двойник', text: 'В начале боя рядом с ферзём встаёт его тень с половиной сил', icon: 'queen' },
-  { id: 'l_wrath', rarity: 'legendary', legend: 'wrath', name: 'Гнев короля', text: 'Король бьёт вдвое сильнее и задевает всех соседних врагов', icon: 'king' },
-  { id: 'l_bloodlust', rarity: 'legendary', legend: 'bloodlust', name: 'Кровожадность', text: 'Каждое убийство лечит убийцу на 30% здоровья', icon: 'army' },
+  B('c_steel', 'common', 'Острая сталь', '+8% к атаке армии', 'army'),
+  B('c_mail', 'common', 'Крепкие латы', '+8% к здоровью армии', 'army'),
+  B('c_purse', 'common', 'Кошель короны', 'забег начинается с +60 золота', 'gold'),
+  B('c_horn', 'common', 'Боевой рог', 'первые 5 с боя армия бьёт на 20% сильнее', 'army'),
+  B('c_levy', 'common', 'Ополчение', 'забег начинается с лишней пешкой', 'pawn'),
+  B('r_knight', 'rare', 'Рыцарь в запасе', 'забег начинается с конём', 'knight'),
+  B('r_shield', 'rare', 'Щиты пешек', 'пешки начинают бой со щитом в 15% здоровья', 'pawn'),
+  B('r_eye', 'rare', 'Глаз сокола', '+6% к шансу крита', 'army'),
+  B('r_loot', 'rare', 'Трофеи', 'элита и боссы платят на 40% больше золота', 'gold'),
+  B('r_crown', 'rare', 'Корона из тени', '+25% к здоровью короля', 'king'),
+  B('e_tempo', 'epic', 'Лишний ход', '+1 ход в боях с элитой и боссами', 'army', 2),
+  B('e_chest', 'epic', 'Сундук', 'забег начинается с выбора реликвии', 'gold', 2),
+  B('e_forge', 'epic', 'Горн', 'забег начинается с Кузницей +2', 'army'),
+  ...KINDS.map((k) => B(`e_power_${k}`, 'epic', 'Сила короны', `+25% к атаке и здоровью ${KIND_NAME[k]}`, k)),
+  B('l_phoenix', 'legendary', 'Пешки-фениксы', 'павшая пешка один раз за бой возрождается в тылу с половиной здоровья', 'pawn', 1, 'phoenix'),
+  B('l_chain', 'legendary', 'Цепной прыжок', 'сразив врага, конь тут же прыгает и бьёт снова', 'knight', 1, 'chain'),
+  B('l_beam', 'legendary', 'Пронзающий луч', 'выстрел слона бьёт всех врагов на диагонали', 'bishop', 1, 'beam'),
+  B('l_ram', 'legendary', 'Таран', 'выстрел ладьи пробивает камни и бьёт ещё и врага за целью', 'rook', 1, 'ram'),
+  B('l_double', 'legendary', 'Теневой двойник', 'в начале боя рядом с ферзём встаёт его тень с половиной сил', 'queen', 1, 'double'),
+  B('l_wrath', 'legendary', 'Гнев короля', 'король бьёт вдвое сильнее и задевает всех соседних врагов', 'king', 1, 'wrath'),
+  B('l_bloodlust', 'legendary', 'Кровожадность', 'каждое убийство лечит убийцу на 30% здоровья', 'army', 1, 'bloodlust'),
 ];
 
 export const BUFF_BY_ID: Record<string, BuffDef> = Object.fromEntries(BUFFS.map((b) => [b.id, b]));
 
 export interface RouletteState {
-  /** How many times each buff was rolled (stacks for non-legendaries). */
+  /** Rank of every gift taken. */
   owned: Record<string, number>;
   spins: number;
   /** Spins since the last epic-or-better and since the last legendary. */
   sinceEpic: number;
   sinceLegend: number;
+  /** A spin that has landed and waits for the player's pick (kept so a reload does not reroll it). */
+  offer: string[] | null;
+  /** Free spins waiting ("Голод", "Трофеи"). */
+  free: number;
 }
 
 export function emptyRoulette(): RouletteState {
-  return { owned: {}, spins: 0, sinceEpic: 0, sinceLegend: 0 };
+  return { owned: {}, spins: 0, sinceEpic: 0, sinceLegend: 0, offer: null, free: 0 };
+}
+
+export function rank(r: RouletteState, id: string): number {
+  return r.owned[id] ?? 0;
+}
+
+/** Gifts that can still be taken (not at their highest rank). */
+function open(r: RouletteState, rarity: Rarity): BuffDef[] {
+  return BUFFS.filter((b) => b.rarity === rarity && rank(r, b.id) < b.max);
 }
 
 function pickRarity(r: RouletteState, rand: () => number, legendMult = 1): Rarity {
-  if (r.sinceLegend + 1 >= LEGEND_PITY) return 'legendary';
+  if (r.sinceLegend + 1 >= LEGEND_PITY && open(r, 'legendary').length) return 'legendary';
   const pool: Rarity[] = r.sinceEpic + 1 >= EPIC_PITY ? ['epic', 'legendary'] : ['common', 'rare', 'epic', 'legendary'];
-  const weight = (k: Rarity) => RARITY[k].weight * (k === 'legendary' ? legendMult : 1);
+  const weight = (k: Rarity) => (open(r, k).length ? RARITY[k].weight * (k === 'legendary' ? legendMult : 1) : 0);
   const total = pool.reduce((n, k) => n + weight(k), 0);
+  if (!total) return 'common';
   let roll = rand() * total;
   for (const k of pool) if ((roll -= weight(k)) < 0) return k;
   return pool[pool.length - 1];
 }
 
-/** Roll one buff and record it. Legendaries never repeat; once all are owned, an epic drops instead. */
-export function rollBuff(r: RouletteState, rand: () => number = Math.random, legendMult = 1): BuffDef {
+/**
+ * Spin the wheel: pick a rarity and offer `choices` distinct gifts of it (fewer
+ * when fewer are left). The offer waits in the state until one is taken.
+ */
+export function spinWheel(r: RouletteState, rand: () => number = Math.random, legendMult = 1, choices = 3): BuffDef[] {
   let rarity = pickRarity(r, rand, legendMult);
-  let pool = BUFFS.filter((b) => b.rarity === rarity && !(b.legend && r.owned[b.id]));
-  if (!pool.length) {
-    rarity = 'epic';
-    pool = BUFFS.filter((b) => b.rarity === 'epic');
+  let pool = open(r, rarity);
+  for (const fallback of ['epic', 'rare', 'common', 'legendary'] as Rarity[]) {
+    if (pool.length) break;
+    rarity = fallback;
+    pool = open(r, rarity);
   }
-  const buff = pool[Math.floor(rand() * pool.length)];
-  r.owned[buff.id] = (r.owned[buff.id] ?? 0) + 1;
+  if (!pool.length) {
+    // Everything is at its highest rank (and every legend owned): nothing left to give.
+    r.offer = null;
+    return [];
+  }
+  const offer: BuffDef[] = [];
+  const rest = [...pool];
+  while (offer.length < choices && rest.length) offer.push(rest.splice(Math.floor(rand() * rest.length), 1)[0]);
   r.spins++;
   r.sinceEpic = rarity === 'epic' || rarity === 'legendary' ? 0 : r.sinceEpic + 1;
   r.sinceLegend = rarity === 'legendary' ? 0 : r.sinceLegend + 1;
-  return buff;
+  r.offer = offer.map((b) => b.id);
+  return offer;
 }
 
-/** A random buff for the spinning strip (does not change state). */
+/** Every gift at its highest rank: the wheel has nothing left. */
+export function wheelExhausted(r: RouletteState): boolean {
+  return BUFFS.every((b) => rank(r, b.id) >= b.max);
+}
+
+/** Take one gift of the waiting offer. */
+export function takeGift(r: RouletteState, id: string): BuffDef | null {
+  if (!r.offer?.includes(id)) return null;
+  const def = BUFF_BY_ID[id];
+  r.owned[id] = Math.min(def.max, rank(r, id) + 1);
+  r.offer = null;
+  return def;
+}
+
+/** A gift given outright ("Трофеи" of the Crown Tree): the next rank of a random open gift of a rarity. */
+export function grantGift(r: RouletteState, rarity: Rarity, rand: () => number = Math.random): BuffDef | null {
+  const pool = open(r, rarity);
+  if (!pool.length) return null;
+  const def = pool[Math.floor(rand() * pool.length)];
+  r.owned[def.id] = rank(r, def.id) + 1;
+  return def;
+}
+
+/** A random gift for the spinning strip (does not change state). */
 export function randomBuff(rand: () => number = Math.random): BuffDef {
-  const fake: RouletteState = emptyRoulette();
-  const rarity = pickRarity(fake, rand);
-  const pool = BUFFS.filter((b) => b.rarity === rarity);
-  return pool[Math.floor(rand() * pool.length)];
+  return BUFFS[Math.floor(rand() * BUFFS.length)];
 }
 
 export interface RouletteBonuses {
@@ -115,49 +172,67 @@ export interface RouletteBonuses {
   crit: number;
   opening: number;
   legends: LegendId[];
+  /** Extra moves in elite and boss battles. */
+  bigMoves: number;
+  /** Elite and boss gold multiplier. */
+  loot: number;
 }
 
 /** Sum everything owned into multipliers for battles and the economy. */
 export function rouletteBonuses(r: RouletteState): RouletteBonuses {
-  const n = (id: string) => r.owned[id] ?? 0;
+  const n = (id: string) => rank(r, id);
   const kind: RouletteBonuses['kind'] = {};
   for (const k of KINDS) {
-    const atk = 1 + 0.08 * n(`r_atk_${k}`) + 0.2 * n(`e_power_${k}`);
-    const hp = 1 + 0.08 * n(`r_hp_${k}`) + 0.2 * n(`e_power_${k}`);
-    if (atk !== 1 || hp !== 1) kind[k] = { atk, hp };
+    const m = 1 + 0.25 * n(`e_power_${k}`);
+    if (m !== 1) kind[k] = { atk: m, hp: m };
   }
   return {
-    atk: 1 + 0.02 * n('c_atk') + 0.04 * n('r_army'),
-    hp: 1 + 0.02 * n('c_hp') + 0.04 * n('r_army'),
-    gold: 1 + 0.03 * n('c_gold'),
-    kingHp: 1 + 0.05 * n('c_king'),
+    atk: 1 + 0.08 * n('c_steel'),
+    hp: 1 + 0.08 * n('c_mail'),
+    gold: 1,
+    kingHp: 1 + 0.25 * n('r_crown'),
     kind,
-    pawnShield: Math.min(0.6, 0.2 * n('e_shield')),
-    crit: Math.min(0.25, 0.05 * n('e_crit')),
-    opening: 1 + 0.25 * n('e_opening'),
+    pawnShield: 0.15 * n('r_shield'),
+    crit: 0.06 * n('r_eye'),
+    opening: 1 + 0.2 * n('c_horn'),
     legends: BUFFS.filter((b) => b.legend && n(b.id)).map((b) => b.legend!),
+    bigMoves: n('e_tempo'),
+    loot: 1 + 0.4 * n('r_loot'),
   };
 }
 
-/** Short lines describing everything owned, for the camp card. */
-export function ownedSummary(r: RouletteState): string[] {
-  const b = rouletteBonuses(r);
-  const pct = (m: number) => `+${Math.round((m - 1) * 100)}%`;
-  const lines: string[] = [];
-  if (b.atk > 1) lines.push(`Атака армии ${pct(b.atk)}`);
-  if (b.hp > 1) lines.push(`Здоровье армии ${pct(b.hp)}`);
-  if (b.kingHp > 1) lines.push(`Здоровье короля ${pct(b.kingHp)}`);
-  if (b.gold > 1) lines.push(`Золото ${pct(b.gold)}`);
-  for (const [k, v] of Object.entries(b.kind)) {
-    const parts = [v!.atk > 1 ? `атака ${pct(v!.atk)}` : '', v!.hp > 1 ? `здоровье ${pct(v!.hp)}` : ''].filter(Boolean);
-    const name = KIND_NAME[k as PieceKind];
-    lines.push(`${name[0].toUpperCase()}${name.slice(1)}: ${parts.join(', ')}`);
-  }
-  if (b.pawnShield) lines.push(`Щит пешек ${Math.round(b.pawnShield * 100)}%`);
-  if (b.crit) lines.push(`Шанс крита +${Math.round(b.crit * 100)}%`);
-  if (b.opening > 1) lines.push(`Рывок из тьмы ${pct(b.opening)}`);
-  return lines;
+/** What the gifts give a new run: gold, pieces, forge levels, relic picks. */
+export function runStartGifts(r: RouletteState): { gold: number; pawns: number; knights: number; forge: number; relicPicks: number } {
+  return {
+    gold: 60 * rank(r, 'c_purse'),
+    pawns: rank(r, 'c_levy'),
+    knights: rank(r, 'r_knight'),
+    forge: 2 * rank(r, 'e_forge'),
+    relicPicks: rank(r, 'e_chest'),
+  };
 }
+
+/** Owned gifts with their ranks, the rarest first, for the camp card. */
+export function ownedGifts(r: RouletteState): { def: BuffDef; rank: number }[] {
+  const order: Rarity[] = ['legendary', 'epic', 'rare', 'common'];
+  return BUFFS.filter((b) => rank(r, b.id) > 0)
+    .sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity))
+    .map((def) => ({ def, rank: rank(r, def.id) }));
+}
+
+/** Old roulette saves: legendaries carry over, everything else is paid back in crowns. */
+export function migrateRoulette(old: Partial<RouletteState> | undefined): { roulette: RouletteState; crowns: number } {
+  const roulette = emptyRoulette();
+  let crowns = 0;
+  for (const [id, count] of Object.entries(old?.owned ?? {})) {
+    if (BUFF_BY_ID[id]?.legend) roulette.owned[id] = 1;
+    else crowns += Math.ceil(count / 4);
+  }
+  roulette.spins = old?.spins ?? 0;
+  return { roulette, crowns };
+}
+
+export const ROMAN = ['', 'I', 'II', 'III'];
 
 /** Shards the old Altar perks cost, refunded when the Altar became the roulette. */
 export function altarRefund(altar: Partial<Record<string, number>> | undefined): number {

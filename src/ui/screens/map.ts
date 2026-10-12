@@ -1,4 +1,4 @@
-import { CHAPTERS, abyssId, finaleId, enemyPlacements } from '../../game/levels';
+import { CHAPTERS, finaleId, enemyPlacements } from '../../game/levels';
 import { MAP_ROWS, availableNodes, endRun, enterNode, runMap, type RunNode } from '../../game/run';
 import { NODE_HELP, NODE_ICON, livesRow, nodeLabel, openNodeDialog, openRunEnd } from '../runNodes';
 import { iconUrl } from '../icons';
@@ -6,16 +6,16 @@ import { bossArtUrl, hasBossArt } from '../bossArt';
 import { bossFor } from '../../game/bosses';
 import { RELIC_IDS } from '../../game/relics';
 import {
-  PRESTIGE_UNLOCK, canPrestige, crownsForPrestige, gameNumber, isAbyssOpen, isFinaleOpen,
+  PRESTIGE_UNLOCK, canPrestige, crownsForPrestige, gameNumber, isFinaleOpen,
 } from '../../game/state';
 import type { Ctx, Screen } from '../context';
 import { confirmDialog, el, infoBtn, setText, stars, toast } from '../dom';
-import { fmt } from '../format';
 import { audio } from '../audio';
 import { openRelicPicker, relicStrip } from '../relics';
 import { spriteUrl } from '../sprites';
 import { drawChapterScene } from '../mapArt';
 import { openCrownTree } from '../crownTree';
+import { openWheel } from '../roulette';
 import { openChronicle, playGameIntro, playReveal } from '../story';
 import { playCredits } from '../finale';
 import { handUrl } from '../handArt';
@@ -40,13 +40,11 @@ export class MapScreen implements Screen {
   private relicCount = el('span');
   private relicBtn = el('button', 'btn btn-up');
   private relicsCard!: HTMLElement;
-  private abyssCard = el('div', 'card abyss-card');
-  private abyssInfo = el('div', 'treasury-info');
-  private abyssBtn = el('button', 'btn btn-primary', 'Спуститься');
   private prestigeCard = el('div', 'card prestige-card');
   private prestigeInfo = el('div', 'treasury-info');
   private prestigeBtn = el('button', 'btn btn-up', 'Новая партия');
   private treeBtn = el('button', 'btn btn-buy tree-btn', '♛ Древо короны');
+  private wheelBtn = el('button', 'btn btn-up wheel-btn', '◎ Колесо короны');
   private chronicleBtn = el('button', 'btn btn-small chronicle-btn', 'Летопись');
   private distortionInfo = el('div', 'distortion-info treasury-info');
   private finaleCard = el('div', 'card finale-card');
@@ -76,23 +74,16 @@ export class MapScreen implements Screen {
     this.relicBtn.addEventListener('click', () => openRelicPicker(this.ctx, () => this.renderRelics()));
     relics.append(rHead, this.relicList, this.relicBtn);
 
-    const aHead = el('div', 'panel-head');
-    aHead.append(el('span', 'panel-title', 'Бездна'), infoBtn('Бездна',
-      'Бесконечный путь после победы в партии: армия забега спускается этаж за этажом, враги всё сильнее.\nЗдесь добываются осколки ◆ — за них крутят «Рулетку бездны» с вечными улучшениями, а каждые 10 этажей — ещё и корона.\nПервое поражение заканчивает забег. Каждые 10 этажей — страж с тройным здоровьем и реликвия.'));
-    const aImg = el('img', 'abyss-img');
-    aImg.src = spriteUrl('king', 'enemy', 2);
-    aImg.alt = '';
-    this.abyssBtn.addEventListener('click', () => this.ctx.go('arena', abyssId(this.ctx.state.abyss.floor)));
-    this.abyssCard.append(aHead, aImg, this.abyssInfo, this.abyssBtn);
-
     const pHead = el('div', 'panel-head');
     pHead.append(el('span', 'panel-title', 'Короны'), infoBtn('Короны и партии',
-      'Каждый забег, даже проигранный, приносит короны: по 1 за босса, 2 за победу в партии и 1 за каждые 10 этажей Бездны.\nКороны тратятся в «Древе короны» на доктрины: шахматные приёмы, новые фигуры и силы Бездны. Глубокие ярусы открываются в следующих партиях.\nПобеда над Чёрным ферзём выигрывает партию: следующая будет труднее, Чёрный король принесёт новое искажение. Проигранный забег повторяет ту же партию с 1-1.'));
+      'Каждый забег, даже проигранный, приносит короны: по 1 за босса и 2 за победу в партии; ещё их дают достижения.\n'
+      + 'Короны тратятся в «Древе короны» на доктрины или в «Колесе короны» на вечные дары (2 ♛ за крутку).\nГлубокие ярусы Древа открываются в следующих партиях.\nПобеда над Чёрным ферзём выигрывает партию: следующая будет труднее, Чёрный король принесёт новое искажение. Проигранный забег повторяет ту же партию с 1-1.'));
     this.prestigeBtn.addEventListener('click', () => void this.onPrestige());
     this.treeBtn.addEventListener('click', () => openCrownTree(this.ctx));
+    this.wheelBtn.addEventListener('click', () => openWheel(this.ctx, () => this.renderRelics()));
     this.chronicleBtn.addEventListener('click', () => openChronicle(this.ctx.state, () => this.ctx.save(),
       this.ctx.state.finale.beaten ? () => void playCredits(this.ctx.state) : undefined));
-    this.prestigeCard.append(pHead, this.prestigeInfo, this.distortionInfo, this.prestigeBtn, this.treeBtn, this.chronicleBtn);
+    this.prestigeCard.append(pHead, this.prestigeInfo, this.distortionInfo, this.prestigeBtn, this.treeBtn, this.wheelBtn, this.chronicleBtn);
 
     const fHead = el('div', 'panel-head');
     fHead.append(el('span', 'panel-title', 'Край доски'), infoBtn('Край доски',
@@ -108,7 +99,7 @@ export class MapScreen implements Screen {
     this.creditsBtn.addEventListener('click', () => void playCredits(this.ctx.state));
     this.finaleCard.append(fHead, fImg, this.finaleInfo, this.finalePips, this.finaleBtn, this.creditsBtn);
 
-    side.append(this.prestigeCard, this.abyssCard, relics, this.finaleCard);
+    side.append(this.prestigeCard, relics, this.finaleCard);
     this.root.append(main, side);
   }
 
@@ -170,7 +161,7 @@ export class MapScreen implements Screen {
     const gain = crownsForPrestige(s);
     const ok = await confirmDialog('Новая партия',
       `Забег закончится победой: вы получите ${gain} ♛. Следующая партия начнётся с 1-1 с новой армией, враги станут сильнее, `
-      + `Чёрный король принесёт новое искажение. Бездна и финал этой армии будут недоступны.`, 'Начать');
+      + `Чёрный король принесёт новое искажение. Финал этой армией будет недоступен.`, 'Начать');
     if (!ok) return;
     endRun(s, true, PRESTIGE_UNLOCK);
     this.ctx.save();
@@ -331,12 +322,6 @@ export class MapScreen implements Screen {
     const s = this.ctx.state;
     this.relicsCard.hidden = !featureOpen(s, 'relics');
     this.relicBtn.hidden = s.relicPicks <= 0;
-    const abyssOpen = isAbyssOpen(s);
-    setText(this.abyssInfo, abyssOpen
-      ? `Этаж ${s.abyss.floor} · рекорд ${s.abyss.best} · ◆ ${fmt(s.shards)}`
-      : `🔒 После победы в партии · рекорд ${s.abyss.best}`);
-    this.abyssBtn.hidden = !abyssOpen;
-    this.abyssCard.classList.toggle('locked', !abyssOpen);
     // The edge of the board is a secret until it opens with the Hand's own entrance.
     const fOpen = isFinaleOpen(s);
     const revealed = s.tutorial.includes(REVEAL_KEY) || s.finale.phase > 0 || s.finale.beaten;
@@ -355,6 +340,9 @@ export class MapScreen implements Screen {
       : `Свободно ${s.crowns} ♛ · партия ${s.prestige + 1}`);
     this.prestigeBtn.hidden = !ready;
     this.treeBtn.hidden = s.prestige === 0 && s.crowns === 0 && s.crownTree.length === 0;
+    this.wheelBtn.hidden = this.treeBtn.hidden && s.roulette.spins === 0;
+    setText(this.wheelBtn, s.roulette.offer ? '◎ Колесо: выберите дар!' : s.roulette.free ? '◎ Колесо: бесплатная крутка!' : '◎ Колесо короны');
+    this.wheelBtn.classList.toggle('just-opened', !!s.roulette.offer || s.roulette.free > 0);
     // Not shown until there is something to say: the final boss is beaten or the tree is in play.
     this.prestigeCard.hidden = !ready && this.treeBtn.hidden;
     // Distortions of this game: the first chapters' ones, and those that join from chapter 3.
@@ -366,8 +354,6 @@ export class MapScreen implements Screen {
     const forks = this.path.querySelectorAll<HTMLElement>('.run-node.current');
     void (forks.length > 1 && this.ctx.tip('t_fork', forks[0],
       'Развилка! Выберите, куда вести армию: бой, элита с реликвией, событие, торговец или лагерь. Назад пути нет.'));
-    void (abyssOpen && this.ctx.tip('t_abyss', this.abyssBtn,
-      'Открыта Бездна! Бесконечные этажи с наградами. Включите авто-спуск, чтобы армия спускалась сама.'));
     void this.ctx.tip('t_relic', this.relicBtn, 'Вы заслужили реликвию! Выберите один из трёх бонусов до конца забега.');
     setText(this.relicBtn, `Выбрать реликвию (${s.relicPicks})`);
   }

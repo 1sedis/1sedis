@@ -12,15 +12,15 @@ import type { RelicId } from '../src/game/relics';
 import {
   BUILDINGS, battleSetup, buildingCost, buyBuilding, buyNode, chooseRelic, commandLimit,
   forgeMultiplier, gameNumber, isUnlocked, newGame, prestige, startNextRun, armyCap, recordResult,
-  recruit, recruitCost, relicOffer, spinCost, spinRoulette, upgradeCost, upgradePiece, type BuildingId, type GameState,
+  recruit, recruitCost, relicOffer, chooseGift, spinRoulette, upgradeCost, upgradePiece, type BuildingId, type GameState,
 } from '../src/game/state';
 
 /**
  * The whole story the way a sensible player plays it: games 1 to 3 in a row
- * with everything carried over (crowns spent in the Crown Tree, shards spun on
+ * with everything carried over (crowns spent in the Crown Tree, then spun on
  * the roulette, relics picked by value), purchases chosen by power per gold
- * (so rooks and queens get bought), a few Abyss floors whenever a level does
- * not give in, and finally the three phases of the finale.
+ * (so rooks and queens get bought), runs replayed until each game is won,
+ * and finally the three phases of the finale.
  *
  * Time model: battles at x2 speed plus 10 s of fiddling each, and waiting for
  * the treasury when nothing is affordable. Run: npm run bot:story
@@ -134,7 +134,11 @@ test('story bot', () => {
       const node = NODES.find((n) => n.id === id)!;
       if (nodeState(s.crownTree, gameNumber(s), node) === 'available' && s.crowns >= nodeCost(node)) buyNode(s, id as never);
     }
-    while (s.shards >= spinCost(s)) spinRoulette(s, 1, rand);
+    // Crowns left after the tree go to the Crown Wheel; legendaries and epics are taken first.
+    for (let offer = spinRoulette(s, rand); offer?.length; offer = spinRoulette(s, rand)) {
+      const order = ['legendary', 'epic', 'rare', 'common'];
+      chooseGift(s, [...offer].sort((a, b) => order.indexOf(a.rarity) - order.indexOf(b.rarity))[0].id);
+    }
     for (let i = 0; i < 300; i++) {
       const o = options(s, limit)[0];
       if (!o || s.gold < o.cost || !o.buy()) break;

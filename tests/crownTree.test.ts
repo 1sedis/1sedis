@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MOVES_PER_BATTLE, createBattle, playMove, stepBattle, type BattleEvent, type BattleSetup } from '../src/game/battle';
 import { NODES, NODE_BY_ID, nodeState, type NodeId } from '../src/game/crownTree';
 import { synergyProgress } from '../src/game/synergies';
+import { buildMap } from '../src/game/run';
 import {
   battleSetup, buyNode, commandLimit, isUnlocked, newGame, playerMoves, prestige, queenCap, recruit, resetTree, spinCost,
 } from '../src/game/state';
@@ -57,7 +58,7 @@ describe('crown tree', () => {
     expect(isUnlocked(s, 'ghost')).toBe(true);
     expect(commandLimit(s, '1-1')).toBe(newGame(0) && commandLimit(newGame(0), '1-1') + 1);
     expect(queenCap(s)).toBe(2);
-    expect(spinCost(s)).toBe(5); // hunger was taken, so luck is closed
+    expect(spinCost(s)).toBe(2); // hunger was taken, so luck is closed
     s.gold = 1e6;
     for (const k of ['1-1', '1-2', '1-9', '2-9', '3-9'] as const) s.stars[k] = 1;
     expect(recruit(s, 'ghost')).toBe(true);
@@ -133,14 +134,25 @@ describe('doctrines in battle', () => {
     expect(events.some((e) => e.type === 'hit' && e.fromKind === 'archbishop' && e.side === 'enemy')).toBe(true);
   });
 
-  it('the lured enemy and the loyal guardian fight for you in the abyss', () => {
+  it('the lured enemy joins you in elite battles, the beaten boss serves till the end of the run', () => {
     const s = fresh(4, 50);
-    for (let c = 1; c <= 2; c++) for (let n = 1; n <= 9; n++) s.stars[`${c}-${n}`] = 1;
     for (const id of ['hunger', 'fog', 'lure', 'guardian'] as const) expect(buyNode(s, id)).toBe(true);
-    s.abyss.guardian = 'rook';
-    s.abyss.floor = 12;
-    const setup = battleSetup(s, 'abyss-12');
-    expect(setup.allies.some((a) => a.kind === 'rook' && a.boss)).toBe(true);
-    expect(setup.allies.length).toBeGreaterThanOrEqual(3);
+    s.run.guardian = 'rook';
+    const plain = battleSetup(s, '1-1');
+    expect(plain.allies.some((a) => a.kind === 'rook' && a.boss)).toBe(true);
+    s.run.chapter = 2;
+    for (let seed = 1; seed < 300; seed++) {
+      const map = buildMap(2, seed);
+      const elite = map.nodes.find((n) => n.kind === 'elite' && n.row === 2 && n.rule !== 'mirror');
+      const r1 = elite && map.nodes.find((n) => n.row === 1 && n.next.includes(elite.id));
+      if (!elite || !r1) continue;
+      s.run.seed = seed;
+      s.run.done = [map.nodes.find((n) => n.row === 0)!.id, r1.id];
+      s.run.at = elite.id;
+      const setup = battleSetup(s, elite.level!);
+      expect(setup.allies.filter((a) => a.kind !== 'king' && !a.boss).length).toBeGreaterThanOrEqual(1);
+      return;
+    }
+    throw new Error('no elite');
   });
 });
