@@ -11,10 +11,52 @@
   ],
   "deaths": {
    "2": 4,
-   "3": 1,
-   "4": 1
+   "3": 2
   },
-  "hours": 1.26,
+  "hours": 1.22,
+  "finale": [
+   3,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   1,
+   2,
+   7
+  ],
+  "deaths": {
+   "2": 1,
+   "3": 3,
+   "4": 3
+  },
+  "hours": 1.64,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   13,
+   1,
+   1
+  ],
+  "deaths": {
+   "3": 4,
+   "4": 8
+  },
+  "hours": 2.44,
   "finale": [
    1,
    1,
@@ -27,16 +69,58 @@
   "moves": true,
   "seed": 2,
   "runs": [
-   3,
+   8,
    5,
    3
   ],
   "deaths": {
-   "2": 3,
-   "3": 2,
-   "4": 3
+   "3": 7,
+   "4": 6
   },
-  "hours": 1.65,
+  "hours": 2.58,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   10,
+   3,
+   1
+  ],
+  "deaths": {
+   "3": 4,
+   "4": 7
+  },
+  "hours": 2.35,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "chess",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   8,
+   4,
+   2
+  ],
+  "deaths": {
+   "2": 2,
+   "3": 8,
+   "4": 1
+  },
+  "hours": 1.84,
   "finale": [
    1,
    1,
@@ -49,60 +133,16 @@
   "moves": true,
   "seed": 0,
   "runs": [
-   14,
-   3,
+   5,
+   11,
    1
   ],
   "deaths": {
-   "2": 2,
-   "3": 8,
+   "2": 5,
+   "3": 4,
    "4": 5
   },
-  "hours": 2.62,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "guard",
-  "strat": "swarm",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   10,
-   3,
-   2
-  ],
-  "deaths": {
-   "2": 2,
-   "3": 3,
-   "4": 7
-  },
-  "hours": 2.3,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "guard",
-  "strat": "chess",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   17,
-   2,
-   1
-  ],
-  "deaths": {
-   "2": 7,
-   "3": 6,
-   "4": 4
-  },
-  "hours": 2.5,
+  "hours": 2.44,
   "finale": [
    1,
    1,
@@ -114,17 +154,61 @@
   "strat": "chess",
   "moves": true,
   "seed": 2,
+  "runs": [
+   4,
+   9,
+   1
+  ],
+  "deaths": {
+   "2": 1,
+   "3": 9,
+   "4": 1
+  },
+  "hours": 2.07,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "chess",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   14,
+   2,
+   1
+  ],
+  "deaths": {
+   "2": 3,
+   "3": 9,
+   "4": 2
+  },
+  "hours": 2.36,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "chess",
+  "moves": true,
+  "seed": 4,
   "runs": [
    12,
    4,
    2
   ],
   "deaths": {
-   "2": 2,
-   "3": 12,
-   "4": 1
+   "2": 5,
+   "3": 7,
+   "4": 3
   },
-  "hours": 2.51,
+  "hours": 2.41,
   "finale": [
    1,
    1,
@@ -137,43 +221,20 @@
   "moves": true,
   "seed": 0,
   "runs": [
-   15,
+   10,
    1,
    3
   ],
   "deaths": {
-   "1": 1,
-   "2": 6,
-   "3": 7,
+   "2": 1,
+   "3": 8,
    "4": 2
   },
-  "hours": 2.5,
+  "hours": 2.08,
   "finale": [
    1,
    1,
-   1
-  ]
- },
- {
-  "army": "cavalry",
-  "strat": "swarm",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   1,
-   3,
-   4
-  ],
-  "deaths": {
-   "1": 1,
-   "2": 3,
-   "3": 1
-  },
-  "hours": 0.91,
-  "finale": [
-   1,
-   1,
-   1
+   3
   ]
  },
  {
@@ -182,16 +243,39 @@
   "moves": true,
   "seed": 1,
   "runs": [
-   15,
-   6,
+   12,
+   2,
    1
   ],
   "deaths": {
-   "2": 5,
-   "3": 10,
-   "4": 4
+   "2": 3,
+   "3": 8,
+   "4": 1
   },
-  "hours": 2.95,
+  "hours": 2,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "riders",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   16,
+   1,
+   2
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 3,
+   "3": 11,
+   "4": 1
+  },
+  "hours": 2.41,
   "finale": [
    1,
    1,
@@ -201,6 +285,278 @@
  {
   "army": "cavalry",
   "strat": "swarm",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   13,
+   2,
+   2
+  ],
+  "deaths": {
+   "1": 2,
+   "2": 2,
+   "3": 8,
+   "4": 2
+  },
+  "hours": 2.11,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "riders",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   7,
+   7,
+   1
+  ],
+  "deaths": {
+   "2": 4,
+   "3": 6,
+   "4": 2
+  },
+  "hours": 2.14,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "guard",
+  "strat": "riders",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   18,
+   3,
+   1
+  ],
+  "deaths": {
+   "2": 3,
+   "3": 13,
+   "4": 3
+  },
+  "hours": 3.01,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   7,
+   8,
+   3
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 3,
+   "3": 9,
+   "4": 2
+  },
+  "hours": 2.21,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   25,
+   1,
+   3
+  ],
+  "deaths": {
+   "1": 12,
+   "2": 4,
+   "3": 10
+  },
+  "hours": 2.43,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   14,
+   2,
+   2
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 2,
+   "3": 8,
+   "4": 2
+  },
+  "hours": 2.18,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   22,
+   6,
+   1
+  ],
+  "deaths": {
+   "1": 9,
+   "2": 5,
+   "3": 7,
+   "4": 5
+  },
+  "hours": 2.94,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "chess",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   13,
+   1,
+   4
+  ],
+  "deaths": {
+   "1": 2,
+   "2": 2,
+   "3": 7,
+   "4": 4
+  },
+  "hours": 2.34,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "chess",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   17,
+   3,
+   1
+  ],
+  "deaths": {
+   "1": 2,
+   "2": 2,
+   "3": 9,
+   "4": 5
+  },
+  "hours": 2.7,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "chess",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   18,
+   1,
+   4
+  ],
+  "deaths": {
+   "1": 2,
+   "3": 17,
+   "4": 1
+  },
+  "hours": 2.85,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "chess",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   36,
+   1,
+   1
+  ],
+  "deaths": {
+   "1": 12,
+   "2": 3,
+   "3": 16,
+   "4": 4
+  },
+  "hours": 3.72,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "riders",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   9,
+   3,
+   1
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 1,
+   "3": 5,
+   "4": 1
+  },
+  "hours": 1.45,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "riders",
   "moves": true,
   "seed": 1,
   "runs": [
@@ -209,11 +565,12 @@
    1
   ],
   "deaths": {
-   "2": 1,
+   "1": 1,
+   "2": 3,
    "3": 3,
-   "4": 4
+   "4": 1
   },
-  "hours": 1.48,
+  "hours": 1.28,
   "finale": [
    1,
    1,
@@ -222,107 +579,19 @@
  },
  {
   "army": "cavalry",
-  "strat": "swarm",
+  "strat": "chess",
   "moves": true,
-  "seed": 2,
+  "seed": 4,
   "runs": [
-   5,
-   7,
+   20,
+   1,
    3
   ],
   "deaths": {
-   "1": 5,
-   "2": 4,
-   "4": 3
-  },
-  "hours": 1.54,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "cavalry",
-  "strat": "chess",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   14,
-   1,
-   1
-  ],
-  "deaths": {
-   "2": 2,
-   "3": 10,
-   "4": 1
-  },
-  "hours": 2.03,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "cavalry",
-  "strat": "chess",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   19,
-   1,
-   1
-  ],
-  "deaths": {
-   "2": 3,
-   "3": 8,
-   "4": 7
-  },
-  "hours": 2.83,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "cavalry",
-  "strat": "riders",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   1,
-   3,
-   4
-  ],
-  "deaths": {
-   "1": 1,
-   "2": 3,
-   "3": 1
-  },
-  "hours": 0.91,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "cavalry",
-  "strat": "chess",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   23,
-   4,
-   1
-  ],
-  "deaths": {
    "1": 3,
-   "2": 7,
-   "3": 14,
-   "4": 1
+   "2": 4,
+   "3": 7,
+   "4": 7
   },
   "hours": 3.02,
   "finale": [
@@ -335,18 +604,19 @@
   "army": "cavalry",
   "strat": "riders",
   "moves": true,
-  "seed": 1,
+  "seed": 2,
   "runs": [
-   9,
-   1,
+   11,
+   5,
    1
   ],
   "deaths": {
-   "2": 1,
+   "1": 6,
+   "2": 3,
    "3": 3,
-   "4": 4
+   "4": 2
   },
-  "hours": 1.48,
+  "hours": 1.63,
   "finale": [
    1,
    1,
@@ -357,18 +627,40 @@
   "army": "cavalry",
   "strat": "riders",
   "moves": true,
-  "seed": 2,
+  "seed": 4,
   "runs": [
-   5,
-   7,
-   3
+   6,
+   1,
+   1
   ],
   "deaths": {
-   "1": 5,
-   "2": 4,
-   "4": 3
+   "2": 2,
+   "3": 3
   },
-  "hours": 1.54,
+  "hours": 1.03,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "cavalry",
+  "strat": "riders",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   12,
+   1,
+   4
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 5,
+   "3": 5,
+   "4": 1
+  },
+  "hours": 1.88,
   "finale": [
    1,
    1,
@@ -382,15 +674,16 @@
   "seed": 0,
   "runs": [
    1,
-   11,
-   2
+   12,
+   6
   ],
   "deaths": {
-   "1": 5,
-   "2": 5,
-   "3": 1
+   "1": 9,
+   "2": 1,
+   "3": 5,
+   "4": 1
   },
-  "hours": 1.32,
+  "hours": 1.83,
   "finale": [
    1,
    1,
@@ -403,16 +696,16 @@
   "moves": true,
   "seed": 1,
   "runs": [
-   14,
-   7,
-   1
+   12,
+   1,
+   4
   ],
   "deaths": {
-   "1": 8,
-   "2": 6,
-   "3": 5
+   "1": 4,
+   "2": 2,
+   "3": 8
   },
-  "hours": 2,
+  "hours": 1.87,
   "finale": [
    1,
    1,
@@ -425,17 +718,63 @@
   "moves": true,
   "seed": 2,
   "runs": [
-   31,
-   3,
-   3
+   16,
+   7,
+   2
   ],
   "deaths": {
-   "1": 16,
-   "2": 7,
-   "3": 8,
-   "4": 3
+   "1": 9,
+   "2": 5,
+   "3": 7,
+   "4": 1
   },
-  "hours": 3.35,
+  "hours": 2.47,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   6,
+   6,
+   10
+  ],
+  "deaths": {
+   "1": 6,
+   "2": 6,
+   "3": 5,
+   "4": 2
+  },
+  "hours": 2.4,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   9,
+   8,
+   1
+  ],
+  "deaths": {
+   "1": 12,
+   "2": 1,
+   "3": 1,
+   "4": 1
+  },
+  "hours": 1.51,
   "finale": [
    1,
    1,
@@ -448,17 +787,108 @@
   "moves": true,
   "seed": 0,
   "runs": [
-   20,
+   16,
+   2,
+   1
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 3,
+   "3": 6,
+   "4": 4
+  },
+  "hours": 2.44,
+  "finale": [
    1,
-   6
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "chess",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   21,
+   5,
+   1
+  ],
+  "deaths": {
+   "1": 5,
+   "2": 8,
+   "3": 9,
+   "4": 2
+  },
+  "hours": 2.82,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "chess",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   27,
+   1,
+   1
+  ],
+  "deaths": {
+   "1": 6,
+   "2": 11,
+   "3": 9
+  },
+  "hours": 2.92,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "chess",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   13,
+   3,
+   2
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 2,
+   "3": 7,
+   "4": 5
+  },
+  "hours": 2.58,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "chess",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   23,
+   1,
+   1
   ],
   "deaths": {
    "1": 4,
    "2": 12,
    "3": 5,
-   "4": 3
+   "4": 1
   },
-  "hours": 2.9,
+  "hours": 2.55,
   "finale": [
    1,
    1,
@@ -467,133 +897,112 @@
  },
  {
   "army": "archers",
-  "strat": "chess",
+  "strat": "riders",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   1,
+   12,
+   6
+  ],
+  "deaths": {
+   "1": 9,
+   "2": 1,
+   "3": 5,
+   "4": 1
+  },
+  "hours": 1.83,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "riders",
   "moves": true,
   "seed": 1,
   "runs": [
-   24,
-   3,
-   3
+   12,
+   1,
+   4
+  ],
+  "deaths": {
+   "1": 4,
+   "2": 2,
+   "3": 8
+  },
+  "hours": 1.87,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "riders",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   16,
+   7,
+   2
+  ],
+  "deaths": {
+   "1": 9,
+   "2": 5,
+   "3": 7,
+   "4": 1
+  },
+  "hours": 2.47,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "riders",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   9,
+   8,
+   1
+  ],
+  "deaths": {
+   "1": 12,
+   "2": 1,
+   "3": 1,
+   "4": 1
+  },
+  "hours": 1.51,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "archers",
+  "strat": "riders",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   6,
+   6,
+   10
   ],
   "deaths": {
    "1": 6,
-   "2": 9,
-   "3": 9,
-   "4": 3
-  },
-  "hours": 3.18,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "archers",
-  "strat": "riders",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   1,
-   11,
-   2
-  ],
-  "deaths": {
-   "1": 5,
-   "2": 5,
-   "3": 1
-  },
-  "hours": 1.32,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "archers",
-  "strat": "chess",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   22,
-   7,
-   1
-  ],
-  "deaths": {
-   "1": 4,
-   "2": 14,
-   "3": 8,
-   "4": 1
-  },
-  "hours": 3.12,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "archers",
-  "strat": "riders",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   14,
-   7,
-   1
-  ],
-  "deaths": {
-   "1": 8,
    "2": 6,
-   "3": 5
-  },
-  "hours": 2,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "archers",
-  "strat": "riders",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   31,
-   3,
-   3
-  ],
-  "deaths": {
-   "1": 16,
-   "2": 7,
-   "3": 8,
-   "4": 3
-  },
-  "hours": 3.35,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "fortress",
-  "strat": "swarm",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   8,
-   4,
-   2
-  ],
-  "deaths": {
-   "2": 5,
-   "3": 4,
+   "3": 5,
    "4": 2
   },
-  "hours": 1.95,
+  "hours": 2.4,
   "finale": [
    1,
    1,
@@ -604,175 +1013,16 @@
   "army": "fortress",
   "strat": "swarm",
   "moves": true,
-  "seed": 1,
-  "runs": [
-   8,
-   16,
-   1
-  ],
-  "deaths": {
-   "1": 2,
-   "2": 9,
-   "3": 10,
-   "4": 1
-  },
-  "hours": 2.95,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "fortress",
-  "strat": "chess",
-  "moves": true,
   "seed": 0,
   "runs": [
-   9,
-   4,
-   1
-  ],
-  "deaths": {
-   "2": 5,
-   "3": 4,
-   "4": 2
-  },
-  "hours": 1.92,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "guard",
-  "strat": "riders",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   18,
-   1,
-   1
-  ],
-  "deaths": {
-   "1": 1,
-   "2": 6,
-   "3": 9,
-   "4": 1
-  },
-  "hours": 4.28,
-  "finale": [
-   401,
-   1,
-   1
-  ]
- },
- {
-  "army": "fortress",
-  "strat": "swarm",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   10,
-   5,
-   12
-  ],
-  "deaths": {
-   "1": 5,
-   "2": 6,
-   "3": 8,
-   "4": 5
-  },
-  "hours": 3.54,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "fortress",
-  "strat": "riders",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   17,
-   1,
-   3
-  ],
-  "deaths": {
-   "1": 7,
-   "2": 7,
-   "3": 3,
-   "4": 1
-  },
-  "hours": 2.03,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "fortress",
-  "strat": "chess",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   20,
-   1,
-   1
-  ],
-  "deaths": {
-   "2": 5,
-   "3": 13,
-   "4": 1
-  },
-  "hours": 3.01,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "fortress",
-  "strat": "chess",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   23,
-   1,
-   2
-  ],
-  "deaths": {
-   "1": 4,
-   "2": 6,
-   "3": 9,
-   "4": 4
-  },
-  "hours": 3.24,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "fortress",
-  "strat": "riders",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   17,
+   12,
    2,
-   1
+   2
   ],
   "deaths": {
-   "1": 2,
-   "2": 8,
-   "3": 7
+   "2": 2,
+   "3": 8,
+   "4": 3
   },
   "hours": 2.33,
   "finale": [
@@ -783,21 +1033,378 @@
  },
  {
   "army": "fortress",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   8,
+   17,
+   2
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 3,
+   "3": 16,
+   "4": 2
+  },
+  "hours": 3.42,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   13,
+   4,
+   4
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 3,
+   "3": 7,
+   "4": 5
+  },
+  "hours": 2.87,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   8,
+   3,
+   1
+  ],
+  "deaths": {
+   "3": 7,
+   "4": 2
+  },
+  "hours": 1.78,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   4,
+   19,
+   1
+  ],
+  "deaths": {
+   "1": 2,
+   "2": 8,
+   "3": 7,
+   "4": 4
+  },
+  "hours": 3.11,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "chess",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   5,
+   6,
+   2
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 2,
+   "3": 7
+  },
+  "hours": 1.77,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "chess",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   20,
+   1,
+   1
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 3,
+   "3": 13,
+   "4": 2
+  },
+  "hours": 2.93,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "chess",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   16,
+   1,
+   2
+  ],
+  "deaths": {
+   "2": 2,
+   "3": 11,
+   "4": 3
+  },
+  "hours": 2.87,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "chess",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   20,
+   8,
+   1
+  ],
+  "deaths": {
+   "1": 2,
+   "2": 3,
+   "3": 18,
+   "4": 3
+  },
+  "hours": 3.8,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "chess",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   15,
+   1,
+   1
+  ],
+  "deaths": {
+   "2": 1,
+   "3": 11,
+   "4": 2
+  },
+  "hours": 2.39,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "riders",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   15,
+   3,
+   2
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 6,
+   "3": 7,
+   "4": 1
+  },
+  "hours": 2.3,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "riders",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   14,
+   2,
+   1
+  ],
+  "deaths": {
+   "1": 5,
+   "2": 4,
+   "3": 5
+  },
+  "hours": 1.65,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
   "strat": "riders",
   "moves": true,
   "seed": 2,
   "runs": [
-   21,
-   12,
-   2
+   17,
+   6,
+   4
   ],
   "deaths": {
-   "1": 5,
-   "2": 17,
-   "3": 8,
-   "4": 2
+   "1": 8,
+   "2": 5,
+   "3": 11
   },
-  "hours": 3.62,
+  "hours": 2.71,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "riders",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   16,
+   5,
+   1
+  ],
+  "deaths": {
+   "1": 2,
+   "2": 7,
+   "3": 7,
+   "4": 3
+  },
+  "hours": 2.64,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "fortress",
+  "strat": "riders",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   15,
+   4,
+   1
+  ],
+  "deaths": {
+   "1": 6,
+   "2": 6,
+   "3": 5
+  },
+  "hours": 2.07,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   19,
+   3,
+   1
+  ],
+  "deaths": {
+   "2": 3,
+   "3": 11,
+   "4": 6
+  },
+  "hours": 3.13,
+  "finale": [
+   1,
+   1,
+   5
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   25,
+   1,
+   1
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 2,
+   "3": 15,
+   "4": 6
+  },
+  "hours": 3.42,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "swarm",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   22,
+   1,
+   1
+  ],
+  "deaths": {
+   "3": 16,
+   "4": 5
+  },
+  "hours": 3.35,
   "finale": [
    1,
    1,
@@ -811,149 +1418,16 @@
   "seed": 2,
   "runs": [
    25,
-   1,
-   1
-  ],
-  "deaths": {
-   "1": 2,
-   "2": 5,
-   "3": 12,
-   "4": 5
-  },
-  "hours": 3.19,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "warrior",
-  "strat": "chess",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   26,
-   1,
-   1
-  ],
-  "deaths": {
-   "2": 8,
-   "3": 11,
-   "4": 6
-  },
-  "hours": 3.44,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "warrior",
-  "strat": "chess",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   31,
-   1,
-   1
-  ],
-  "deaths": {
-   "2": 6,
-   "3": 14,
-   "4": 10
-  },
-  "hours": 4.45,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "warrior",
-  "strat": "riders",
-  "moves": true,
-  "seed": 0,
-  "runs": [
-   1,
-   6,
-   4
-  ],
-  "deaths": {
-   "2": 4,
-   "3": 1,
-   "4": 3
-  },
-  "hours": 1.43,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "warrior",
-  "strat": "riders",
-  "moves": true,
-  "seed": 1,
-  "runs": [
-   10,
-   4,
-   1
-  ],
-  "deaths": {
-   "2": 7,
-   "3": 4,
-   "4": 1
-  },
-  "hours": 1.64,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "warrior",
-  "strat": "chess",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   29,
-   3,
-   3
-  ],
-  "deaths": {
-   "1": 2,
-   "2": 6,
-   "3": 15,
-   "4": 9
-  },
-  "hours": 4.52,
-  "finale": [
-   1,
-   1,
-   1
-  ]
- },
- {
-  "army": "warrior",
-  "strat": "riders",
-  "moves": true,
-  "seed": 2,
-  "runs": [
-   10,
    2,
    1
   ],
   "deaths": {
-   "2": 8,
-   "3": 1,
-   "4": 1
+   "1": 2,
+   "2": 1,
+   "3": 14,
+   "4": 8
   },
-  "hours": 1.43,
+  "hours": 3.65,
   "finale": [
    1,
    1,
@@ -964,44 +1438,243 @@
   "army": "warrior",
   "strat": "swarm",
   "moves": true,
-  "seed": 1,
+  "seed": 4,
   "runs": [
-   17,
+   18,
    4,
-   1
+   3
   ],
   "deaths": {
-   "2": 5,
-   "3": 8,
-   "4": 6
+   "3": 12,
+   "4": 10
   },
-  "hours": 4.22,
+  "hours": 3.66,
   "finale": [
    1,
    1,
-   401
+   1
   ]
  },
  {
   "army": "warrior",
-  "strat": "swarm",
+  "strat": "chess",
   "moves": true,
   "seed": 0,
   "runs": [
-   19,
-   5,
+   27,
+   1,
    1
   ],
   "deaths": {
-   "2": 6,
-   "3": 12,
-   "4": 4
+   "2": 3,
+   "3": 15,
+   "4": 8
   },
-  "hours": 5.18,
+  "hours": 4.05,
   "finale": [
    1,
    1,
-   401
+   3
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "chess",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   21,
+   4,
+   3
+  ],
+  "deaths": {
+   "2": 3,
+   "3": 16,
+   "4": 6
+  },
+  "hours": 3.59,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "chess",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   31,
+   1,
+   3
+  ],
+  "deaths": {
+   "1": 2,
+   "2": 4,
+   "3": 18,
+   "4": 8
+  },
+  "hours": 4.44,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "riders",
+  "moves": true,
+  "seed": 0,
+  "runs": [
+   9,
+   1,
+   1
+  ],
+  "deaths": {
+   "2": 3,
+   "3": 5
+  },
+  "hours": 1.37,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "chess",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   25,
+   5,
+   3
+  ],
+  "deaths": {
+   "2": 3,
+   "3": 19,
+   "4": 8
+  },
+  "hours": 4.4,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "riders",
+  "moves": true,
+  "seed": 1,
+  "runs": [
+   12,
+   1,
+   1
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 2,
+   "3": 4,
+   "4": 4
+  },
+  "hours": 1.82,
+  "finale": [
+   1,
+   1,
+   3
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "chess",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   21,
+   8,
+   1
+  ],
+  "deaths": {
+   "2": 4,
+   "3": 17,
+   "4": 6
+  },
+  "hours": 3.87,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "riders",
+  "moves": true,
+  "seed": 4,
+  "runs": [
+   11,
+   1,
+   3
+  ],
+  "deaths": {
+   "2": 4,
+   "3": 8
+  },
+  "hours": 1.76,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "riders",
+  "moves": true,
+  "seed": 3,
+  "runs": [
+   16,
+   1,
+   1
+  ],
+  "deaths": {
+   "1": 1,
+   "2": 1,
+   "3": 12,
+   "4": 1
+  },
+  "hours": 2.24,
+  "finale": [
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "army": "warrior",
+  "strat": "riders",
+  "moves": true,
+  "seed": 2,
+  "runs": [
+   18,
+   9,
+   1
+  ],
+  "deaths": {
+   "1": 3,
+   "2": 7,
+   "3": 10,
+   "4": 5
+  },
+  "hours": 3.22,
+  "finale": [
+   1,
+   1,
+   1
   ]
  }
 ]
