@@ -833,9 +833,15 @@ export class ArenaScreen implements Screen {
     const first = this.synergySig === '';
     this.synergySig = sig;
     this.synergyRow.replaceChildren(...progress.map(({ def, have, need, active }) => {
-      const chip = el('span', `synergy${active ? ' active' : ''}`, active ? `✦ ${def.name}` : `${def.name} ${have}/${need}`);
+      const chip = el('button', `synergy${active ? ' active' : ''}`, active ? `✦ ${def.name}` : `${def.name} ${have}/${need}`);
       chip.dataset.id = def.id;
       chip.title = def.description;
+      // A tap says what the bonus gives and how far it is.
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toast(active ? t('✦ {name} действует: {text}', { name: def.name, text: def.description })
+          : t('{name} ({have}/{need}): {text}', { name: def.name, have, need, text: def.description }));
+      });
       if (active && !first && !wasActive.has(def.id)) chip.classList.add('pop');
       return chip;
     }), this.synergyInfo);

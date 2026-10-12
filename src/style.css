@@ -2254,3 +2254,31 @@ body:has(.modal-overlay) .toast-layer { bottom: 12px; }
 @media (pointer: coarse), (max-width: 560px) {
   .info-btn, .seg-btn, .speed-seg button, .btn-small { min-height: 40px; min-width: 40px; }
 }
+button.synergy { font: inherit; cursor: pointer; border: 0; }
+
+/* Event emblems: a piece or an icon on the event's own colour. */
+.event-emblem { width: 84px; height: 84px; margin: 0 auto 8px; display: grid; place-items: center;
+  background: radial-gradient(circle, color-mix(in srgb, var(--emblem) 100%, #fff 15%) 0 45%, var(--emblem) 46% 70%, transparent 71%);
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.5)); }
+.event-emblem img { width: 56px; height: 56px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 #000); }
+.event-dialog h2 { text-align: center; }
+
+/* Army picker on phones: two compact columns, so every army fits without a long scroll. */
+@media (max-width: 560px) {
+  .army-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .army-card { padding: 8px 6px; gap: 4px; }
+  .army-name { font-size: 15px; }
+  .army-pics img { width: 22px; height: 22px; }
+  .army-pics { min-height: 24px; }
+  .army-rule { font-size: 13px; line-height: 1.25; }
+  .threat-picker { padding: 8px; }
+}
+
+/* Run summary beside the map (wide screens only; phones have the run line above the map). */
+.run-card { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.run-card-army { color: var(--gold); font-size: 20px; }
+.run-card-rule { color: var(--muted); font-size: 15px; line-height: 1.35; }
+.run-card-line { font-size: 15px; }
+.run-card-threat { color: #ff5d85; }
+.run-card .boon-chip { align-self: flex-start; }
+@media (max-width: 1000px) { .run-card { display: none; } }

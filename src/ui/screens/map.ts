@@ -43,6 +43,8 @@ export class MapScreen implements Screen {
   private relicBtn = el('button', 'btn btn-up');
   private relicsCard!: HTMLElement;
   private prestigeCard = el('div', 'card prestige-card');
+  /** Wide screens: the run at a glance beside the map. */
+  private runCard = el('div', 'card run-card');
   private prestigeInfo = el('div', 'treasury-info');
   private prestigeBtn = el('button', 'btn btn-up', t('Новая партия'));
   private treeBtn = el('button', 'btn btn-buy tree-btn', t('♛ Древо короны'));
@@ -100,7 +102,7 @@ export class MapScreen implements Screen {
     this.creditsBtn.addEventListener('click', () => void playCredits(this.ctx.state));
     this.finaleCard.append(fHead, fImg, this.finaleInfo, this.finalePips, this.finaleBtn, this.creditsBtn);
 
-    side.append(this.prestigeCard, relics, this.finaleCard);
+    side.append(this.runCard, this.prestigeCard, relics, this.finaleCard);
     this.root.append(main, side);
   }
 
@@ -140,7 +142,26 @@ export class MapScreen implements Screen {
       }
       this.runInfo.append(row);
     }
+    this.renderRunCard();
     this.renderPath();
+  }
+
+  private renderRunCard(): void {
+    const s = this.ctx.state;
+    const army = ARMIES[s.run.army ?? 'guard'];
+    const threat = s.run.threat ?? 0;
+    const rows: HTMLElement[] = [
+      el('div', 'panel-title', t('Забег')),
+      el('div', 'run-card-army', army.name),
+      el('div', 'run-card-rule', army.rule),
+      el('div', 'run-card-line', t('Побед: {w} · элит: {e} · боссов: {b}', { w: s.run.wins, e: s.run.elites, b: s.run.bosses })),
+    ];
+    if (threat) rows.push(el('div', 'run-card-threat', t('☠ Угроза {n}', { n: threat })));
+    for (const x of s.run.boons ?? []) {
+      const good = x.atk * x.hp >= 1 && (x.foe ?? 1) <= 1;
+      rows.push(el('div', `boon-chip ${good ? 'good' : 'bad'}`, `${x.name}: ${boonText(x)}`));
+    }
+    this.runCard.replaceChildren(...rows);
   }
 
   private revealing = false;

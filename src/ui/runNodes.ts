@@ -4,7 +4,7 @@ import { PIECES, type PieceKind } from '../game/pieces';
 import { RELICS } from '../game/relics';
 import { CHAPTERS, getLevel as levelOf } from '../game/levels';
 import {
-  EVENTS, buyItem, campForge, campGain, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type RunNode, type RunOver,
+  EVENTS, buyItem, campForge, campGain, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type EventId, type RunNode, type RunOver,
 } from '../game/run';
 import { battleGold, enemyLevel, startNextRun, upgradeCost, type GameState } from '../game/state';
 import { enemyPlacements } from '../game/levels';
@@ -233,10 +233,36 @@ export function openNodeDialog(ctx: Ctx, node: RunNode, onDone: () => void): voi
   else if (node.kind === 'camp') openCamp(ctx, onDone);
 }
 
+/** An emblem for each event: a piece or an icon on its own colour. */
+const EVENT_ART: Record<EventId, { piece?: [PieceKind, 'ally' | 'enemy']; icon?: IconId; color: string }> = {
+  wagon: { icon: 'bag', color: '#7a5a3a' }, deserter: { piece: ['knight', 'enemy'], color: '#3a2a5a' },
+  shrine: { icon: 'skull', color: '#4a1030' }, smith: { icon: 'fire', color: '#7a3a12' },
+  hermit: { icon: 'flag', color: '#2a4a3a' }, dice: { icon: 'question', color: '#3a2a7a' },
+  militia: { piece: ['pawn', 'ally'], color: '#2a4a3a' }, crown: { icon: 'crown', color: '#5a1a3a' },
+  well: { icon: 'spark', color: '#1a3a6a' }, bard: { icon: 'star', color: '#5a3a1a' },
+  oracle: { icon: 'question', color: '#2a1a5a' }, outpost: { piece: ['rook', 'ally'], color: '#3a4a5a' },
+  refugees: { piece: ['pawn', 'ally'], color: '#4a3a2a' }, ambush: { icon: 'sword', color: '#5a1a1a' },
+  gravedigger: { icon: 'skull', color: '#2a2a3a' }, library: { icon: 'shard', color: '#2a1a4a' },
+  lake: { piece: ['queen', 'enemy'], color: '#1a3a5a' }, witch: { icon: 'fire', color: '#2a4a1a' },
+  anvil: { icon: 'sword', color: '#4a3a2a' }, tournament: { piece: ['knight', 'ally'], color: '#5a4a1a' },
+};
+
+function eventEmblem(id: EventId): HTMLElement {
+  const art = EVENT_ART[id];
+  const box = el('div', 'event-emblem');
+  box.style.setProperty('--emblem', art.color);
+  const img = el('img');
+  img.src = art.piece ? spriteUrl(art.piece[0], art.piece[1], 2) : iconUrl(art.icon!);
+  img.alt = '';
+  box.append(img);
+  return box;
+}
+
 function openEvent(ctx: Ctx, node: RunNode, onDone: () => void): void {
   const def = EVENTS[node.event!];
   const { content, body, actions } = modal(def.title, def.text);
   content.classList.add('event-dialog');
+  content.prepend(eventEmblem(node.event!));
   const close = openModal(content, { dismissable: false, cls: 'node-modal' });
   def.choices.forEach((c, i) => {
     const btn = el('button', 'btn choice-btn');

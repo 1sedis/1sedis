@@ -148,4 +148,7 @@ export const screens: Record<string, string> = {
   'не хватает {n}': 'need {n} more',
   'придёт ур. {lv}': 'joins at Lv. {lv}',
   '+{p}% ❤⚔ всем ×{n}': '+{p}% ❤⚔ to all ×{n}',
+  '✦ {name} действует: {text}': '✦ {name} is active: {text}',
+  'Забег': 'Run',
+  'Побед: {w} · элит: {e} · боссов: {b}': 'Wins: {w} · elites: {e} · bosses: {b}',
 };
