@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createBattle } from '../src/game/battle';
+import { CHAMPION_HP, createBattle } from '../src/game/battle';
 import { CHAPTERS } from '../src/game/levels';
 import {
   EVENTS, EVENT_IDS, MAP_ROWS, activeBoons, eventFits, SPARE, availableNodes, buildMap, buyItem, campForge, campTrain, chooseEvent, currentNode,
   enterNode, lives, shopItems, type RunNode,
 } from '../src/game/run';
 import {
-  battleSetup, isAbyssOpen, isEliteBattle, isLevelOpen, newGame, parseSave, prestige, recordResult, startNextRun, type GameState,
+  battleSetup, commandLimit, isAbyssOpen, isEliteBattle, isLevelOpen, newGame, parseSave, prestige, recordResult, recruit, startNextRun, type GameState,
 } from '../src/game/state';
 
 /** Win or lose the battle at a node the quick way. */
@@ -269,5 +269,72 @@ describe('starting armies', () => {
     s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
     startNextRun(s, 0, 'warrior');
     expect(s.run.army).toBe('guard');
+  });
+});
+
+describe('difficulty', () => {
+  it('a new kind of piece joins at its own level, not trained up', () => {
+    const s = newGame(0);
+    s.levels.pawn = 12;
+    s.gold = 10_000;
+    s.stars['1-2'] = s.stars['1-3'] = s.stars['1-4'] = 1;
+    expect(recruit(s, 'knight')).toBe(true);
+    expect(s.levels.knight).toBe(1);
+  });
+
+  it('an elite battle has one champion, far tougher than its plain self', () => {
+    const s = newGame(0);
+    s.run.chapter = 2;
+    for (let seed = 1; seed < 300; seed++) {
+      const map = buildMap(2, seed);
+      const elite = map.nodes.find((n) => n.kind === 'elite' && n.rule !== 'mirror');
+      if (!elite) continue;
+      s.run.seed = seed;
+      s.run.at = elite.id;
+      const setup = battleSetup(s, elite.level!);
+      const champs = setup.enemies.filter((p) => p.champion);
+      expect(champs).toHaveLength(1);
+      expect(champs[0].trait).toBeTruthy();
+      const b = createBattle(setup);
+      const champ = b.units.find((u) => u.champion)!;
+      const twin = createBattle({ ...setup, enemies: [{ ...champs[0], champion: false }] }).units.find((u) => u.side === 'enemy')!;
+      expect(champ.maxHp / twin.maxHp).toBeCloseTo(CHAMPION_HP, 1);
+      return;
+    }
+    throw new Error('no elite found');
+  });
+});
+
+describe('threat levels', () => {
+  it('a won game opens the next threat level, which then pays more crowns', () => {
+    const s = newGame(0);
+    expect(s.threatMax).toBe(0);
+    s.run.bosses = 4;
+    s.run.complete = true;
+    prestige(s, 0);
+    expect(s.threatMax).toBe(1);
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    startNextRun(s, 0, 'guard', 1);
+    expect(s.run.threat).toBe(1);
+    s.run.bosses = 4;
+    s.run.complete = true;
+    const crowns = prestige(s, 0);
+    expect(crowns).toBe(4 + 2 + 1);
+    expect(s.threatMax).toBe(2);
+  });
+
+  it('a threat cannot be picked above the one opened, and its rules bite', () => {
+    const s = newGame(0);
+    s.threatMax = 3;
+    s.run.over = { won: false, chapter: 1, at: '1-1', wins: 0, elites: 0, bosses: 0, abyss: 0, crowns: 0 };
+    startNextRun(s, 0, 'guard', 9);
+    expect(s.run.threat).toBe(3);
+    const node = availableNodes(s.run)[0];
+    const plain = newGame(0);
+    expect(battleSetup(s, node.level!).enemies[0].level).toBe(battleSetup(plain, node.level!).enemies[0].level + 1);
+    s.run.threat = 10;
+    s.threatMax = 10;
+    expect(shopItems(s, { id: 'x', row: 0, lane: 0, kind: 'shop', next: [] }).some((i) => i.relic === SPARE)).toBe(false);
+    expect(commandLimit(s, node.level!)).toBe(commandLimit(plain, node.level!) - 1);
   });
 });

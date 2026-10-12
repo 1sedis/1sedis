@@ -12,6 +12,7 @@ import { featureOpen } from './features';
 import { levelTerrain, levelTerrainRows, parseTerrain, walkable, withDarkness, type Terrain } from './terrain';
 import { AWAKENING_SHIFT, BLACK_KING_ATK, BLACK_KING_HP, distortionsFor, type DistortionId } from './distortions';
 import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
+import { threatMods } from './ascension';
 import { ARMIES, START_SQUARES, type ArmyId } from './armies';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { shardsForFloor } from './altar';
@@ -82,6 +83,8 @@ export interface GameState {
   crowns: number;
   /** Number of completed "new game" resets; raises enemy levels and rewards. */
   prestige: number;
+  /** The highest threat level opened (a won game at the top level opens the next). */
+  threatMax: number;
   /** Next abyss floor to fight and the deepest floor ever cleared. */
   /** `guardian`: the kind of the last Abyss guardian beaten (fights for you with "Страж на службе"). */
   abyss: { floor: number; best: number; guardian?: PieceKind };
@@ -132,6 +135,7 @@ export function newGame(now = Date.now()): GameState {
     tutorial: [],
     crowns: 0,
     prestige: 0,
+    threatMax: 0,
     abyss: { floor: 1, best: 0 },
     crownTree: [],
     shards: 0,
@@ -270,7 +274,8 @@ export function hasRelic(s: GameState, id: RelicId): boolean {
 }
 
 export function commandLimit(s: GameState, levelId: string): number {
-  return chapterOf(levelId).limit + s.buildings.hq + (hasRelic(s, 'reserve') ? 1 : 0) + (hasNode(s, 'banner') ? 1 : 0);
+  return chapterOf(levelId).limit + s.buildings.hq + (hasRelic(s, 'reserve') ? 1 : 0) + (hasNode(s, 'banner') ? 1 : 0)
+    + (isAbyss(levelId) || isFinale(levelId) ? 0 : threatMods(s.run.threat ?? 0).limit);
 }
 
 export function forgeMultiplier(s: GameState): number {
@@ -567,12 +572,24 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const distortions = levelDistortions(s, levelId);
   const elite = isEliteBattle(s, levelId);
   const rule = elite ? currentNode(s.run)?.rule : undefined;
+  const campaignLevel = !isAbyss(levelId) && !isFinale(levelId);
+  const tm = threatMods(campaignLevel ? s.run.threat ?? 0 : 0);
+  const eliteUp = elite ? ELITE_LEVELS + tm.eliteLevels : 0;
   let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard') || elite)
-    .map((p) => ({ ...p, level: p.level + bonus + (elite ? ELITE_LEVELS : 0) }));
+    .map((p) => ({ ...p, level: p.level + bonus + tm.enemyLevels + eliteUp }));
   if (rule === 'mirror') {
     // "Зеркало": your own formation in black, at this battle's level.
-    const lv = getLevel(levelId).level + bonus + ELITE_LEVELS;
+    const lv = getLevel(levelId).level + bonus + tm.enemyLevels + eliteUp;
     enemies = s.formation.map((f) => ({ kind: f.kind, x: f.x, y: BOARD_SIZE - 1 - f.y, level: lv }));
+  }
+  // Every elite battle has a champion: its strongest piece, bigger and far tougher.
+  if (elite) {
+    const pick = enemies.filter((p) => p.kind !== 'king' && !p.boss)
+      .sort((a, b) => PIECES[b.kind].cost - PIECES[a.kind].cost || a.y - b.y || a.x - b.x)[0];
+    if (pick) {
+      pick.champion = true;
+      pick.trait ??= 'furious';
+    }
   }
   if (!isAbyss(levelId) && !isFinale(levelId)) {
     const terrain = levelTerrain(levelId);
@@ -621,9 +638,12 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
     bossId: bossFor(levelId),
     perks: [...s.crownTree.filter((id) => BATTLE_PERKS.has(id)), ...(army.warlord ? ['warlord' as NodeId] : [])],
     enemyAbilityShift: distortions.includes('awakening') ? AWAKENING_SHIFT : 0,
-    enemyKingHp: distortions.includes('blackKing') ? BLACK_KING_HP : 1,
+    enemyKingHp: (distortions.includes('blackKing') ? BLACK_KING_HP : 1) * tm.enemyKingHp,
     enemyKingAtk: distortions.includes('blackKing') ? BLACK_KING_ATK : 1,
     eliteRule: rule,
+    bossHpMult: tm.bossHp,
+    championHpMult: tm.championHp,
+    bossRageAt: tm.rageAt,
   };
 }
 
@@ -698,6 +718,7 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
     if ((elite || level.boss) && hasNode(s, 'tribute')) reward *= 2;
     if (elite || level.boss) reward *= rouletteBonuses(s.roulette).loot;
     if (hasRelic(s, 'plunder')) reward *= 1.3;
+    reward *= threatMods(s.run.threat ?? 0).gold;
     reward = Math.round(reward * goldMultiplier(s));
   } else {
     reward = Math.round(replayReward(levelId) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
@@ -831,13 +852,14 @@ export function prestige(s: GameState, now = Date.now()): number {
  * is played again. Crowns, the Crown Tree, the roulette, achievements, stats,
  * tips and the finale's progress carry over.
  */
-export function startNextRun(s: GameState, now = Date.now(), army: ArmyId = s.run.army ?? 'guard'): void {
+export function startNextRun(s: GameState, now = Date.now(), army: ArmyId = s.run.army ?? 'guard', threat = s.run.threat ?? 0): void {
   const won = s.run.over?.won ?? false;
   const fresh = newGame(now);
   fresh.armies = s.armies;
   applyArmy(fresh, s.armies.includes(army) ? army : 'guard');
   fresh.crowns = s.crowns;
   fresh.prestige = s.prestige + (won ? 1 : 0);
+  fresh.threatMax = s.threatMax;
   fresh.achievements = s.achievements;
   fresh.achievementsClaimed = s.achievementsClaimed;
   fresh.tutorial = s.tutorial;
@@ -861,6 +883,7 @@ export function startNextRun(s: GameState, now = Date.now(), army: ArmyId = s.ru
   if (s.crownTree.includes('hunger')) fresh.roulette.free = Math.max(fresh.roulette.free, 1);
   fresh.run.seed = (s.run.seed * 13 + 7 + s.stats.runs) >>> 0;
   startChapter(fresh, 1);
+  fresh.run.threat = Math.max(0, Math.min(threat, fresh.threatMax));
   Object.assign(s, fresh);
 }
 

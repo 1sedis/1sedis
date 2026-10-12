@@ -15,6 +15,7 @@ import { RELIC_IDS, rollOffer, type RelicId } from './relics';
 import type { GameState } from './state';
 import type { EliteRule } from './battle';
 import { ARMY_ORDER, ARMIES, type ArmyId } from './armies';
+import { MAX_THREAT, threatMods } from './ascension';
 import { plural, t } from '../i18n';
 
 const RULES: EliteRule[] = ['undying', 'frenzy', 'waves', 'darkness', 'mirror'];
@@ -75,6 +76,8 @@ export interface RunState {
   guardian?: PieceKind;
   /** The starting army of this run. */
   army?: ArmyId;
+  /** The threat level this run is played at (0: none). */
+  threat?: number;
   /** Blessings and curses from events that last a few battles. */
   boons?: Boon[];
 }
@@ -123,7 +126,7 @@ export function boonText(x: Boon): string {
 }
 
 /** Rows of a chapter map, the boss row included. */
-export const MAP_ROWS = 8;
+export const MAP_ROWS = 10;
 
 // ---------- Random numbers ----------
 
@@ -157,15 +160,23 @@ function rowKinds(chapter: number, row: number): NodeKind[] {
   if (row === MAP_ROWS - 2) return ['camp'];
   if (chapter === 1) {
     if (row <= 2) return ['battle'];
-    return row === 3 ? ['battle', 'event'] : row === 4 ? ['battle', 'elite', 'shop'] : ['battle', 'event', 'elite'];
+    switch (row) {
+      case 3: return ['battle', 'event'];
+      case 4: return ['battle', 'elite', 'shop'];
+      case 5: return ['camp', 'shop', 'event'];
+      case 6: return ['battle', 'elite', 'event'];
+      default: return ['battle', 'elite', 'shop'];
+    }
   }
   switch (row) {
     case 0: return ['battle'];
     case 1: return ['battle', 'event'];
     case 2: return ['battle', 'elite', 'shop', 'event'];
-    case 3: return ['camp', 'shop', 'event'];
-    case 4: return ['battle', 'elite', 'event'];
-    default: return ['battle', 'elite', 'shop'];
+    case 3: return ['battle', 'elite', 'event'];
+    case 4: return ['camp', 'shop', 'event'];
+    case 5: return ['battle', 'elite', 'event'];
+    case 6: return ['battle', 'elite', 'shop'];
+    default: return ['battle', 'elite', 'event'];
   }
 }
 
@@ -358,15 +369,18 @@ export function loseNode(s: GameState, at: string, won = false): 'spared' | 'ove
   return 'over';
 }
 
-/** Crowns a run pays: one for every boss, two for the victory. */
+/** Crowns a run pays: one for every boss, two for the victory and one more per threat level. */
 export function crownsForRun(s: GameState, won: boolean): number {
-  return s.run.bosses + (won ? 2 : 0);
+  return s.run.bosses + (won ? 2 + (s.run.threat ?? 0) : 0);
 }
 
 /** Close the run: pay its crowns and keep a summary for the end screen. */
 export function endRun(s: GameState, won: boolean, at: string): RunOver {
   const crowns = crownsForRun(s, won);
   s.crowns += crowns;
+  // A won game at the highest threat opens the next one.
+  const threat = s.run.threat ?? 0;
+  if (won && threat >= s.threatMax) s.threatMax = Math.min(MAX_THREAT, threat + 1);
   s.stats.runs++;
   s.run.over = {
     won, chapter: s.run.chapter, at, wins: s.run.wins, elites: s.run.elites, bosses: s.run.bosses,
@@ -384,14 +398,9 @@ export function runLevelOpen(run: RunState, levelId: string): boolean {
 // ---------- Recruits ----------
 
 /** A new kind of piece joins trained: at most this many levels below the army's best. */
-export const RECRUIT_GAP = 2;
-
-/** The level the first piece of a kind would join at. */
+/** The level a new piece of a kind joins at: a new kind starts raw, at its own level (1 at first). */
 export function recruitLevel(s: GameState, kind: PieceKind): number {
-  if (s.army[kind] > 0) return s.levels[kind];
-  const owned = (Object.keys(s.army) as PieceKind[]).filter((k) => k !== 'king' && s.army[k] > 0);
-  const best = Math.max(1, ...owned.map((k) => s.levels[k]));
-  return Math.max(s.levels[kind], best - RECRUIT_GAP);
+  return s.levels[kind];
 }
 
 // ---------- Gold ----------
@@ -402,10 +411,10 @@ export function chapterGold(chapter: number): number {
 }
 
 /** Battles of a run pay more than the old single level did: there are no replays to farm. */
-export const RUN_GOLD = 3.8;
+export const RUN_GOLD = 3.2;
 export const ELITE_GOLD = 1.6;
 /** Elite enemies are this many levels stronger. */
-export const ELITE_LEVELS = 1;
+export const ELITE_LEVELS = 2;
 
 // ---------- Camp ----------
 
@@ -438,7 +447,7 @@ export interface ShopItem {
 
 /** Merchant and smith prices ("Торговая грамота" cuts them). */
 export function price(s: GameState, gold: number): number {
-  return Math.round(gold * (s.relics.includes('charter') ? 0.7 : 1));
+  return Math.round(gold * (s.relics.includes('charter') ? 0.7 : 1) * threatMods(s.run.threat ?? 0).prices);
 }
 
 export function shopItems(s: GameState, node: RunNode): ShopItem[] {
@@ -446,7 +455,7 @@ export function shopItems(s: GameState, node: RunNode): ShopItem[] {
   const relics = rollOffer([...s.relics, SPARE], hashText(`${s.run.seed}:${node.id}:${s.run.chapter}`));
   const items: ShopItem[] = relics.map((id) => ({ id: `relic:${id}`, name: '', text: '', cost: Math.round(g * 2.5), relic: id }));
   // The spare banner is always on sale, and dear: it is a second life.
-  items.push({ id: `relic:${SPARE}`, name: '', text: '', cost: Math.round(g * 3.5), relic: SPARE });
+  if (!threatMods(s.run.threat ?? 0).noBanner) items.push({ id: `relic:${SPARE}`, name: '', text: '', cost: Math.round(g * 3.5), relic: SPARE });
   items.push({ id: 'forge', name: t('Заточка'), text: t('+1 уровень Кузницы'), cost: Math.round(g * 1.5) });
   return items;
 }
@@ -590,7 +599,7 @@ export const EVENTS: Record<EventId, EventDef> = {
     choices: [
       {
         label: t('Попросить знамя'), hint: t('Запасное знамя: вторая жизнь'),
-        blocked: (s) => (s.relics.includes(SPARE) ? t('Знамя уже есть') : null),
+        blocked: (s) => (s.relics.includes(SPARE) ? t('Знамя уже есть') : threatMods(s.run.threat ?? 0).noBanner ? t('Угроза: без знамён') : null),
         apply: (s) => { s.relics.push(SPARE); return t('Отшельник вышил новое знамя. Одно поражение вам простится.'); },
       },
       { label: t('Учиться у него'), hint: t('+1 уровень короля'), apply: (s) => { s.levels.king++; return t('Король вспомнил старые уроки: +1 уровень.'); } },

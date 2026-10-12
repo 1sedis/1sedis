@@ -8,6 +8,7 @@ import {
 } from '../game/run';
 import { startNextRun, upgradeCost, type GameState } from '../game/state';
 import { ARMIES, ARMY_ORDER, type ArmyId } from '../game/armies';
+import { activeThreats } from '../game/ascension';
 import { audio } from './audio';
 import type { Ctx } from './context';
 import { el, openModal, toast } from './dom';
@@ -54,18 +55,49 @@ export function livesRow(s: GameState): HTMLElement {
     img.alt = '';
     row.append(img);
   }
+  const threat = s.run.threat ?? 0;
+  if (threat) {
+    const chip = el('span', 'threat-chip', t('☠ Угроза {n}', { n: threat }));
+    chip.title = activeThreats(threat).map((r) => `${r.level}. ${r.name} — ${r.text}`).join('\n');
+    row.append(chip);
+  }
   return row;
 }
 
 /** Choose the starting army of the next run (straight on when only one is open). */
-export function pickArmy(ctx: Ctx, onPick: (army: ArmyId) => void): void {
+export function pickArmy(ctx: Ctx, onPick: (army: ArmyId, threat: number) => void): void {
   const s = ctx.state;
-  if (s.armies.length <= 1) {
-    onPick(s.armies[0] ?? 'guard');
+  let threat = Math.min(s.run.threat ?? 0, s.threatMax);
+  if (s.armies.length <= 1 && s.threatMax === 0) {
+    onPick(s.armies[0] ?? 'guard', 0);
     return;
   }
   const content = el('div', 'army-picker');
   content.append(el('h2', '', t('Выберите армию')), el('p', 'hint', t('С ней начнётся следующий забег. Новые армии открываются за боссов.')));
+  // Threat levels open after a won game: pick how hard the next run is.
+  if (s.threatMax > 0) {
+    const box = el('div', 'threat-picker');
+    const row = el('div', 'threat-row');
+    const info = el('div', 'threat-info');
+    const render = () => {
+      row.replaceChildren(...Array.from({ length: s.threatMax + 1 }, (_, n) => {
+        const b = el('button', `threat-btn${n === threat ? ' active' : ''}`, String(n));
+        b.addEventListener('click', () => {
+          threat = n;
+          render();
+        });
+        return b;
+      }));
+      const rules = activeThreats(threat);
+      info.replaceChildren(
+        el('div', 'threat-title', threat ? t('Угроза {n} · +{c} ♛ за победу', { n: threat, c: threat }) : t('Без угрозы')),
+        ...rules.map((r) => el('div', `threat-rule${r.level === threat ? ' new' : ''}`, `${r.level}. ${r.name} — ${r.text}`)),
+      );
+    };
+    render();
+    box.append(el('div', 'threat-label', t('Уровень угрозы')), row, info);
+    content.append(box);
+  }
   const grid = el('div', 'army-grid');
   const close = openModal(content, { dismissable: false, cls: 'army-modal' });
   for (const id of ARMY_ORDER) {
@@ -86,7 +118,7 @@ export function pickArmy(ctx: Ctx, onPick: (army: ArmyId) => void): void {
       el('div', 'army-gold', open ? t('Золото: {n}', { n: def.gold }) : ''));
     card.addEventListener('click', () => {
       close();
-      onPick(id);
+      onPick(id, threat);
     });
     grid.append(card);
   }
@@ -124,8 +156,8 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
   audio.play(o.won ? 'achievement' : 'lose');
   next.addEventListener('click', () => {
     close();
-    pickArmy(ctx, (army) => {
-      startNextRun(s, Date.now(), army);
+    pickArmy(ctx, (army, threat) => {
+      startNextRun(s, Date.now(), army, threat);
       ctx.save();
       onNext();
     });

@@ -15,7 +15,7 @@ export const BOARD_SIZE = 8;
 export const MAX_TICKS = 900;
 /** Allies adjacent to their king hit this much harder. */
 export const KING_AURA = 1.2;
-const BOSS_HP = 3;
+const BOSS_HP = 3.6;
 const BOSS_ATK = 1.5;
 export const CRIT_CHANCE = 0.1;
 export const CRIT_MULT = 1.75;
@@ -33,6 +33,8 @@ export interface Placement {
   boss?: boolean;
   /** Elite trait (enemies only). */
   trait?: Trait;
+  /** The champion of an elite battle: bigger, far tougher, harder hitting. */
+  champion?: boolean;
 }
 
 export interface BattleSetup {
@@ -75,7 +77,15 @@ export interface BattleSetup {
   decisions?: boolean;
   /** The special rule of an elite battle on the run map. */
   eliteRule?: EliteRule;
+  /** Threat levels: boss health, champion health, the share of health at which bosses rage. */
+  bossHpMult?: number;
+  championHpMult?: number;
+  bossRageAt?: number;
 }
+
+/** A champion of an elite battle has this much more health and attack. */
+export const CHAMPION_HP = 2.6;
+export const CHAMPION_ATK = 1.35;
 
 /**
  * Rules of elite battles: undying enemies rise again as shades, frenzied ones
@@ -85,9 +95,9 @@ export interface BattleSetup {
 export type EliteRule = 'undying' | 'frenzy' | 'waves' | 'darkness' | 'mirror';
 
 export const ELITE_RULES: Record<EliteRule, { name: string; text: string }> = {
-  undying: { name: t('Бессмертные'), text: t('первые три павших врага встают тенями с 40% здоровья') },
+  undying: { name: t('Бессмертные'), text: t('первые четыре павших врага встают тенями с 40% здоровья') },
   frenzy: { name: t('Бешенство'), text: t('враги бьют и ходят на треть быстрее') },
-  waves: { name: t('Подкрепление'), text: t('каждые 8 секунд к врагу подходит свежая фигура') },
+  waves: { name: t('Подкрепление'), text: t('каждые 7 секунд к врагу подходит свежая фигура') },
   darkness: { name: t('Наступающая тьма'), text: t('каждые 6 секунд тьма захватывает новые клетки вашей половины') },
   mirror: { name: t('Зеркало'), text: t('против вас ваша же расстановка, только чёрная') },
 };
@@ -104,6 +114,7 @@ export interface BossWarning {
 
 export interface Unit {
   uid: number;
+  champion?: boolean;
   side: Side;
   kind: PieceKind;
   level: number;
@@ -237,6 +248,8 @@ export interface Battle {
   eliteRule?: EliteRule;
   /** Elite rule uses so far (shades risen, reinforcements sent). */
   eliteCount: number;
+  /** Share of health at which the boss enters rage. */
+  bossRageAt: number;
   /** Uids of the Black Queen's reflections: while one stands, she cannot be hurt. */
   reflections: number[];
 }
@@ -324,9 +337,12 @@ export function createBattle(setup: BattleSetup): Battle {
   }
   for (const p of setup.enemies) {
     const king = p.kind === 'king';
-    const hpm = (king ? setup.enemyKingHp ?? 1 : 1) * (setup.enemyHpMult ?? 1);
-    const atkm = (king ? setup.enemyKingAtk ?? 1 : 1) * (setup.enemyAtkMult ?? 1);
-    units.push(makeUnit(uid++, 'enemy', p, hpm, atkm, 1, true, setup.enemyAbilityShift ?? 0));
+    const champ = p.champion ? CHAMPION_HP * (setup.championHpMult ?? 1) : 1;
+    const hpm = (king ? setup.enemyKingHp ?? 1 : 1) * (setup.enemyHpMult ?? 1) * champ * (p.boss ? setup.bossHpMult ?? 1 : 1);
+    const atkm = (king ? setup.enemyKingAtk ?? 1 : 1) * (setup.enemyAtkMult ?? 1) * (p.champion ? CHAMPION_ATK : 1);
+    const u = makeUnit(uid++, 'enemy', p, hpm, atkm, 1, true, setup.enemyAbilityShift ?? 0);
+    if (p.champion) u.champion = true;
+    units.push(u);
   }
   const report: Record<number, UnitReport> = {};
   for (const u of units) {
@@ -341,7 +357,7 @@ export function createBattle(setup: BattleSetup): Battle {
     legends: new Set(setup.legends ?? []), perks: new Set(setup.perks ?? []), castled: false, shadows: 0,
     bossCycle: 0, handTimer: setup.handMeddle ? HAND_FIRST : 0,
     movesLeft: setup.playerMoves ?? 0, decisions: !!setup.decisions, decision: null, checkAsked: false, bossAsks: 0,
-    allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1, eliteRule: setup.eliteRule, eliteCount: 0, reflections: [] };
+    allyCrit: setup.allyCrit ?? 0, allyOpening: setup.allyOpening ?? 1, eliteRule: setup.eliteRule, eliteCount: 0, bossRageAt: setup.bossRageAt ?? 0.5, reflections: [] };
   if (b.eliteRule === 'frenzy') {
     for (const u of units) {
       if (u.side !== 'enemy') continue;
@@ -811,7 +827,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     if (target.side === 'ally' && target.kind === 'pawn' && b.legends.has('phoenix') && !target.reborn) rebirth(b, target);
     else if (target.side === 'ally' && target.kind !== 'king' && b.perks.has('shadowReserve') && b.shadows < 2 && !target.shade) {
       returnAsShade(b, target);
-    } else if (target.side === 'enemy' && b.eliteRule === 'undying' && b.eliteCount < 3 && !target.shade && !target.boss && target.kind !== 'king') {
+    } else if (target.side === 'enemy' && b.eliteRule === 'undying' && b.eliteCount < 4 && !target.shade && !target.boss && target.kind !== 'king') {
       riseAsShade(b, target);
     }
   } else if (target.trait === 'furious' && !target.raged && target.hp < target.maxHp * 0.5) {
@@ -1291,7 +1307,7 @@ function eliteTick(b: Battle): void {
   if (!b.eliteRule) return;
   const src = alive(b, 'enemy').find((u) => u.kind === 'king') ?? alive(b, 'enemy')[0];
   if (!src) return;
-  if (b.eliteRule === 'waves' && b.tick % 80 === 0 && b.eliteCount < 5) {
+  if (b.eliteRule === 'waves' && b.tick % 70 === 0 && b.eliteCount < 6) {
     // Reinforcements: pawns, and every third one a knight.
     if (summon(b, src, b.eliteCount % 3 === 2 ? 'knight' : 'pawn', true)) {
       b.eliteCount++;
@@ -1404,7 +1420,7 @@ function bossTick(b: Battle): void {
     return;
   }
   const def = BOSSES[b.bossId];
-  if (b.bossPhase === 1 && boss.hp <= boss.maxHp * 0.5) {
+  if (b.bossPhase === 1 && boss.hp <= boss.maxHp * b.bossRageAt) {
     b.bossPhase = 2;
     enrage(b, boss);
     b.bossTimer = Math.min(b.bossTimer, 20);

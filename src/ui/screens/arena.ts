@@ -302,6 +302,7 @@ export class ArenaScreen implements Screen {
         ? t('{name} · фаза {n} из 3', { name: chapter.name, n: finalePhase(this.levelId) })
         : t('Глава {n}. {name}', { n: chapter.id, name: chapter.name }) + (s.prestige ? t(' · партия {n}', { n: s.prestige + 1 }) : ''));
     this.board.setTheme(chapter.id);
+    this.board.setElite(isEliteBattle(s, this.levelId));
     this.root.dataset.theme = String(chapter.id);
     document.body.dataset.chapter = String(chapter.id);
     const terrain = terrainFor(s, this.levelId);
@@ -584,8 +585,13 @@ export class ArenaScreen implements Screen {
       this.introUntil = performance.now() + 2200;
       audio.play('roar');
     } else if (this.battle.eliteRule) {
-      // Elites announce their rule.
-      this.board.callout(`☠ ${ELITE_RULES[this.battle.eliteRule].name}`, 'rage');
+      // Elites announce their rule and show their champion.
+      const champ = this.battle.units.find((u) => u.champion);
+      const r = ELITE_RULES[this.battle.eliteRule];
+      this.board.intro({
+        name: r.name, sprite: spriteUrl(champ?.kind ?? 'king', 'enemy', 2), skill: r.text, rage: '', elite: true,
+      });
+      this.introUntil = performance.now() + 2200;
       audio.play('warn');
     } else audio.play('start');
     document.body.classList.toggle('finale-hand', bossId === 'hand');
@@ -1122,7 +1128,7 @@ export class ArenaScreen implements Screen {
     }
     this.enemies().forEach((p, i) => {
       views.push({
-        key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss, trait: p.trait,
+        key: `e${this.levelId}-${i}`, team: 'enemy', kind: p.kind, x: p.x, y: p.y, hp: 1, maxHp: 1, boss: p.boss, trait: p.trait, champion: p.champion,
         tier: abilityTier(p.level) as Tier, skin: p.boss ? this.bossSkin() : undefined,
       });
     });
@@ -1133,7 +1139,7 @@ export class ArenaScreen implements Screen {
     return {
       key: `b${u.uid}`, team: u.side, kind: u.kind, x: u.x, y: u.y, hp: Math.max(0, u.hp), maxHp: u.maxHp,
       shield: u.shield / u.maxHp, tier: abilityTier(u.level) as Tier,
-      boss: u.boss, trait: u.trait, dead: u.hp <= 0, selected: u.uid === this.movePick,
+      boss: u.boss, trait: u.trait, champion: u.champion, dead: u.hp <= 0, selected: u.uid === this.movePick,
       skin: u.uid === this.battle?.bossUid ? this.bossSkin()
         : u.side === 'ally' && u.boss && u.kind === 'king' ? 'blackKing' : undefined,
     };

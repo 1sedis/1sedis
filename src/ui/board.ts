@@ -28,6 +28,8 @@ export interface UnitView {
   boss?: boolean;
   /** Elite trait badge. */
   trait?: Trait;
+  /** The champion of an elite battle. */
+  champion?: boolean;
   selected?: boolean;
   dead?: boolean;
   /** Drawn as something other than a chess piece (the finale's Hand). */
@@ -115,6 +117,11 @@ export class BoardView {
     this.frame.dataset.theme = String(chapter);
   }
 
+  /** An elite battle: the board burns with a warning frame. */
+  setElite(on: boolean): void {
+    this.frame.classList.toggle('elite-board', on);
+  }
+
   /** Draw terrain tiles; rock and water cells stop being deploy cells. */
   setTerrain(terrain: Terrain[]): void {
     this.cells.forEach((c, i) => {
@@ -198,6 +205,7 @@ export class BoardView {
       const pos = `translate(${v.x * 100}%, ${v.y * 100}%)`;
       if (u.node.style.transform !== pos) u.node.style.transform = pos;
       u.node.classList.toggle('boss', !!v.boss);
+      u.node.classList.toggle('champion', !!v.champion);
       if (u.node.dataset.trait !== (v.trait ?? '')) {
         u.node.dataset.trait = v.trait ?? '';
         u.node.querySelector('.trait-badge')?.remove();
@@ -339,15 +347,16 @@ export class BoardView {
   }
 
   /** Boss entrance card over the board; null hides it. */
-  intro(info: { name: string; sprite: string; skill: string; rage: string } | null): void {
+  intro(info: { name: string; sprite: string; skill: string; rage: string; elite?: boolean } | null): void {
     this.introEl.classList.toggle('show', info !== null);
+    this.introEl.classList.toggle('elite-intro', !!info?.elite);
     if (!info) return;
     const img = el('img', 'boss-intro-img');
     img.src = info.sprite;
     img.alt = '';
     this.introEl.replaceChildren(
-      el('div', 'boss-intro-tag', t('Босс')), img, el('div', 'boss-intro-name', info.name),
-      el('div', 'boss-intro-skill', `★ ${info.skill}   ☠ ${info.rage}`),
+      el('div', 'boss-intro-tag', info.elite ? t('☠ Элита ☠') : t('Босс')), img, el('div', 'boss-intro-name', info.name),
+      el('div', 'boss-intro-skill', info.elite ? info.skill : `★ ${info.skill}   ☠ ${info.rage}`),
     );
     restart(this.introEl, 'show');
   }
