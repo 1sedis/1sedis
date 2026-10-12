@@ -251,7 +251,7 @@ export function upgradeCost(s: GameState, kind: PieceKind): number {
 }
 
 /** Enemies of later chapters gain levels faster than the level table alone says. */
-export const CHAPTER_ENEMY_LEVELS = [0, 0, -1, 1, 2];
+export const CHAPTER_ENEMY_LEVELS = [0, 0, -1, 0, 2];
 
 export function buildingCost(s: GameState, id: BuildingId): number {
   const def = BUILDINGS[id];
