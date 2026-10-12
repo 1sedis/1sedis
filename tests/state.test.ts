@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createBattle, simulate } from '../src/game/battle';
-import { firstReward, replayReward } from '../src/game/levels';
+import { firstReward } from '../src/game/levels';
 import {
   accrue, battleSetup, collectTreasury, fieldedCount, incomePerMinute, isLevelOpen, isUnlocked, moveSlot, newGame,
   placeFromReserve, recordResult, recruit, recruitCost, removeSlot, sanitizeFormation, slotAt, treasuryCap,
@@ -69,7 +69,7 @@ describe('formation', () => {
 });
 
 describe('progress', () => {
-  it('levels open one after another and pay less on replays', () => {
+  it('levels open along the run map and pay more than a single level did', () => {
     const s = newGame(0);
     expect(isLevelOpen(s, '1-1')).toBe(true);
     expect(isLevelOpen(s, '1-2')).toBe(false);
@@ -79,11 +79,9 @@ describe('progress', () => {
     const first = recordResult(s, '1-1', b);
     expect(first.win).toBe(true);
     expect(first.firstClear).toBe(true);
-    expect(first.reward).toBeGreaterThanOrEqual(firstReward('1-1'));
+    expect(first.reward).toBeGreaterThan(firstReward('1-1'));
+    expect(isLevelOpen(s, '1-1')).toBe(false);
     expect(isLevelOpen(s, '1-2')).toBe(true);
-    const again = recordResult(s, '1-1', b);
-    expect(again.firstClear).toBe(false);
-    expect(again.reward).toBe(replayReward('1-1'));
   });
 
   it('a loss gives no stars or gold', () => {

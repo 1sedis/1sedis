@@ -23,12 +23,11 @@ describe('relic picks', () => {
     expect(s.relics).toEqual([offer[1]]);
   });
 
-  it('every 12 stars grant a pick once', () => {
+  it('stars alone no longer grant picks', () => {
     const s = newGame(0);
     for (let i = 1; i <= 4; i++) s.stars[`1-${i}`] = 3;
     const b = createBattle(battleSetup(s, '1-5'));
     b.result = 'loss';
-    expect(recordResult(s, '1-5', b).relicsEarned).toBe(1);
     expect(recordResult(s, '1-5', b).relicsEarned).toBe(0);
   });
 

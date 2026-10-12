@@ -1,7 +1,7 @@
 import { BOARD_SIZE, MOVES_PER_BATTLE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
-  ABYSS_UNLOCK, ALL_LEVELS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
-  isAbyss, levelIncome, levelIndex, replayReward, isFinale, finalePhase,
+  ABYSS_UNLOCK, ALL_LEVELS, CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, enemyPlacements, firstReward, getLevel,
+  isAbyss, levelIncome, replayReward, isFinale, finalePhase,
 } from './levels';
 import type { Branch } from './abilities';
 import { NODE_BY_ID, RESET_COST, nodeCost, nodeState, spentCrowns, type NodeId } from './crownTree';
@@ -14,7 +14,11 @@ import { PIECES, PRESTIGE_PIECES, type PieceKind } from './pieces';
 import { ACHIEVEMENTS, getAchievement } from './achievements';
 import { shardsForFloor } from './altar';
 import { SPIN_COST, altarRefund, emptyRoulette, rollBuff, rouletteBonuses, type BuffDef, type RouletteState } from './roulette';
-import { RELICS, STARS_PER_RELIC, rollOffer, type RelicId } from './relics';
+import { RELICS, rollOffer, type RelicId } from './relics';
+import {
+  ELITE_GOLD, ELITE_LEVELS, RUN_GOLD, availableNodes, currentNode, loseNode, newRun, runLevelOpen,
+  startChapter, winNode, type RunState,
+} from './run';
 
 /** Rows the player may deploy on (bottom three rows). */
 export const PLAYER_ROWS = [5, 6, 7];
@@ -89,9 +93,12 @@ export interface GameState {
   roulette: RouletteState;
   /** The finale: phases cleared (a checkpoint kept across games) and whether the Hand is beaten. */
   finale: { phase: number; beaten: boolean };
+  /** This game's run: the chapter map, the path taken and the banners left. */
+  run: RunState;
   stats: {
     battles: number; wins: number; goldEarned: number;
     flawless: number; promotions: number; kills: number; crits: number; abilities: number; treasuryCollected: number;
+    elites: number; events: number; cleanChapters: number;
   };
 }
 
@@ -100,7 +107,7 @@ function perKind(value: number): Record<PieceKind, number> {
 }
 
 export function newGame(now = Date.now()): GameState {
-  return {
+  const s: GameState = {
     version: 2,
     gold: 60,
     army: { ...perKind(0), king: 1, pawn: 3 },
@@ -130,11 +137,15 @@ export function newGame(now = Date.now()): GameState {
     shards: 0,
     roulette: emptyRoulette(),
     finale: { phase: 0, beaten: false },
+    run: newRun((now % 1_000_000_007) >>> 0),
     stats: {
       battles: 0, wins: 0, goldEarned: 0,
       flawless: 0, promotions: 0, kills: 0, crits: 0, abilities: 0, treasuryCollected: 0,
+      elites: 0, events: 0, cleanChapters: 0,
     },
   };
+  startChapter(s, 1);
+  return s;
 }
 
 // ---------- Progress ----------
@@ -162,13 +173,16 @@ export function isFinaleOpen(s: GameState): boolean {
 export function isLevelOpen(s: GameState, id: string): boolean {
   if (isAbyss(id)) return isAbyssOpen(s) && abyssFloor(id) === s.abyss.floor;
   if (isFinale(id)) return isFinaleOpen(s) && (s.finale.beaten || finalePhase(id) <= s.finale.phase + 1);
-  const i = levelIndex(id);
-  return i === 0 || (i > 0 && isCleared(s, ALL_LEVELS[i - 1].id));
+  // Campaign levels open through the run map: the battle node being fought or one that can be entered.
+  return runLevelOpen(s.run, id);
 }
 
-/** First level not yet cleared (or the last level when everything is done). */
+/** The level ahead on the run map (the chapter boss when the next step is not a battle). */
 export function currentLevelId(s: GameState): string {
-  return (ALL_LEVELS.find((l) => !isCleared(s, l.id)) ?? ALL_LEVELS[ALL_LEVELS.length - 1]).id;
+  const next = availableNodes(s.run).find((n) => n.level);
+  if (next?.level) return next.level;
+  const chapter = CHAPTERS[s.run.chapter - 1];
+  return chapter.levels[chapter.levels.length - 1].id;
 }
 
 export function totalStars(s: GameState): number {
@@ -533,6 +547,12 @@ function finaleSetup(s: GameState, levelId: string, base: BattleSetup): BattleSe
   };
 }
 
+/** Is this level fought at an elite node of the run map (stronger enemies, a relic for the win)? */
+export function isEliteBattle(s: GameState, levelId: string): boolean {
+  const node = currentNode(s.run);
+  return !isAbyss(levelId) && !isFinale(levelId) && node?.kind === 'elite' && node.level === levelId;
+}
+
 export function battleSetup(s: GameState, levelId: string): BattleSetup {
   if (isFinale(levelId)) return finaleSetup(s, levelId, plainSetup(s, levelId));
   return plainSetup(s, levelId);
@@ -544,8 +564,9 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const rb = rouletteBonuses(s.roulette);
   const bonus = prestigeEnemyBonus(s, levelId);
   const distortions = levelDistortions(s, levelId);
-  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard'))
-    .map((p) => ({ ...p, level: p.level + bonus }));
+  const elite = isEliteBattle(s, levelId);
+  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard') || elite)
+    .map((p) => ({ ...p, level: p.level + bonus + (elite ? ELITE_LEVELS : 0) }));
   if (isAbyss(levelId)) {
     const terrain = levelTerrain(levelId);
     const free = (x: number, y: number) => walkable(terrain[y * BOARD_SIZE + x])
@@ -607,6 +628,12 @@ export interface BattleOutcome {
   trophy?: BuffDef;
   /** The Hand fell for the first time: roll the credits. */
   ending?: boolean;
+  /** Run map: banners left after this battle, and whether the chapter had to start over. */
+  banners?: number;
+  restarted?: boolean;
+  /** The win finished the chapter (or the whole story of this game). */
+  chapterDone?: boolean;
+  elite?: boolean;
 }
 
 /** A lost battle still pays: up to half of a replay reward, in proportion to the damage done. */
@@ -627,26 +654,40 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   const prev = s.stars[levelId] ?? 0;
   const firstClear = win && prev === 0;
   const newStars = Math.max(0, stars - prev);
+  // A battle started straight from a level (not through the map) still enters its node.
+  if (!s.run.at) {
+    const node = availableNodes(s.run).find((n) => n.level === levelId);
+    if (node) s.run.at = node.id;
+  }
+  const elite = isEliteBattle(s, levelId);
   let reward = 0;
   if (win) {
-    reward = firstClear ? firstReward(levelId) : replayReward(levelId);
-    // Bonus for every extra star earned for the first time.
-    reward += Math.max(0, newStars - (firstClear ? 1 : 0)) * Math.round(firstReward(levelId) * 0.25);
+    // Every battle of the run is fought once: it pays like a first clear, elites more.
+    reward = firstReward(levelId) * RUN_GOLD * (elite ? ELITE_GOLD : 1);
     if (hasRelic(s, 'plunder')) reward *= 1.3;
     reward = Math.round(reward * goldMultiplier(s));
   } else {
     reward = Math.round(replayReward(levelId) * CONSOLATION_SHARE * damageShare * goldMultiplier(s));
   }
   s.stars[levelId] = Math.max(prev, stars);
-  let relicsEarned = firstClear && level.boss ? 1 : 0;
-  const milestones = Math.floor(totalStars(s) / STARS_PER_RELIC);
-  relicsEarned += Math.max(0, milestones - s.starMilestones);
-  s.starMilestones = Math.max(s.starMilestones, milestones);
+  // A relic for every boss and every elite.
+  const relicsEarned = win && (elite || (firstClear && level.boss)) ? 1 : 0;
   s.relicPicks += relicsEarned;
   s.gold += reward;
   countBattle(s, b, win, reward);
   const trophy = firstClear && hasNode(s, 'trophies') ? rollBuff(s.roulette, Math.random, legendMult(s)) : undefined;
-  return { win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0, damageShare, trophy };
+  // The run map: a win moves on, a loss costs a banner.
+  const atNode = currentNode(s.run)?.level === levelId;
+  let restarted = false;
+  let chapterDone = false;
+  if (atNode && win) {
+    chapterDone = !!level.boss;
+    winNode(s);
+  } else if (atNode) restarted = loseNode(s);
+  return {
+    win, stars, newStars, firstClear, reward, conditions, relicsEarned, shards: 0, damageShare, trophy,
+    banners: s.run.banners, restarted, chapterDone, elite,
+  };
 }
 
 function countBattle(s: GameState, b: Battle, win: boolean, reward: number): void {
@@ -747,6 +788,9 @@ export function prestige(s: GameState, now = Date.now()): number {
     fresh.buildings.treasury = 3;
   }
   if (s.crownTree.includes('vault')) fresh.relicPicks += 1;
+  fresh.run.seed = (s.run.seed * 13 + 7) >>> 0;
+  // The chapter snapshot is taken after the inheritance, so a restart keeps it.
+  startChapter(fresh, 1);
   Object.assign(s, fresh);
   return gained;
 }
@@ -823,7 +867,7 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
     const data = JSON.parse(raw) as Partial<GameState>;
     if (!data || data.version !== 2) return null;
     const state = newGame(now);
-    return {
+    const merged = {
       ...state,
       ...data,
       army: { ...state.army, ...data.army, king: 1, pawn: Math.min(PAWN_CAP, data.army?.pawn ?? state.army.pawn) },
@@ -835,15 +879,25 @@ export function parseSave(raw: string, now = Date.now()): GameState | null {
       stats: { ...state.stats, ...data.stats },
       abyss: { ...state.abyss, ...data.abyss },
       finale: { ...state.finale, ...data.finale },
+      run: data.run ? { ...state.run, ...data.run } : state.run,
       crownTree: [...(data.crownTree ?? [])],
       roulette: { ...state.roulette, ...data.roulette, owned: { ...data.roulette?.owned } },
       // The old Altar became the roulette: give back every shard spent on it.
       shards: (data.shards ?? 0) + altarRefund((data as { altar?: Record<string, number> }).altar),
       altar: undefined,
     } as GameState;
+    if (!data.run) migrateToRun(merged);
+    return merged;
   } catch {
     return null;
   }
+}
+
+/** A save from before the run map: the run starts at the first chapter whose boss still stands. */
+function migrateToRun(s: GameState): void {
+  const chapter = CHAPTERS.find((c) => !isCleared(s, c.levels[c.levels.length - 1].id));
+  startChapter(s, chapter?.id ?? CHAPTERS.length);
+  if (!chapter) s.run.complete = true;
 }
 
 export function loadGame(now = Date.now()): { state: GameState; offlineGold: number; offlineMs: number } {

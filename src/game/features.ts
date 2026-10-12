@@ -6,16 +6,17 @@ import type { GameState } from './state';
  */
 export type Feature = 'moves' | 'treasury' | 'camp' | 'speed' | 'auto' | 'buildings' | 'achievements' | 'relics' | 'synergies';
 
-export const FEATURES: Record<Feature, { name: string; after: string }> = {
-  moves: { name: 'Твой ход', after: '1-1' },
-  treasury: { name: 'Казна', after: '1-1' },
-  camp: { name: 'Улучшения', after: '1-2' },
-  speed: { name: 'Ускорение боя', after: '1-3' },
-  auto: { name: 'Авторасстановка', after: '1-3' },
-  buildings: { name: 'Постройки', after: '1-6' },
-  achievements: { name: 'Достижения', after: '1-7' },
-  relics: { name: 'Реликвии', after: '1-9' },
-  synergies: { name: 'Синергии', after: '1-9' },
+/** Each part opens after this many won battles (the first chapter is a fixed lesson, then the map forks). */
+export const FEATURES: Record<Feature, { name: string; wins: number }> = {
+  moves: { name: 'Твой ход', wins: 1 },
+  treasury: { name: 'Казна', wins: 1 },
+  camp: { name: 'Улучшения', wins: 2 },
+  speed: { name: 'Ускорение боя', wins: 3 },
+  auto: { name: 'Авторасстановка', wins: 3 },
+  buildings: { name: 'Постройки', wins: 5 },
+  achievements: { name: 'Достижения', wins: 6 },
+  relics: { name: 'Реликвии', wins: 8 },
+  synergies: { name: 'Синергии', wins: 8 },
 };
 
 export const FEATURE_ORDER = Object.keys(FEATURES) as Feature[];
@@ -23,7 +24,7 @@ export const FEATURE_ORDER = Object.keys(FEATURES) as Feature[];
 export const openKey = (f: Feature) => `open_${f}`;
 
 export function featureOpen(s: GameState, f: Feature): boolean {
-  return s.prestige > 0 || (s.stars[FEATURES[f].after] ?? 0) > 0 || (f === 'relics' && (s.relics.length > 0 || s.relicPicks > 0));
+  return s.prestige > 0 || s.stats.wins >= FEATURES[f].wins || (f === 'relics' && (s.relics.length > 0 || s.relicPicks > 0));
 }
 
 /** Features open now that the player has not been told about yet. */
