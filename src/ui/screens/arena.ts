@@ -12,7 +12,7 @@ import { DISTORTIONS } from '../../game/distortions';
 import { terrainUrl } from '../terrainArt';
 import { traitUrl } from '../traitIcons';
 import { TRAITS, traitAdjective } from '../../game/elites';
-import { buildReport, pieceName } from '../../game/report';
+import { buildReport, pieceName, type BattleReport } from '../../game/report';
 import {
   CHAPTERS, UNLOCKED_BY, chapterOf, finalePhase, getLevel, isFinale,
   nextLevelId,
@@ -664,7 +664,11 @@ export class ArenaScreen implements Screen {
     const list = el('div', 'result-line',
       this.battle ? t('Потери: {n} · время боя: {s} с', { n: this.battle.allyLosses, s: Math.round(this.battle.tick / 10) }) : '');
     content.append(list);
-    if (this.battle) content.append(this.reportView(o.win));
+    if (this.battle) {
+      const report = buildReport(this.battle);
+      if (!o.win && report.reasons.length) content.append(this.whyView(report));
+      content.append(this.reportView(o.win, report));
+    }
 
     if (o.relicsEarned > 0) content.append(el('div', 'result-unlock relic', t('Новая реликвия! Выберите одну из трёх.')));
     if (isFinale(this.levelId)) {
@@ -1078,12 +1082,21 @@ export class ArenaScreen implements Screen {
   }
 
   /** After-battle breakdown: loss reason, MVP, damage per piece and tips. */
-  private reportView(win: boolean): HTMLElement {
-    const r = buildReport(this.battle!);
+  /** On a loss, first thing under the title: why it happened and what to do about it. */
+  private whyView(r: BattleReport): HTMLElement {
+    const box = el('div', 'loss-why');
+    box.append(el('div', 'loss-why-title', t('Почему поражение')));
+    const list = el('ul', 'loss-why-list');
+    for (const reason of r.reasons) list.append(el('li', '', reason));
+    box.append(list);
+    if (r.tips[0]) box.append(el('p', 'loss-why-tip', t('Совет: {tip}', { tip: r.tips[0] })));
+    return box;
+  }
+
+  private reportView(win: boolean, r: BattleReport): HTMLElement {
     const box = el('details', 'report');
-    box.open = !win;
+    box.open = false;
     box.append(el('summary', 'report-title', t('Разбор боя')));
-    if (r.lossReason) box.append(el('p', 'report-reason', r.lossReason));
     if (r.mvp) {
       box.append(el('p', 'report-mvp',
         t('Лучшая фигура: {name} — {dmg} урона, сражено {n}', { name: pieceName(r.mvp), dmg: fmt(Math.round(r.mvp.dealt)), n: r.mvp.kills })));
@@ -1104,9 +1117,11 @@ export class ArenaScreen implements Screen {
       table.append(row);
     }
     box.append(table);
-    if (r.tips.length) {
+    // On a loss the first tip is already shown above the report.
+    const more = win ? r.tips : r.tips.slice(1);
+    if (more.length) {
       const tips = el('ul', 'report-tips');
-      for (const tip of r.tips) tips.append(el('li', '', tip));
+      for (const tip of more) tips.append(el('li', '', tip));
       box.append(tips);
     }
     return box;

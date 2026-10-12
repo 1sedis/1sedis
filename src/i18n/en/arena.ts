@@ -149,4 +149,12 @@ export const arena: Record<string, string> = {
   'Выбрать позже': 'Choose Later',
   '⌛ Время на исходе': '⌛ Time is running out',
   'Словарь:\n• Бой — одна схватка на доске.\n• Глава — карта с развилками, в конце босс.\n• Забег — четыре главы на одну жизнь; поражение начинает новый забег.\n• Партия — выигранный забег; следующая партия труднее.\n• Угроза — усложнение, которое вы выбираете сами после победы.': 'Glossary:\n• Battle — one fight on the board.\n• Chapter — a map of forks with a boss at the end.\n• Run — four chapters on one life; a defeat starts a new run.\n• Game — a run you won; the next game is harder.\n• Threat — extra difficulty you choose yourself after a win.',
+  'Время на исходе: обе армии таяли, а ваш король пал первым.': 'Time ran out: both armies wasted away, and your King fell first.',
+  'В затяжном бою решает урон: усильте стрелков и ферзя, чтобы добить врага до минуты.': 'A long fight is decided by damage: strengthen your shooters and Queen to finish the foe within a minute.',
+  'Враг {name} сразил {n} {pieces}.': 'The enemy {name} took down {n} {pieces}.',
+  'Босс нанёс {p}% всего урона по вашей армии.': 'The boss dealt {p}% of all damage to your army.',
+  'Ваша армия почти не ранила врага: она заметно слабее.': 'Your army barely wounded the foe: it is clearly weaker.',
+  'Враг нанёс в {k} раза больше урона: армия пока слабее.': 'The foe dealt {k}× more damage: your army is still weaker.',
+  'Почему поражение': 'Why you lost',
+  'Совет: {tip}': 'Tip: {tip}',
 };

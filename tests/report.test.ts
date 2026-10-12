@@ -18,6 +18,21 @@ describe('battle report', () => {
     expect(b.result).toBe('loss');
     expect(r.lossReason).toMatch(/ферзь с [a-h][1-8]/);
     expect(r.tips.length).toBeGreaterThan(0);
+    // The result screen leads with up to three causes, the loss reason first.
+    expect(r.reasons[0]).toBe(r.lossReason);
+    expect(r.reasons.length).toBeLessThanOrEqual(3);
+    expect(r.reasons.some((x) => /больше урона|почти не ранила/.test(x))).toBe(true);
+  });
+
+  it('names the enemy piece that took down most of the army', () => {
+    const b = createBattle({
+      allies: [p('king', 3, 7), p('pawn', 2, 5), p('pawn', 3, 5), p('pawn', 4, 5)],
+      enemies: [p('king', 7, 0), p('queen', 3, 3, 14)],
+    });
+    simulate(b);
+    const r = buildReport(b);
+    expect(b.result).toBe('loss');
+    expect(r.reasons.join(' ')).toMatch(/Враг ферзь сразил \d+ фигур/);
   });
 
   it('on a win lists the player pieces with an MVP and no loss reason', () => {
@@ -26,6 +41,7 @@ describe('battle report', () => {
     const r = buildReport(b);
     expect(b.result).toBe('win');
     expect(r.lossReason).toBeNull();
+    expect(r.reasons).toEqual([]);
     expect(r.mvp?.kind).toBe('rook');
     expect(r.allies.reduce((sum, a) => sum + a.dealt, 0)).toBeGreaterThan(0);
   });

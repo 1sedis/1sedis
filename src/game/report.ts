@@ -1,5 +1,5 @@
-import { t } from '../i18n';
-import { MAX_TICKS, type Battle, type UnitReport } from './battle';
+import { getLang, plural, t } from '../i18n';
+import { MAX_TICKS, OVERTIME_AT, type Battle, type UnitReport } from './battle';
 import { traitAdjective, type Trait } from './elites';
 import { PIECES, RANGED } from './pieces';
 
@@ -22,6 +22,8 @@ export interface BattleReport {
   allies: UnitReport[];
   /** Why the battle was lost, or null on a win. */
   lossReason: string | null;
+  /** On a loss: the loss reason plus up to two more causes, shown first on the result screen. */
+  reasons: string[];
   /** Up to two concrete suggestions. */
   tips: string[];
 }
@@ -53,6 +55,7 @@ export function buildReport(b: Battle): BattleReport {
   const mvp = allies.find((r) => r.dealt > 0) ?? null;
   const tips: string[] = [];
   let lossReason: string | null = null;
+  const reasons: string[] = [];
 
   if (b.result !== 'win') {
     const king = allies.find((r) => r.kind === 'king');
@@ -61,6 +64,9 @@ export function buildReport(b: Battle): BattleReport {
       const name = pieceName(b.report[killer.uid] ?? { kind: killer.kind, promoted: false });
       lossReason = t('Короля сразил враг: {name} с {sq}.', { name: name.toLowerCase(), sq: square(killer.x, killer.y) });
       tips.push(kingTip(king)!);
+    } else if (king && king.taken > 0 && b.tick > OVERTIME_AT) {
+      lossReason = t('Время на исходе: обе армии таяли, а ваш король пал первым.');
+      tips.push(t('В затяжном бою решает урон: усильте стрелков и ферзя, чтобы добить врага до минуты.'));
     } else if (b.tick >= MAX_TICKS) {
       lossReason = t('Время вышло: армия не успела пробиться к вражескому королю.');
       tips.push(t('Нужно больше урона по королю: кони прыгают в тыл, ладья на открытой линии бьёт через всю доску.'));
@@ -69,6 +75,24 @@ export function buildReport(b: Battle): BattleReport {
     }
     // The enemy piece that caused the most losses.
     const butcher = [...enemies].sort((a, c) => c.kills - a.kills)[0];
+    if (butcher && butcher.kills >= 2) {
+      reasons.push(t('Враг {name} сразил {n} {pieces}.', {
+        name: pieceName(butcher).toLowerCase(), n: butcher.kills,
+        pieces: plural(butcher.kills, ['фигуру', 'фигуры', 'фигур'], ['piece', 'pieces']),
+      }));
+    }
+    const enemyDealt = enemies.reduce((sum, r) => sum + r.dealt, 0);
+    const allyDealt = allies.reduce((sum, r) => sum + r.dealt, 0);
+    const boss = enemies.find((r) => r.boss);
+    if (boss && enemyDealt > 0 && boss.dealt / enemyDealt >= 0.4) {
+      reasons.push(t('Босс нанёс {p}% всего урона по вашей армии.', { p: Math.round((boss.dealt / enemyDealt) * 100) }));
+    }
+    if (enemyDealt >= allyDealt * 1.5 && enemyDealt > 0) {
+      const k = allyDealt > 0 ? enemyDealt / allyDealt : 0;
+      reasons.push(k >= 10 || !k
+        ? t('Ваша армия почти не ранила врага: она заметно слабее.')
+        : t('Враг нанёс в {k} раза больше урона: армия пока слабее.', { k: getLang() === 'en' ? k.toFixed(1) : k.toFixed(1).replace('.', ',') }));
+    }
     if (butcher && butcher.kills >= 2) {
       tips.push(t('Больше всего ваших фигур сразил враг: {name} с {sq}. Займитесь им первым: конём или стрелком на его линии.',
         { name: pieceName(butcher).toLowerCase(), sq: square(butcher.startX, butcher.startY) }));
@@ -81,5 +105,5 @@ export function buildReport(b: Battle): BattleReport {
     tips.push(t('{name} с {sq} не нанёс(ла) урона. Поставьте эту фигуру ближе к врагу или на открытую линию.',
       { name: pieceName(idle), sq: square(idle.startX, idle.startY) }));
   }
-  return { mvp, allies, lossReason, tips: tips.slice(0, 2) };
+  return { mvp, allies, lossReason, reasons: lossReason ? [lossReason, ...reasons].slice(0, 3) : [], tips: tips.slice(0, 2) };
 }

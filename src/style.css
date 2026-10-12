@@ -2288,3 +2288,9 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
   .fx-fall, .fx-tracer { animation-duration: .01s; }
   .unit.in-danger .unit-body { animation: none; }
 }
+
+/* ---------- Why the battle was lost (polish 2.3) ---------- */
+.loss-why { margin: 10px 0 6px; padding: 10px 12px; border: 2px solid var(--coral); background: #2a0f1a; text-align: left; }
+.loss-why-title { font-family: var(--font-title, inherit); color: var(--coral); font-size: 14px; margin-bottom: 6px; text-transform: uppercase; }
+.loss-why-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; line-height: 1.35; }
+.loss-why-tip { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed #ff5d8555; color: var(--mint); font-size: 14px; line-height: 1.35; }
