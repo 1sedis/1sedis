@@ -124,7 +124,7 @@ describe('build relics', () => {
     expect(setup.allyKingHpMult! / base.allyKingHpMult!).toBeCloseTo(1.5);
     expect(setup.allyKind?.king?.atk).toBeCloseTo(1.4);
     expect(setup.allyAtkMult! / base.allyAtkMult!).toBeCloseTo(1.4); // a small army: the wolf bites
-    expect(setup.allyKind?.pawn?.atk).toBeCloseTo((base.allyKind?.pawn?.atk ?? 1) * (1 + 0.06 * pawns));
+    expect(setup.allyKind?.pawn?.atk).toBeCloseTo((base.allyKind?.pawn?.atk ?? 1) * (1 + 0.05 * pawns));
   });
 
   it('piggy bank pays interest on a win', () => {

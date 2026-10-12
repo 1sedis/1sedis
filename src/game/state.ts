@@ -630,7 +630,7 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   // Relics that shape the build.
   const relicKind: Partial<Record<PieceKind, { atk: number; hp: number }>> = {};
   const pawns = allies.filter((a) => a.kind === 'pawn').length;
-  if (hasRelic(s, 'pawnStorm') && pawns) relicKind.pawn = { atk: 1 + 0.06 * pawns, hp: 1 };
+  if (hasRelic(s, 'pawnStorm') && pawns) relicKind.pawn = { atk: 1 + 0.05 * pawns, hp: 1 };
   if (hasRelic(s, 'ironKing')) relicKind.king = { atk: 1.4, hp: 1 };
   const lone = hasRelic(s, 'loneWolf') && allies.filter((a) => a.kind !== 'king').length <= 3 ? 1.4 : 1;
   // Event blessings and curses.

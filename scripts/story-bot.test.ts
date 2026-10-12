@@ -77,6 +77,8 @@ const CAPS = STRAT === 'chess' ? SET_CAP : STRAT === 'chess-legacy' ? CHESS_CAP 
 const capped = (s: GameState, k: PieceKind) => s.army[k] >= (CAPS[k] ?? 99);
 /** ARMY=<id>: every run starts with this starting army (all of them open, as for a returning player). */
 const ARMY = process.env.ARMY as ArmyId | undefined;
+/** RELICS=random: relics are picked at random (offers and shops), for the relic audit (scripts/relic-audit.mjs). */
+const RANDOM_RELICS = process.env.RELICS === 'random';
 /** SEED=n: another set of maps and wheel spins (the run seed comes from the clock). */
 const T0 = Number(process.env.SEED ?? 0) * 104_729_000;
 
@@ -130,6 +132,18 @@ test('story bot', () => {
   }
   let rngSeed = 12345 + Number(process.env.SEED ?? 0) * 7919;
   const rand = () => ((rngSeed = (rngSeed * 1103515245 + 12345) >>> 0) / 4294967296);
+  let relSeed = 777 + Number(process.env.SEED ?? 0) * 104_729;
+  const relRand = () => ((relSeed = (relSeed * 1103515245 + 12345) >>> 0) / 4294967296);
+  /** Relic audit: every relic taken this run with the chapter it came in, and each run's outcome. */
+  const relicLog: { relic: string; game: number; chapter: number; won: boolean; reached: number }[] = [];
+  let taken: { relic: string; game: number; chapter: number }[] = [];
+  const noteRelics = () => {
+    for (const r of s.relics) if (!taken.some((x) => x.relic === r)) taken.push({ relic: r, game: gameNumber(s), chapter: s.run.chapter });
+  };
+  const closeRun = (won: boolean, reached: number) => {
+    for (const x of taken) relicLog.push({ ...x, won, reached });
+    taken = [];
+  };
   let t = 0;
   const log: string[] = [];
   let timeouts = 0;
@@ -153,7 +167,8 @@ test('story bot', () => {
 
   const tend = (limit: number) => {
     for (let offer = relicOffer(s); offer; offer = relicOffer(s)) {
-      chooseRelic(s, [...offer].sort((a, b) => RELIC_RANK.indexOf(a) - RELIC_RANK.indexOf(b))[0]);
+      chooseRelic(s, RANDOM_RELICS ? offer[Math.floor(relRand() * offer.length)]
+        : [...offer].sort((a, b) => RELIC_RANK.indexOf(a) - RELIC_RANK.indexOf(b))[0]);
     }
     for (const id of TREE_PLAN) {
       const node = NODES.find((n) => n.id === id)!;
@@ -208,12 +223,14 @@ test('story bot', () => {
     let runs = 1;
     for (let guard = 0; !s.run.complete && guard < 4000 && runs <= 40; guard++) {
       if (s.run.over) {
+        closeRun(false, s.run.over.chapter);
         hard.push(`смерть гл.${s.run.over.chapter} на ${s.run.over.at} (+${s.run.over.crowns}♛)`);
         deaths[s.run.over.chapter] = (deaths[s.run.over.chapter] ?? 0) + 1;
         startNextRun(s, T0 + t * 1000);
         runs++;
         continue;
       }
+      noteRelics();
       const chapter = s.run.chapter;
       const start = t;
       const node = s.run.at ? availableNodes(s.run)[0] : pick(availableNodes(s.run));
@@ -234,11 +251,14 @@ test('story bot', () => {
         const items = shopItems(s, node).sort((a, b) => (a.relic ? RELIC_RANK.indexOf(a.relic) : 99) - (b.relic ? RELIC_RANK.indexOf(b.relic) : 99));
         // The spare banner first: a second life is worth more than any relic.
         items.sort((a, b) => Number(b.relic === 'spareBanner') - Number(a.relic === 'spareBanner'));
+        if (RANDOM_RELICS) items.sort(() => relRand() - 0.5);
         for (const item of items) if (!canBuy(s, node, item) && item.relic) buyItem(s, node, item);
         finishNode(s);
       }
       chapters[chapter] = (chapters[chapter] ?? 0) + (t - start) / 60;
     }
+    noteRelics();
+    if (s.run.complete) closeRun(true, 5);
     return runs;
   };
 
@@ -269,5 +289,6 @@ test('story bot', () => {
     log.push(`Темп (${kind}, ${a.length} боёв): медиана ${pct(a, 0.5)} с, 10–90% ${pct(a, 0.1)}–${pct(a, 0.9)} с игрового времени`);
   }
   log.push(`MATRIX ${JSON.stringify({ army: ARMY ?? 'guard', strat: STRAT, moves: USE_MOVES, seed: Number(process.env.SEED ?? 0), runs: runsPerGame, deaths, hours: +(t / 3600).toFixed(2), finale: phases.map((p) => p.attempts) })}`);
+  if (RANDOM_RELICS) log.push(`RELICS ${JSON.stringify(relicLog)}`);
   console.log(log.join('\n'));
 }, 1_800_000);

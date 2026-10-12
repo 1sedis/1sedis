@@ -11,7 +11,8 @@
     "bot:story": "vitest run scripts/story-bot.test.ts --silent=false",
     "typecheck": "tsc --noEmit",
     "build:artifact": "node scripts/build-artifact.mjs",
-    "bot:matrix": "node scripts/bot-matrix.mjs"
+    "bot:matrix": "node scripts/bot-matrix.mjs",
+    "bot:relics": "node scripts/relic-audit.mjs"
   },
   "devDependencies": {
     "typescript": "5.9",

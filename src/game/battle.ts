@@ -23,7 +23,7 @@ export const CRIT_CHANCE = 0.1;
 export const CRIT_MULT = 1.75;
 /** Royal healer: heal interval in ticks and share of max HP. */
 const HEAL_EVERY = 30;
-const HEAL_SHARE = 0.1;
+const HEAL_SHARE = 0.15;
 
 export type Side = 'ally' | 'enemy';
 
@@ -483,8 +483,9 @@ function auraBonus(b: Battle, u: Unit): number {
   if (u.kind === 'king') return 1;
   const king = alive(b, u.side).find((k) => k.kind === 'king');
   if (!king) return 1;
-  const radius = has(b, u.side, 'wideAura') ? 2 : 1;
-  return Math.max(Math.abs(king.x - u.x), Math.abs(king.y - u.y)) <= radius ? KING_AURA : 1;
+  const wide = has(b, u.side, 'wideAura');
+  // "Широкая мантия": two cells around the king and a stronger aura (+30% instead of +20%).
+  return Math.max(Math.abs(king.x - u.x), Math.abs(king.y - u.y)) <= (wide ? 2 : 1) ? (wide ? KING_AURA + 0.1 : KING_AURA) : 1;
 }
 
 function pickTarget(u: Unit, targets: Unit[]): Unit {
@@ -1202,7 +1203,7 @@ function moveUnit(b: Battle, u: Unit): void {
       u.x = nx;
       u.moved = true;
       u.wait = u.moveCd;
-      const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (u.side === 'ally' && b.perks.has('earlyCrown') ? 2 : 0);
+      const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (has(b, u.side, 'queensGambit') ? 1 : 0) + (u.side === 'ally' && b.perks.has('earlyCrown') ? 2 : 0);
       const promotes = u.side === 'ally' ? u.y <= early : u.y >= BOARD_SIZE - 1;
       if (promotes) {
         promote(b, u, 'queen');
@@ -1887,7 +1888,7 @@ const CAPTURE_VALUE: Record<PieceKind, number> = { pawn: 1, knight: 3, bishop: 3
 export function moveMoment(b: Battle): MoveMoment | null {
   if (b.result || b.decision || b.movesLeft <= 0) return null;
   const allies = b.units.filter((u) => u.side === 'ally' && u.hp > 0 && !(u.kind === 'king' && u.boss));
-  const early = (has(b, 'ally', 'earlyCrown') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
+  const early = (has(b, 'ally', 'earlyCrown') ? 1 : 0) + (has(b, 'ally', 'queensGambit') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
   let capture: MoveMoment | null = null;
   let best = 0;
   for (const u of allies) {
@@ -1938,7 +1939,7 @@ export function playMove(b: Battle, uid: number, x: number, y: number): boolean 
     u.y = y;
     u.wait = Math.max(u.wait, 4);
     orderEvent(b, u, fromX, fromY, t('Ход'));
-    const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
+    const early = (has(b, u.side, 'earlyCrown') ? 1 : 0) + (has(b, u.side, 'queensGambit') ? 1 : 0) + (b.perks.has('earlyCrown') ? 2 : 0);
     if (u.kind === 'pawn' && u.y <= early) promote(b, u, 'queen');
     return true;
   }

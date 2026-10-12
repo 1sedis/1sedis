@@ -448,7 +448,7 @@ export interface ShopItem {
 
 /** Merchant and smith prices ("Торговая грамота" cuts them). */
 export function price(s: GameState, gold: number): number {
-  return Math.round(gold * (s.relics.includes('charter') ? 0.7 : 1) * threatMods(s.run.threat ?? 0).prices);
+  return Math.round(gold * (s.relics.includes('charter') ? 0.6 : 1) * threatMods(s.run.threat ?? 0).prices);
 }
 
 export function shopItems(s: GameState, node: RunNode): ShopItem[] {
