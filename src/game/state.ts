@@ -39,8 +39,8 @@ export interface BuildingDef {
 }
 
 export const BUILDINGS: Record<BuildingId, BuildingDef> = {
-  hq: { id: 'hq', name: t('Штаб'), description: t('+1 фигура в каждом бою'), baseCost: 400, growth: 3.5, maxLevel: 3 },
-  forge: { id: 'forge', name: t('Кузница'), description: t('+6% к атаке и здоровью всей армии'), baseCost: 200, growth: 1.8, maxLevel: 25 },
+  hq: { id: 'hq', name: t('Штаб'), description: t('+1 фигура в каждом бою'), baseCost: 400, growth: 2.0, maxLevel: 3 },
+  forge: { id: 'forge', name: t('Кузница'), description: t('+6% к атаке и здоровью всей армии'), baseCost: 200, growth: 1.38, maxLevel: 25 },
 };
 
 export const BUILDING_ORDER: BuildingId[] = ['hq', 'forge'];
@@ -239,7 +239,9 @@ export function recruitCost(s: GameState, kind: PieceKind): number {
 }
 
 /** Upgrades grow gently: a run has only its own gold, and several piece types to raise. */
-export const UPGRADE_GROWTH = 1.45;
+// Was 1.45 with rewards growing 1.15 per level; both were compressed together (polish 3.6):
+// 1.45 = 1.15^2.66, so 1.08^2.66 ≈ 1.227 keeps the levels a run can afford the same.
+export const UPGRADE_GROWTH = 1.227;
 
 /** Training a kind costs more the more pieces of it there are: a big squad is a big drill. */
 export const SQUAD_COST = 0.15;

@@ -9,7 +9,7 @@
  *
  * The map itself is never stored: it is rebuilt from the seed and the chapter.
  */
-import { CHAPTERS } from './levels';
+import { CHAPTERS, REWARD_GROWTH } from './levels';
 import type { PieceKind } from './pieces';
 import { RELIC_IDS, rollOffer, type RelicId } from './relics';
 import type { GameState } from './state';
@@ -408,7 +408,7 @@ export function recruitLevel(s: GameState, kind: PieceKind): number {
 
 /** Gold scale of a chapter: what an ordinary battle in its middle pays. */
 export function chapterGold(chapter: number): number {
-  return Math.round(30 * 1.15 ** ((chapter - 1) * 9 + 4) * RUN_GOLD);
+  return Math.round(30 * REWARD_GROWTH ** ((chapter - 1) * 9 + 4) * RUN_GOLD);
 }
 
 /** Battles of a run pay more than the old single level did: there are no replays to farm. */
