@@ -629,6 +629,7 @@ function defense(b: Battle, target: Unit): number {
   m *= aura;
   if (b.tick < target.cursedUntil) m *= target.curseMult;
   if (b.terrain[target.y * BOARD_SIZE + target.x] === 'forest') m *= FOREST_DEFENSE;
+  if (target.kind === 'rook' && has(b, target.side, 'bastion')) m *= 0.7;
   if (target.uid === b.bossUid && b.bossId === 'fortress' && b.bossPhase === 2) m *= 0.6;
   if (target.uid === b.bossUid && b.bossId === 'captain' && shieldWall(b, target)) m *= 0.35;
   if (target.uid === b.bossUid && b.bossId === 'queen' && b.reflections.some((id) => b.units.some((u) => u.uid === id && u.hp > 0))) m = 0;
@@ -662,6 +663,8 @@ function strike(b: Battle, u: Unit, target: Unit): void {
   }
   const big = target.kind === 'king' || target.boss;
   if (u.kind === 'rook' && big && has(b, u.side, 'heavyShot')) damage *= 1.5;
+  if (u.kind === 'knight' && !u.struck && has(b, u.side, 'lance')) damage *= 3;
+  if (has(b, u.side, 'executioner') && target.hp < target.maxHp * 0.3) damage *= 1.6;
   const crit = isCrit(b, u);
   if (crit) {
     damage *= CRIT_MULT;
@@ -678,6 +681,15 @@ function strike(b: Battle, u: Unit, target: Unit): void {
   if (charge && u.tier === 2 && target.hp > 0) target.wait += 15;
   if (u.kind === 'knight' && !u.struck && has(b, u.side, 'stunJump') && target.hp > 0) target.wait += 20;
   if (u.kind === 'bishop' && has(b, u.side, 'piercing')) pierce(b, u, target, damage * 0.6);
+  if (u.kind === 'bishop' && has(b, u.side, 'holyArrows')) {
+    const hurt = alive(b, u.side).filter((f) => f.hp < f.maxHp).sort((x, y) => x.hp / x.maxHp - y.hp / y.maxHp)[0];
+    if (hurt) {
+      const amount = Math.min(hurt.maxHp - hurt.hp, damage * 0.4);
+      hurt.hp += amount;
+      b.report[u.uid].healed += amount;
+      b.events.push({ type: 'heal', uid: hurt.uid, side: hurt.side, x: hurt.x, y: hurt.y, amount, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind });
+    }
+  }
   u.struck = true;
   u.wait = u.attackCd;
   // Chain jump: a knight that just felled its target acts again at once.
@@ -759,6 +771,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
   target.hp -= damage;
   target.flash = 2;
   if (u.trait === 'vampire' && u.hp > 0 && landed > 0) u.hp = Math.min(u.maxHp, u.hp + landed * 0.3);
+  if (has(b, u.side, 'fangs') && u.hp > 0 && landed > 0) u.hp = Math.min(u.maxHp, u.hp + landed * 0.1);
   const big = target.kind === 'king' || target.boss;
   const base = { uid: target.uid, side: target.side, x: target.x, y: target.y, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: u.kind, big };
   b.events.push({ ...base, type: 'hit', amount: damage, crit });
@@ -784,6 +797,10 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
       }
     }
     if (target.trait === 'explosive') explode(b, target);
+    if (target.kind === 'pawn' && has(b, target.side, 'powderKeg')) explode(b, target, target.maxHp * 0.5);
+    if (target.side === 'enemy' && has(b, u.side, 'feast')) {
+      for (const f of alive(b, u.side)) f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.05);
+    }
     if (u.side === 'ally' && b.legends.has('bloodlust') && u.hp > 0) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.3);
     if (target.side === 'ally' && target.kind === 'pawn' && b.perks.has('sacrifice')) {
       for (const f of alive(b, 'ally')) {
@@ -801,8 +818,9 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     traitEvent(b, target, 'Ярость!');
   }
   if (target.trait === 'blinker' && target.hp > 0 && b.tick >= target.blinkReady) blink(b, target);
-  if (target.trait === 'thorns' && !reflected && !shot && u.hp > 0 && damage > 0) {
-    dealDamage(b, target, u, damage * 0.3, false, true);
+  const thorns = (target.trait === 'thorns' ? 0.3 : 0) + (has(b, target.side, 'thornMail') ? 0.2 : 0);
+  if (thorns && !reflected && !shot && u.hp > 0 && damage > 0) {
+    dealDamage(b, target, u, damage * thorns, false, true);
   }
 }
 
@@ -910,7 +928,7 @@ function traitTick(b: Battle): void {
   }
 }
 
-function explode(b: Battle, u: Unit): void {
+function explode(b: Battle, u: Unit, power = u.atk * 1.5): void {
   const cells: number[] = [];
   const victims: Unit[] = [];
   for (let dx = -1; dx <= 1; dx++) {
@@ -925,7 +943,7 @@ function explode(b: Battle, u: Unit): void {
   }
   traitEvent(b, u, 'Взрыв!');
   b.events.push({ type: 'blast', uid: u.uid, side: u.side, x: u.x, y: u.y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid, cells });
-  for (const t of victims) dealDamage(b, u, t, u.atk * 1.5, false, true);
+  for (const t of victims) dealDamage(b, u, t, power, false, true);
 }
 
 function royalHeal(b: Battle): void {

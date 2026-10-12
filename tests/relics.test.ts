@@ -84,3 +84,59 @@ describe('relic effects', () => {
     expect(run(['chainmail', 'sharpBlades', 'warCry', 'phalanx'])).toBeLessThan(run([]));
   });
 });
+
+describe('build relics', () => {
+  /** First hit a knight lands on an enemy rook, with and without a relic. */
+  const firstHit = (relics: Parameters<typeof createBattle>[0]['relics'], target: Placement['kind'] = 'rook') => {
+    const b = createBattle({ allies: [p('king', 0, 7), p('knight', 3, 4, 3)], enemies: [p('king', 7, 0), p(target, 4, 2, 3)], relics });
+    for (let i = 0; i < 200 && !b.result; i++) {
+      stepBattle(b);
+      const hit = b.events.find((e) => e.type === 'hit' && e.side === 'enemy');
+      if (hit) return hit.amount;
+    }
+    throw new Error('no hit');
+  };
+
+  it('the lance triples a knight’s first blow', () => {
+    expect(firstHit(['lance']) / firstHit([])).toBeCloseTo(3, 1);
+  });
+
+  it('the bastion makes rooks tougher', () => {
+    const b = createBattle({ allies: [p('king', 0, 7), p('rook', 3, 4)], enemies: [p('king', 7, 0), p('knight', 4, 2, 3)], relics: ['bastion'] });
+    const plain = createBattle({ allies: [p('king', 0, 7), p('rook', 3, 4)], enemies: [p('king', 7, 0), p('knight', 4, 2, 3)] });
+    const hitOn = (x: typeof b) => {
+      for (let i = 0; i < 200; i++) {
+        stepBattle(x);
+        const hit = x.events.find((e) => e.type === 'hit' && e.side === 'ally');
+        if (hit) return hit.amount;
+      }
+      throw new Error('no hit');
+    };
+    expect(hitOn(b) / hitOn(plain)).toBeCloseTo(0.7, 1);
+  });
+
+  it('iron king, lone wolf and pawn storm shape the setup', () => {
+    const s = newGame(0);
+    const base = battleSetup(s, '1-1');
+    s.relics = ['ironKing', 'loneWolf', 'pawnStorm'];
+    const setup = battleSetup(s, '1-1');
+    const pawns = setup.allies.filter((a) => a.kind === 'pawn').length;
+    expect(setup.allyKingHpMult! / base.allyKingHpMult!).toBeCloseTo(1.5);
+    expect(setup.allyKind?.king?.atk).toBeCloseTo(1.4);
+    expect(setup.allyAtkMult! / base.allyAtkMult!).toBeCloseTo(1.4); // a small army: the wolf bites
+    expect(setup.allyKind?.pawn?.atk).toBeCloseTo((base.allyKind?.pawn?.atk ?? 1) * (1 + 0.06 * pawns));
+  });
+
+  it('piggy bank pays interest on a win', () => {
+    const a = newGame(0);
+    const b = newGame(0);
+    a.gold = b.gold = 400;
+    b.relics = ['piggyBank'];
+    for (const s of [a, b]) {
+      const battle = createBattle(battleSetup(s, '1-1'));
+      battle.result = 'win';
+      recordResult(s, '1-1', battle);
+    }
+    expect(b.gold).toBeGreaterThan(a.gold);
+  });
+});

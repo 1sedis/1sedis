@@ -113,6 +113,90 @@ const ICONS: Record<RelicId, { map: string[]; a: string; b: string; c: string }>
       '..ocoooooo..', '..oc........', '..oc........', '..oc........', '.oooo.......', '............',
     ],
   },
+  pawnStorm: {
+    a: '#dfe6f5', b: '#7d86a6', c: '#ffffff', map: [
+      '............', '..oo....oo..', '.oaao..oaao.', '.oaco..oaco.', '..oo....oo..', '.oaao..oaao.',
+      'oaaaaooaaaao', 'obbbboobbbbo', 'oooooooooooo', '....oooo....', '...oaaco....', '...oooo.....',
+    ],
+  },
+  lance: {
+    a: '#c8d0ec', b: '#c42a4a', c: '#ffffff', map: [
+      '..........oo', '.........oco', '........oco.', '.......oao..', '......oao...', '.....oao....',
+      '..o.oao.....', '..oobo......', '...obbo.....', '..obboo.....', '.obo..o.....', '.oo.........',
+    ],
+  },
+  holyArrows: {
+    a: '#ffe14a', b: '#c98f12', c: '#ffffff', map: [
+      '......o.....', '.....oco....', '....ocaco...', '.....oao....', '..o..oao..o.', '.oco.oao.oco',
+      '..oooaaoooo.', '.....oao....', '.....oao....', '....obabo...', '...obo.obo..', '...oo...oo..',
+    ],
+  },
+  ironKing: {
+    a: '#9aa3bd', b: '#5d6886', c: '#ffffff', map: [
+      '.....oo.....', '....occo....', '.....oo.....', '.o..oaao..o.', '.oooaaaaooo.', '.oaaaaaaaao.',
+      '.oacaaaaabo.', '.oaaaaaaabo.', '.oooooooooo.', '..oaaaaabo..', '.obbbbbbbbo.', '.oooooooooo.',
+    ],
+  },
+  loneWolf: {
+    a: '#9aa3bd', b: '#4a4170', c: '#ffe14a', map: [
+      '.o......o...', '.oo....oo...', '.oaooooaao..', '.oaaaaaaao..', 'oaacaaacaao.', 'oaaaaaaaaao.',
+      '.oaaaabbaao.', '..oaabooaao.', '...oaaaaao..', '....oooooo..', '............', '............',
+    ],
+  },
+  piggyBank: {
+    a: '#ff9db0', b: '#c42a4a', c: '#ffcf4a', map: [
+      '.....oooo...', '.....occo...', '..ooooooooo.', '.oaaaaaaaaao', 'oaoaaaaaaaao', 'oaaaaaaaaaoo',
+      'oaaaaaaaaao.', '.oaaaaaaaao.', '..oboooobo..', '..oo....oo..', '............', '............',
+    ],
+  },
+  charter: {
+    a: '#e8c39a', b: '#7a5a3a', c: '#e0324f', map: [
+      '.oooooooooo.', 'obaaaaaaaabo', '.oaaaaaaaao.', '.oabbbbbbao.', '.oaaaaaaaao.', '.oabbbbbao..',
+      '.oaaaaaaaoo.', '.oabbbaoccco', '.oaaaaaoccco', 'obaaaaaaoco.', '.oooooooooo.', '............',
+    ],
+  },
+  fangs: {
+    a: '#ffffff', b: '#8c1530', c: '#e0324f', map: [
+      '............', 'oooooooooooo', 'obbbbbbbbbbo', 'oaobbbbbboao', 'oaaobbbboaao', '.oaobbbboao.',
+      '..oobbbboo..', '....obbo....', '.....co.....', '.....oo.....', '.....co.....', '............',
+    ],
+  },
+  thornMail: {
+    a: '#9aa3bd', b: '#5d6886', c: '#dfe6f5', map: [
+      'o..........o', '.o.oooooo.o.', '..oaaaaaaoo.', 'ooaacaacaaoo', '..oaaaaaao..', '.ooaacaacoo.',
+      '..oaaaaaao..', 'ooaacaacaaoo', '..oaaaaaao..', '.o.oooooo.o.', 'o..........o', '............',
+    ],
+  },
+  executioner: {
+    a: '#c8d0ec', b: '#7a5a3a', c: '#ffffff', map: [
+      '..oooo......', '.oaaaao.....', 'oacaaaoo....', 'oaaaaaobo...', 'oaaaaaobo...', '.oaaaoobo...',
+      '..oooobbo...', '......obo...', '......obo...', '......obo...', '......obo...', '......ooo...',
+    ],
+  },
+  feast: {
+    a: '#b07a4a', b: '#5a3d24', c: '#ffcf4a', map: [
+      '............', '..oo........', '.occo.......', '.occco......', '..occo......', '...oaaoo....',
+      '...oaaaao...', '....oaaaao..', '....oaaabo..', '.....obbbo..', '......oooo..', '............',
+    ],
+  },
+  bastion: {
+    a: '#9aa3bd', b: '#5d6886', c: '#dfe6f5', map: [
+      '.oo.oo.oo.o.', '.oaoaoaoaoo.', '.oaaaaaaaao.', '.oooooooooo.', '..oacaaabo..', '..oaaaaabo..',
+      '..oaaooabo..', '..oaaooabo..', '..oaaaaabo..', '.oooooooooo.', '.obbbbbbbbo.', '.oooooooooo.',
+    ],
+  },
+  powderKeg: {
+    a: '#b07a4a', b: '#5a3d24', c: '#ffcf4a', map: [
+      '.......o.c..', '......o.c.c.', '.....o..cc..', '..oooooo....', '.oaaaaaao...', '.obbbbbbo...',
+      '.oacaaaao...', '.oaaaaaao...', '.obbbbbbo...', '.oaaaaaao...', '..oooooo....', '............',
+    ],
+  },
+  campfire: {
+    a: '#ff8a3d', b: '#c42a4a', c: '#ffe14a', map: [
+      '.....o......', '....oao.....', '....oaao....', '...oacao....', '...occcao...', '..oacccao...',
+      '..oaacaao...', '...oooooo...', '.ooobbbooo..', 'obbbo.obbbo.', 'oooo...oooo.', '............',
+    ],
+  },
 };
 
 export const RELIC_ICON_MAPS = ICONS;

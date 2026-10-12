@@ -4,7 +4,7 @@ import { PIECES, type PieceKind } from '../game/pieces';
 import { RELICS } from '../game/relics';
 import { CHAPTERS, getLevel as levelOf } from '../game/levels';
 import {
-  EVENTS, buyItem, campForge, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type RunNode, type RunOver,
+  EVENTS, buyItem, campForge, campGain, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type RunNode, type RunOver,
 } from '../game/run';
 import { startNextRun, upgradeCost, type GameState } from '../game/state';
 import { ARMIES, ARMY_ORDER, type ArmyId } from '../game/armies';
@@ -223,12 +223,12 @@ function openCamp(ctx: Ctx, onDone: () => void): void {
     onDone();
   };
   const forge = el('button', 'btn choice-btn');
-  forge.append(el('span', 'choice-label', 'Заточить оружие'), el('span', 'choice-hint', `+1 уровень Кузницы (сейчас ${s.buildings.forge})`));
+  forge.append(el('span', 'choice-label', 'Заточить оружие'), el('span', 'choice-hint', `+${campGain(s)} ${campGain(s) > 1 ? 'уровня' : 'уровень'} Кузницы (сейчас ${s.buildings.forge})`));
   forge.addEventListener('click', () => {
     campForge(s);
-    finish('Кузница: +1 уровень');
+    finish(`Кузница: +${campGain(s)}`);
   });
-  body.append(forge, el('div', 'camp-train-title', 'Или тренировка: +1 уровень бесплатно'));
+  body.append(forge, el('div', 'camp-train-title', `Или тренировка: +${campGain(s)} ${campGain(s) > 1 ? 'уровня' : 'уровень'} бесплатно`));
   const grid = el('div', 'camp-train');
   for (const kind of Object.keys(s.army) as PieceKind[]) {
     if (s.army[kind] <= 0) continue;

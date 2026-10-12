@@ -74,6 +74,51 @@ export interface RunState {
   guardian?: PieceKind;
   /** The starting army of this run. */
   army?: ArmyId;
+  /** Blessings and curses from events that last a few battles. */
+  boons?: Boon[];
+}
+
+/**
+ * A blessing (or a curse) from an event: multipliers for the next few battles.
+ * `boss` ones wait for the chapter's boss and work only there.
+ */
+export interface Boon {
+  name: string;
+  /** Your army's attack and health. */
+  atk: number;
+  hp: number;
+  /** Enemy health. */
+  foe?: number;
+  /** Battles left. */
+  left: number;
+  boss?: boolean;
+}
+
+/** Boons working in a battle (boss ones only at the boss). */
+export function activeBoons(run: RunState, boss: boolean): Boon[] {
+  return (run.boons ?? []).filter((x) => x.left > 0 && (!x.boss || boss));
+}
+
+/** A battle was fought: every boon working in it wears down by one. */
+export function wearBoons(run: RunState, boss: boolean): void {
+  if (!run.boons) return;
+  for (const x of activeBoons(run, boss)) x.left--;
+  run.boons = run.boons.filter((x) => x.left > 0);
+}
+
+function addBoon(s: GameState, boon: Boon): void {
+  s.run.boons = [...(s.run.boons ?? []), boon];
+}
+
+/** A short line for a boon: "+20% атаки · 2 боя". */
+export function boonText(x: Boon): string {
+  const pct = (v: number) => `${v > 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)}%`;
+  const parts: string[] = [];
+  if (x.atk !== 1) parts.push(`${pct(x.atk)} атаки`);
+  if (x.hp !== 1) parts.push(`${pct(x.hp)} здоровья`);
+  if (x.foe && x.foe !== 1) parts.push(`${x.boss ? 'босс' : 'враги'} ${pct(x.foe)} здоровья`);
+  const left = x.boss ? 'на босса' : `${x.left} ${x.left === 1 ? 'бой' : x.left < 5 ? 'боя' : 'боёв'}`;
+  return `${parts.join(', ')} · ${left}`;
 }
 
 /** Rows of a chapter map, the boss row included. */
@@ -179,7 +224,7 @@ export function buildMap(chapter: number, seed: number): RunMap {
     }
     return out;
   };
-  const events = shuffle(EVENT_IDS);
+  const events = shuffle(EVENT_IDS.filter((id) => eventFits(id, chapter)));
   let e = 0;
   for (const nodes of rows) for (const n of nodes) if (n.kind === 'event') n.event = events[e++ % events.length];
   // Elites: a different rule each, where the map has room for it.
@@ -363,14 +408,19 @@ export const ELITE_LEVELS = 1;
 
 // ---------- Camp ----------
 
+/** Levels a camp gives ("Походный котёл" doubles them). */
+export function campGain(s: GameState): number {
+  return s.relics.includes('campfire') ? 2 : 1;
+}
+
 export function campForge(s: GameState): void {
-  s.buildings.forge++;
+  s.buildings.forge += campGain(s);
   finishNode(s);
 }
 
 export function campTrain(s: GameState, kind: PieceKind): boolean {
   if (s.army[kind] <= 0) return false;
-  s.levels[kind]++;
+  s.levels[kind] += campGain(s);
   finishNode(s);
   return true;
 }
@@ -385,8 +435,13 @@ export interface ShopItem {
   relic?: RelicId;
 }
 
+/** Merchant and smith prices ("Торговая грамота" cuts them). */
+export function price(s: GameState, gold: number): number {
+  return Math.round(gold * (s.relics.includes('charter') ? 0.7 : 1));
+}
+
 export function shopItems(s: GameState, node: RunNode): ShopItem[] {
-  const g = chapterGold(s.run.chapter);
+  const g = price(s, chapterGold(s.run.chapter));
   const relics = rollOffer([...s.relics, SPARE], hashText(`${s.run.seed}:${node.id}:${s.run.chapter}`));
   const items: ShopItem[] = relics.map((id) => ({ id: `relic:${id}`, name: '', text: '', cost: Math.round(g * 2.5), relic: id }));
   // The spare banner is always on sale, and dear: it is a second life.
@@ -413,7 +468,10 @@ export function buyItem(s: GameState, node: RunNode, item: ShopItem): boolean {
 
 // ---------- Events ----------
 
-export type EventId = 'wagon' | 'deserter' | 'shrine' | 'smith' | 'hermit' | 'dice' | 'militia' | 'crown';
+export type EventId =
+  | 'wagon' | 'deserter' | 'shrine' | 'smith' | 'hermit' | 'dice' | 'militia' | 'crown'
+  | 'well' | 'bard' | 'oracle' | 'outpost' | 'refugees' | 'ambush' | 'gravedigger' | 'library'
+  | 'lake' | 'witch' | 'anvil' | 'tournament';
 
 export interface EventChoice {
   label: string;
@@ -429,6 +487,14 @@ export interface EventDef {
   title: string;
   text: string;
   choices: EventChoice[];
+  /** Chapters it can turn up in (all when omitted). */
+  from?: number;
+  to?: number;
+}
+
+export function eventFits(id: EventId, chapter: number): boolean {
+  const e = EVENTS[id];
+  return chapter >= (e.from ?? 1) && chapter <= (e.to ?? 99);
 }
 
 /** Non-king piece kinds the army has, the most valuable first. */
@@ -447,6 +513,16 @@ function giftRelic(s: GameState, roll: number): RelicId | null {
 }
 
 const PAWN_CAP = 8;
+
+/** Gold of this chapter times `share`. */
+const gold = (s: GameState, share: number) => Math.round(chapterGold(s.run.chapter) * share);
+const afford = (cost: (s: GameState) => number) => (s: GameState) => (s.gold >= cost(s) ? null : 'Не хватает золота');
+
+/** A new piece of a kind, trained up like a recruit; it waits in the reserve. */
+function recruit(s: GameState, kind: PieceKind): void {
+  s.levels[kind] = recruitLevel(s, kind);
+  s.army[kind]++;
+}
 
 export const EVENTS: Record<EventId, EventDef> = {
   wagon: {
@@ -501,8 +577,8 @@ export const EVENTS: Record<EventId, EventDef> = {
     choices: [
       {
         label: 'Заказать заточку', hint: '+1 уровень Кузницы за золото',
-        blocked: (s) => (s.gold >= Math.round(chapterGold(s.run.chapter) * 0.8) ? null : 'Не хватает золота'),
-        apply: (s) => { s.gold -= Math.round(chapterGold(s.run.chapter) * 0.8); s.buildings.forge++; return 'Клинки острее прежнего: +1 уровень Кузницы.'; },
+        blocked: afford((s) => price(s, gold(s, 0.8))),
+        apply: (s) => { s.gold -= price(s, gold(s, 0.8)); s.buildings.forge++; return 'Клинки острее прежнего: +1 уровень Кузницы.'; },
       },
       { label: 'Отказаться', hint: 'Ничего', apply: () => 'Кузнец пожал плечами.' },
     ],
@@ -567,6 +643,258 @@ export const EVENTS: Record<EventId, EventDef> = {
         },
       },
       { label: 'Оставить', hint: 'Ничего', apply: () => 'Пусть лежит.' },
+    ],
+  },
+  well: {
+    title: 'Колодец желаний',
+    text: 'Старый колодец на перекрёстке. Говорят, он исполняет желания тех, кто не жалеет монет.',
+    choices: [
+      {
+        label: 'Бросить монету', hint: 'Немного золота: может, +20% атаки на 3 боя',
+        blocked: afford((s) => gold(s, 0.3)),
+        apply: (s, roll) => {
+          s.gold -= gold(s, 0.3);
+          if (roll < 0.65) {
+            addBoon(s, { name: 'Желание', atk: 1.2, hp: 1, left: 3 });
+            return 'Вода засветилась: желание сбудется. +20% атаки на 3 боя.';
+          }
+          return 'Монета булькнула — и всё.';
+        },
+      },
+      { label: 'Уйти', hint: 'Ничего', apply: () => 'Вы не верите в сказки.' },
+    ],
+  },
+  bard: {
+    title: 'Бродячий менестрель',
+    text: 'Менестрель с лютней знает песни о каждой битве Белого королевства и готов сложить новую — о вас.',
+    choices: [
+      {
+        label: 'Заказать балладу', hint: '+15% атаки и здоровья на 2 боя',
+        blocked: afford((s) => gold(s, 0.5)),
+        apply: (s) => {
+          s.gold -= gold(s, 0.5);
+          addBoon(s, { name: 'Баллада', atk: 1.15, hp: 1.15, left: 2 });
+          return 'Армия идёт в бой под новую песню: +15% атаки и здоровья на 2 боя.';
+        },
+      },
+      {
+        label: 'Подпеть самим', hint: 'Бесплатно: +10% атаки на 1 бой',
+        apply: (s) => { addBoon(s, { name: 'Походная песня', atk: 1.1, hp: 1, left: 1 }); return 'Вышло нестройно, но от души: +10% атаки на 1 бой.'; },
+      },
+    ],
+  },
+  oracle: {
+    title: 'Слепой оракул',
+    text: 'Слепой старик видит доску лучше зрячих. Он ответит на один вопрос.',
+    choices: [
+      {
+        label: 'Спросить о боссе', hint: 'Босс главы: −20% здоровья',
+        apply: (s) => { addBoon(s, { name: 'Пророчество', atk: 1, hp: 1, foe: 0.8, left: 1, boss: true }); return 'Оракул назвал слабое место босса: у него будет на 20% меньше здоровья.'; },
+      },
+      {
+        label: 'Спросить о пути', hint: '+25% здоровья на 2 боя',
+        apply: (s) => { addBoon(s, { name: 'Верный путь', atk: 1, hp: 1.25, left: 2 }); return 'Вы знаете, где ждут засады: +25% здоровья на 2 боя.'; },
+      },
+    ],
+  },
+  outpost: {
+    title: 'Брошенная застава',
+    text: 'Белая сторожевая башня пуста, но ладья на её стене ещё цела и готова служить.',
+    to: 2,
+    choices: [
+      {
+        label: 'Поднять ладью', hint: '+1 ладья в армию',
+        blocked: (s) => (s.army.rook < 2 ? null : 'Ладей уже две'),
+        apply: (s) => { recruit(s, 'rook'); return 'Ладья спустилась со стены и встала в резерв.'; },
+      },
+      { label: 'Обыскать склад', hint: '+ золото', apply: (s) => { const g = gold(s, 0.7); s.gold += g; return `+${g} золота`; } },
+    ],
+  },
+  refugees: {
+    title: 'Беженцы',
+    text: 'По дороге бредут крестьяне из сожжённой деревни. Им нечего есть.',
+    choices: [
+      {
+        label: 'Накормить', hint: '+1 пешка и +10% здоровья на 3 боя',
+        blocked: afford((s) => gold(s, 0.4)),
+        apply: (s) => {
+          s.gold -= gold(s, 0.4);
+          if (s.army.pawn < PAWN_CAP) s.army.pawn++;
+          addBoon(s, { name: 'Благодарность', atk: 1, hp: 1.1, left: 3 });
+          return 'Один из беженцев взял копьё, а армия воспряла духом.';
+        },
+      },
+      { label: 'Пройти мимо', hint: 'Ничего', apply: () => 'Война не ждёт.' },
+    ],
+  },
+  ambush: {
+    title: 'Засада на перевале',
+    text: 'На узкой тропе вас поджидают чёрные пехотинцы. Их вожак насмешливо машет вам рукой.',
+    from: 2,
+    choices: [
+      {
+        label: 'Прорваться', hint: '−1 пешка, + много золота из их обоза',
+        apply: (s) => {
+          const g = gold(s, 1.1);
+          s.gold += g;
+          if (s.army.pawn > 1) {
+            s.army.pawn--;
+            return `Прорвались, потеряв пешку. Обоз ваш: +${g} золота.`;
+          }
+          return `Прорвались без потерь! +${g} золота.`;
+        },
+      },
+      {
+        label: 'Вызвать вожака', hint: 'Реликвия или −20% атаки на 2 боя — пополам',
+        apply: (s, roll) => {
+          if (roll < 0.5) return giftRelic(s, roll * 2) ? 'Вожак повержен, его трофей — ваш!' : 'Вожак повержен, но у него ничего не было.';
+          addBoon(s, { name: 'Рана короля', atk: 0.8, hp: 1, left: 2 });
+          return 'Вожак ранил вашего короля и скрылся. −20% атаки на 2 боя.';
+        },
+      },
+      {
+        label: 'Обойти горами', hint: '−15% здоровья на 2 боя',
+        apply: (s) => { addBoon(s, { name: 'Усталость', atk: 1, hp: 0.85, left: 2 }); return 'Горная тропа вымотала армию: −15% здоровья на 2 боя.'; },
+      },
+    ],
+  },
+  gravedigger: {
+    title: 'Могильщик',
+    text: 'Могильщик на старом поле боя скупает трофеи и знает, где лежат герои.',
+    from: 2,
+    choices: [
+      {
+        label: 'Продать реликвию', hint: 'Случайная реликвия → много золота',
+        blocked: (s) => (s.relics.some((id) => id !== SPARE) ? null : 'Нечего продать'),
+        apply: (s, roll) => {
+          const pool = s.relics.filter((id) => id !== SPARE);
+          const id = pool[Math.floor(roll * pool.length) % pool.length];
+          s.relics = s.relics.filter((r) => r !== id);
+          const g = gold(s, 3);
+          s.gold += g;
+          return `Могильщик унёс реликвию и отсыпал +${g} золота.`;
+        },
+      },
+      {
+        label: 'Раскопать могилу героя', hint: '+1 уровень лучшей фигуре или проклятие −10% атаки на 3 боя',
+        apply: (s, roll) => {
+          if (roll < 0.6) {
+            const kind = ownedKinds(s)[0] ?? 'king';
+            s.levels[kind]++;
+            return 'Меч героя достался лучшему бойцу: +1 уровень.';
+          }
+          addBoon(s, { name: 'Проклятие могилы', atk: 0.9, hp: 1, left: 3 });
+          return 'Из могилы потянуло холодом. −10% атаки на 3 боя.';
+        },
+      },
+      { label: 'Уйти', hint: 'Ничего', apply: () => 'Пусть мёртвые спят.' },
+    ],
+  },
+  library: {
+    title: 'Заброшенная библиотека',
+    text: 'Среди обугленных полок уцелели два тома: трактат о тактике и карта тайных троп.',
+    from: 2,
+    choices: [
+      {
+        label: 'Трактат о тактике', hint: '+1 уровень самой отстающей фигуре',
+        apply: (s) => {
+          const kinds = ownedKinds(s);
+          const kind = kinds.length ? kinds.reduce((a, k) => (s.levels[k] < s.levels[a] ? k : a)) : 'king';
+          s.levels[kind]++;
+          return 'Отстающие подтянулись: +1 уровень.';
+        },
+      },
+      {
+        label: 'Карта тайных троп', hint: 'Враги −15% здоровья на 2 боя',
+        apply: (s) => { addBoon(s, { name: 'Тайные тропы', atk: 1, hp: 1, foe: 0.85, left: 2 }); return 'Вы зайдёте врагу в тыл: −15% здоровья врагов на 2 боя.'; },
+      },
+    ],
+  },
+  lake: {
+    title: 'Зеркальное озеро',
+    text: 'Гладь озера отражает не вас, а ваших бойцов — только чуть темнее. Отражение можно позвать с собой.',
+    from: 3,
+    choices: [
+      {
+        label: 'Позвать отражение', hint: 'Копия лучшей фигуры, но −15% здоровья на 3 боя',
+        blocked: (s) => (ownedKinds(s).some((k) => k !== 'pawn') ? null : 'Нужна фигура сильнее пешки'),
+        apply: (s) => {
+          const kind = ownedKinds(s).find((k) => k !== 'pawn')!;
+          s.army[kind]++;
+          addBoon(s, { name: 'Холод отражения', atk: 1, hp: 0.85, left: 3 });
+          return 'Отражение вышло на берег и встало в резерв. Армию знобит: −15% здоровья на 3 боя.';
+        },
+      },
+      {
+        label: 'Разбить гладь', hint: '+15% атаки на 2 боя',
+        apply: (s) => { addBoon(s, { name: 'Ярость', atk: 1.15, hp: 1, left: 2 }); return 'Осколки отражений злят армию: +15% атаки на 2 боя.'; },
+      },
+    ],
+  },
+  witch: {
+    title: 'Болотная ведьма',
+    text: 'Ведьма в тумане варит зелья. Ей нужно то, что дорого вам.',
+    from: 3,
+    choices: [
+      {
+        label: 'Отдать знамя', hint: 'Запасное знамя → две реликвии',
+        blocked: (s) => (s.relics.includes(SPARE) ? null : 'Нет запасного знамени'),
+        apply: (s, roll) => {
+          s.relics = s.relics.filter((id) => id !== SPARE);
+          const got = [giftRelic(s, roll), giftRelic(s, (roll * 7) % 1)].filter(Boolean).length;
+          return got ? `Ведьма сожгла знамя и отдала ${got === 2 ? 'две реликвии' : 'реликвию'}.` : 'Ведьма сожгла знамя, но реликвий у неё не нашлось.';
+        },
+      },
+      {
+        label: 'Выпить зелье', hint: '+2 уровня короля или −20% здоровья на 2 боя',
+        apply: (s, roll) => {
+          if (roll < 0.55) {
+            s.levels.king += 2;
+            return 'Король помолодел: +2 уровня.';
+          }
+          addBoon(s, { name: 'Отрава', atk: 1, hp: 0.8, left: 2 });
+          return 'Зелье оказалось ядом. −20% здоровья на 2 боя.';
+        },
+      },
+      { label: 'Уйти', hint: 'Ничего', apply: () => 'Ведьма хихикнула вслед.' },
+    ],
+  },
+  anvil: {
+    title: 'Древняя наковальня',
+    text: 'В руинах крепости — наковальня первых королей. На ней куют не клинки, а судьбы.',
+    from: 4,
+    choices: [
+      {
+        label: 'Переплавить золото', hint: '+2 уровня Кузницы',
+        blocked: afford((s) => price(s, gold(s, 1.2))),
+        apply: (s) => { s.gold -= price(s, gold(s, 1.2)); s.buildings.forge += 2; return 'Золото стало сталью: +2 уровня Кузницы.'; },
+      },
+      {
+        label: 'Перековать короля', hint: '−1 пешка, +2 уровня короля',
+        blocked: (s) => (s.army.pawn > 1 ? null : 'Нужно хотя бы две пешки'),
+        apply: (s) => { s.army.pawn--; s.levels.king += 2; return 'Пешка отдала свой щит королю: +2 уровня.'; },
+      },
+    ],
+  },
+  tournament: {
+    title: 'Рыцарский турнир',
+    text: 'Вольные рыцари устроили турнир. Победителю — кошель золота и слава.',
+    from: 2,
+    choices: [
+      {
+        label: 'Выставить чемпиона', hint: 'Золото и +15% атаки на 2 боя или −15% атаки на 2 боя',
+        apply: (s, roll) => {
+          if (roll < 0.55) {
+            const g = gold(s, 1.2);
+            s.gold += g;
+            addBoon(s, { name: 'Слава', atk: 1.15, hp: 1, left: 2 });
+            return `Ваш чемпион победил! +${g} золота и +15% атаки на 2 боя.`;
+          }
+          addBoon(s, { name: 'Позор', atk: 0.85, hp: 1, left: 2 });
+          return 'Чемпион вылетел из седла. Армия приуныла: −15% атаки на 2 боя.';
+        },
+      },
+      { label: 'Смотреть с трибун', hint: 'Ничего', apply: () => 'Красивый был турнир.' },
     ],
   },
 };

@@ -1,5 +1,5 @@
 import { CHAPTERS, finaleId, enemyPlacements } from '../../game/levels';
-import { MAP_ROWS, availableNodes, endRun, enterNode, runMap, type RunNode } from '../../game/run';
+import { MAP_ROWS, availableNodes, boonText, endRun, enterNode, runMap, type RunNode } from '../../game/run';
 import { NODE_HELP, NODE_ICON, livesRow, nodeLabel, openNodeDialog, openRunEnd } from '../runNodes';
 import { iconUrl } from '../icons';
 import { ARMIES } from '../../game/armies';
@@ -128,13 +128,22 @@ export class MapScreen implements Screen {
       : `Партия ${s.prestige + 1} · глава ${chapter.id} из ${CHAPTERS.length} · ${ARMIES[s.run.army ?? 'guard'].name}`);
     const help = infoBtn('Карта главы',
       'Каждая глава — карта с развилками. Выбирайте путь: от узла можно идти только по дорогам вниз.\n'
-      + '⚔ Бой — золото и звёзды. ☠ Элита — враги сильнее, зато реликвия. ? Событие — выбор с последствиями. '
+      + '⚔ Бой — золото. ☠ Элита — враги сильнее, зато реликвия. ? Событие — выбор с последствиями. '
       + 'Торговец продаёт реликвии и запасное знамя, в лагере можно заточить оружие или потренировать фигуру. В конце — босс.\n'
       + 'Жизнь одна: поражение заканчивает забег, и новый начнётся с 1-1 — с новой армией, но с коронами за пройденный путь. '
       + 'Запасное знамя (реликвия) даёт вторую жизнь.');
     const right = el('span', 'run-right');
     right.append(livesRow(s), help);
     this.runInfo.replaceChildren(info, right);
+    const boons = s.run.boons ?? [];
+    if (boons.length) {
+      const row = el('div', 'boon-row');
+      for (const x of boons) {
+        const good = x.atk * x.hp >= 1 && (x.foe ?? 1) <= 1;
+        row.append(el('span', `boon-chip ${good ? 'good' : 'bad'}`, `${x.name}: ${boonText(x)}`));
+      }
+      this.runInfo.append(row);
+    }
     this.renderPath();
   }
 

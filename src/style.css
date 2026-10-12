@@ -2041,6 +2041,10 @@ body:has(.modal-overlay) .toast-layer { top: auto; bottom: 24px; }
 /* ---------- Run map ---------- */
 .run-info { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
   padding: 8px 12px; background: var(--bg-2); color: var(--muted); }
+.boon-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+.boon-chip { font-size: 12px; padding: 3px 8px; border: 2px solid currentColor; background: var(--bg); }
+.boon-chip.good { color: #3ee6c1; }
+.boon-chip.bad { color: #ff5d85; }
 .banner-row { display: inline-flex; gap: 6px; align-items: center; }
 .banner-flag { width: 24px; height: 24px; image-rendering: pixelated; filter: drop-shadow(0 2px 0 #0008); }
 .banner-flag.lost { filter: grayscale(1) brightness(0.45); opacity: 0.6; }

@@ -1,7 +1,9 @@
 export type RelicId =
   | 'phalanx' | 'earlyCrown' | 'royalHealer' | 'wideAura' | 'warCry' | 'stunJump'
   | 'piercing' | 'heavyShot' | 'secondLife' | 'plunder' | 'spareBanner' | 'reserve'
-  | 'queensGambit' | 'chainmail' | 'forcedMarch' | 'avengers' | 'sharpBlades' | 'bloodQueen';
+  | 'queensGambit' | 'chainmail' | 'forcedMarch' | 'avengers' | 'sharpBlades' | 'bloodQueen'
+  | 'pawnStorm' | 'lance' | 'holyArrows' | 'ironKing' | 'loneWolf' | 'piggyBank' | 'charter'
+  | 'fangs' | 'thornMail' | 'executioner' | 'feast' | 'bastion' | 'powderKeg' | 'campfire';
 
 export interface RelicDef {
   id: RelicId;
@@ -28,6 +30,20 @@ export const RELICS: Record<RelicId, RelicDef> = {
   reserve: { id: 'reserve', name: 'Резерв', description: '+1 фигура в каждом бою.' },
   plunder: { id: 'plunder', name: 'Мародёры', description: '+30% золота за победы.' },
   spareBanner: { id: 'spareBanner', name: 'Запасное знамя', description: 'Вторая жизнь: одно поражение не обрывает забег, бой можно переиграть. Знамя сгорает.' },
+  pawnStorm: { id: 'pawnStorm', name: 'Пешечный вал', description: 'Каждая пешка в строю даёт всем пешкам +6% к атаке.' },
+  lance: { id: 'lance', name: 'Рыцарское копьё', description: 'Первый удар каждого коня в бою — втрое сильнее.' },
+  holyArrows: { id: 'holyArrows', name: 'Освящённые стрелы', description: 'Выстрел слона лечит самого раненого союзника на 40% урона.' },
+  ironKing: { id: 'ironKing', name: 'Железный король', description: 'Король крепче на 50% и бьёт на 40% сильнее.' },
+  loneWolf: { id: 'loneWolf', name: 'Одинокий волк', description: 'Если кроме короля в строю не больше трёх фигур, вся армия +40% к атаке и здоровью.' },
+  piggyBank: { id: 'piggyBank', name: 'Копилка', description: 'После каждой победы +10% к золоту, что у вас есть (не больше половины награды за бой главы).' },
+  charter: { id: 'charter', name: 'Торговая грамота', description: 'Торговцы и кузнецы берут на 30% меньше.' },
+  fangs: { id: 'fangs', name: 'Вампирские клыки', description: 'Вся армия лечится на 10% нанесённого урона.' },
+  thornMail: { id: 'thornMail', name: 'Шипастые латы', description: 'Ваши фигуры возвращают 20% урона ближнего боя.' },
+  executioner: { id: 'executioner', name: 'Топор палача', description: 'Удары по врагам с меньше чем 30% здоровья на 60% сильнее.' },
+  feast: { id: 'feast', name: 'Пир победителей', description: 'Когда враг гибнет, вся армия лечится на 5% здоровья.' },
+  bastion: { id: 'bastion', name: 'Бастион', description: 'Ладьи получают на 30% меньше урона.' },
+  powderKeg: { id: 'powderKeg', name: 'Пороховые бочки', description: 'Павшая пешка взрывается и бьёт соседних врагов.' },
+  campfire: { id: 'campfire', name: 'Походный котёл', description: 'Привал даёт вдвое больше: +2 уровня Кузницы или фигуре.' },
 };
 
 export const RELIC_IDS = Object.keys(RELICS) as RelicId[];

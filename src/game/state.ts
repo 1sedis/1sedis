@@ -21,7 +21,7 @@ import {
 import { RELICS, rollOffer, type RelicId } from './relics';
 import {
   ELITE_GOLD, ELITE_LEVELS, RUN_GOLD, availableNodes, recruitLevel, crownsForRun, currentNode, endRun, loseNode, newRun, runLevelOpen,
-  startChapter, winNode, type RunState,
+  startChapter, winNode, activeBoons, wearBoons, chapterGold, type RunState,
 } from './run';
 
 /** Rows the player may deploy on (bottom three rows). */
@@ -593,12 +593,23 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
       if (spot) allies.push({ kind: s.run.guardian, x: spot[0], y: spot[1], level, boss: true });
     }
   }
+  // Relics that shape the build.
+  const relicKind: Partial<Record<PieceKind, { atk: number; hp: number }>> = {};
+  const pawns = allies.filter((a) => a.kind === 'pawn').length;
+  if (hasRelic(s, 'pawnStorm') && pawns) relicKind.pawn = { atk: 1 + 0.06 * pawns, hp: 1 };
+  if (hasRelic(s, 'ironKing')) relicKind.king = { atk: 1.4, hp: 1 };
+  const lone = hasRelic(s, 'loneWolf') && allies.filter((a) => a.kind !== 'king').length <= 3 ? 1.4 : 1;
+  // Event blessings and curses.
+  const campaign = !isAbyss(levelId) && !isFinale(levelId);
+  const boons = campaign ? activeBoons(s.run, !!getLevel(levelId).boss) : [];
+  const boon = (key: 'atk' | 'hp' | 'foe') => boons.reduce((v, x) => v * (x[key] ?? 1), 1);
   return {
     allies, enemies,
-    allyHpMult: m * rb.hp,
-    allyAtkMult: m * rb.atk,
-    allyKingHpMult: rb.kingHp * (army.kingHp ?? 1),
-    allyKind: mergeKind(rb.kind, army.kind),
+    allyHpMult: m * rb.hp * lone * boon('hp'),
+    allyAtkMult: m * rb.atk * lone * boon('atk'),
+    allyKingHpMult: rb.kingHp * (army.kingHp ?? 1) * (hasRelic(s, 'ironKing') ? 1.5 : 1),
+    allyKind: mergeKind(mergeKind(rb.kind, army.kind), relicKind),
+    enemyHpMult: boon('foe'),
     allyPawnShield: rb.pawnShield + (army.pawnShield ?? 0),
     allyCrit: rb.crit,
     allyOpening: rb.opening,
@@ -702,6 +713,13 @@ export function recordResult(s: GameState, levelId: string, b: Battle): BattleOu
   if (win && level.boss) s.run.guardian = enemyPlacements(level).find((p) => p.boss)?.kind;
   // The run map: a win moves on, a loss costs a banner.
   const atNode = currentNode(s.run)?.level === levelId;
+  if (atNode) wearBoons(s.run, !!level.boss);
+  // "Копилка": a tenth of the gold you hold, up to half a battle's pay.
+  if (win && hasRelic(s, 'piggyBank')) {
+    const interest = Math.min(Math.round(s.gold * 0.1), Math.round(chapterGold(s.run.chapter) * 0.5));
+    s.gold += interest;
+    reward += interest;
+  }
   let spared = false;
   let runOver = false;
   let chapterDone = false;

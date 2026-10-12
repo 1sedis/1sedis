@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createBattle } from '../src/game/battle';
 import { CHAPTERS } from '../src/game/levels';
 import {
-  EVENTS, EVENT_IDS, MAP_ROWS, SPARE, availableNodes, buildMap, buyItem, campForge, campTrain, chooseEvent, currentNode,
+  EVENTS, EVENT_IDS, MAP_ROWS, activeBoons, eventFits, SPARE, availableNodes, buildMap, buyItem, campForge, campTrain, chooseEvent, currentNode,
   enterNode, lives, shopItems, type RunNode,
 } from '../src/game/run';
 import {
@@ -183,12 +183,15 @@ describe('camp, merchant, events', () => {
     for (const id of EVENT_IDS) {
       EVENTS[id].choices.forEach((c, i) => {
         const s = newGame(0);
-        s.run.chapter = 2;
-        const seed = [...Array(400).keys()].find((n) => buildMap(2, n).nodes.some((x) => x.event === id))!;
+        const ch = [2, 4, 1].find((n) => eventFits(id, n))!;
+        s.run.chapter = ch;
+        const seed = [...Array(800).keys()].find((n) => buildMap(ch, n).nodes.some((x) => x.event === id))!;
         s.run.seed = seed;
-        s.run.at = buildMap(2, seed).nodes.find((x) => x.event === id)!.id;
+        s.run.at = buildMap(ch, seed).nodes.find((x) => x.event === id)!.id;
         s.army.pawn = 4;
-        s.gold = 500;
+        s.army.knight = 1;
+        s.relics = ['chainmail', SPARE];
+        s.gold = 5000;
         const blocked = c.blocked?.(s);
         const line = chooseEvent(s, i);
         if (blocked) expect(line).toBeNull();
@@ -198,6 +201,34 @@ describe('camp, merchant, events', () => {
         }
       });
     }
+  });
+});
+
+describe('events by chapter and boons', () => {
+  it('maps only hold events of their chapter', () => {
+    for (let ch = 1; ch <= 4; ch++) {
+      for (let seed = 0; seed < 60; seed++) {
+        for (const n of buildMap(ch, seed).nodes) if (n.event) expect(eventFits(n.event, ch)).toBe(true);
+      }
+    }
+    expect(EVENT_IDS.length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('a blessing works for its battles and wears off; a boss one waits for the boss', () => {
+    const s = newGame(0);
+    s.run.boons = [{ name: 'Баллада', atk: 1.2, hp: 1, left: 1 }, { name: 'Пророчество', atk: 1, hp: 1, foe: 0.8, left: 1, boss: true }];
+    const node = availableNodes(s.run)[0];
+    enterNode(s, node.id);
+    const plain = battleSetup(s, node.level!);
+    expect(plain.enemyHpMult).toBe(1);
+    const before = plain.allyAtkMult!;
+    s.run.boons = [];
+    expect(battleSetup(s, node.level!).allyAtkMult!).toBeCloseTo(before / 1.2);
+    s.run.boons = [{ name: 'Баллада', atk: 1.2, hp: 1, left: 1 }, { name: 'Пророчество', atk: 1, hp: 1, foe: 0.8, left: 1, boss: true }];
+    fight(s, node, true);
+    expect(s.run.boons.map((x) => x.name)).toEqual(['Пророчество']);
+    expect(activeBoons(s.run, true)).toHaveLength(1);
+    expect(battleSetup(s, '1-9').enemyHpMult).toBeCloseTo(0.8);
   });
 });
 

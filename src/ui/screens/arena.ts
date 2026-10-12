@@ -16,7 +16,7 @@ import {
   CHAPTERS, UNLOCKED_BY, abyssFloor, abyssReward, chapterOf, finalePhase, firstReward, getLevel, isAbyss, isFinale,
   nextLevelId,
 } from '../../game/levels';
-import { ELITE_GOLD, RUN_GOLD, availableNodes, enterNode, lives } from '../../game/run';
+import { ELITE_GOLD, RUN_GOLD, activeBoons, availableNodes, boonText, enterNode, lives } from '../../game/run';
 import { ELITE_RULES } from '../../game/battle';
 import { livesRow, openRunEnd } from '../runNodes';
 import { bossArtUrl, hasBossArt } from '../bossArt';
@@ -339,6 +339,14 @@ export class ArenaScreen implements Screen {
     if (elites.length) {
       this.eliteRow.append(infoBtn('Элитные враги', [...new Set(elites.map((p) => p.trait!))]
         .map((t) => `${TRAITS[t].name[0]}: ${TRAITS[t].text}.`).join('\n') + '\nЭлиту видно по значку над фигурой.'));
+    }
+    if (!abyss && !finale) {
+      for (const x of activeBoons(s.run, !!level.boss)) {
+        const good = x.atk * x.hp >= 1 && (x.foe ?? 1) <= 1;
+        const chip = el('span', `terrain-chip boon-chip ${good ? 'good' : 'bad'}`, x.name);
+        chip.title = boonText(x);
+        this.eliteRow.append(chip);
+      }
     }
     const bossId = bossFor(this.levelId);
     const rule = battleSetup(s, this.levelId).eliteRule;
