@@ -2324,3 +2324,4 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 @media (prefers-reduced-motion: reduce) { .btn-hot { animation: none; box-shadow: 0 0 0 3px var(--gold); } }
 .run-end-next-title { margin-top: 12px; font-size: 13px; text-transform: uppercase; color: var(--mint); }
 .run-end-next { margin: 6px 0 0; padding-left: 18px; text-align: left; display: grid; gap: 6px; font-size: 14px; line-height: 1.35; }
+.threat-sum { margin-top: 4px; font-size: 13px; color: var(--ink-dim, #b8afd6); line-height: 1.35; }

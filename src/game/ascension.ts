@@ -47,3 +47,21 @@ export function threatMods(level: number) {
     enemyKingHp: on(10) ? 2 : 1,
   };
 }
+
+/** Everything a threat level adds up to, in a few short numbers ("враги +1 ур.", "золото −20%"). */
+export function threatSummary(level: number): string[] {
+  const m = threatMods(level);
+  const out: string[] = [];
+  if (m.enemyLevels) out.push(t('враги +{n} ур.', { n: m.enemyLevels }));
+  if (m.eliteLevels) out.push(t('элита ещё +{n} ур.', { n: m.eliteLevels }));
+  if (m.gold < 1) out.push(t('золото −{p}%', { p: Math.round((1 - m.gold) * 100) }));
+  if (m.bossHp > 1) out.push(t('боссы +{p}% здоровья', { p: Math.round((m.bossHp - 1) * 100) }));
+  if (m.prices > 1) out.push(t('цены +{p}%', { p: Math.round((m.prices - 1) * 100) }));
+  if (m.championHp > 1) out.push(t('чемпионы ×1,5'));
+  if (m.noBanner) out.push(t('без запасного знамени'));
+  if (m.rageAt > 0.5) out.push(t('ярость боссов с {p}%', { p: Math.round(m.rageAt * 100) }));
+  if (m.limit) out.push(t('фигур в бою {n}', { n: m.limit }));
+  if (m.enemyKingHp > 1) out.push(t('короли врага ×{n}', { n: m.enemyKingHp }));
+  return out;
+}
+

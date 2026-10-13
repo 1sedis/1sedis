@@ -14,7 +14,7 @@ import { TRAITS, traitAdjective, withElites } from '../game/elites';
 import { BOSSES, bossFor } from '../game/bosses';
 import { traitUrl } from './traitIcons';
 import { ARMIES, ARMY_ORDER, type ArmyId } from '../game/armies';
-import { activeThreats } from '../game/ascension';
+import { activeThreats, threatSummary } from '../game/ascension';
 import { audio } from './audio';
 import type { Ctx } from './context';
 import { el, openModal, toast } from './dom';
@@ -97,8 +97,15 @@ export function pickArmy(ctx: Ctx, onPick: (army: ArmyId, threat: number) => voi
       const rules = activeThreats(threat);
       info.replaceChildren(
         el('div', 'threat-title', threat ? t('Угроза {n} · +{c} ♛ за победу', { n: threat, c: threat }) : t('Без угрозы')),
-        ...rules.map((r) => el('div', `threat-rule${r.level === threat ? ' new' : ''}`, `${r.level}. ${r.name} — ${r.text}`)),
       );
+      // Only this level's new rule in full; the rest as a short sum of numbers (the full list is in the tooltip).
+      const added = rules.find((r) => r.level === threat);
+      if (added) info.append(el('div', 'threat-rule new', t('Новое: {name} — {text}', { name: added.name, text: added.text })));
+      if (threat > 1) {
+        const sum = el('div', 'threat-sum', t('Итого: {list}', { list: threatSummary(threat).join(' · ') }));
+        sum.title = rules.map((r) => `${r.level}. ${r.name} — ${r.text}`).join('\n');
+        info.append(sum);
+      }
     };
     render();
     box.append(el('div', 'threat-label', t('Уровень угрозы')), row, info);
