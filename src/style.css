@@ -34,7 +34,7 @@ html, body { margin: 0; min-height: 100%; }
 
 /* Set the face on body and controls explicitly: the claude.ai artifact
    skeleton gives body its own system font, which would win over :root. */
-body, button, input, select, textarea {
+html body, button, input, select, textarea {
   font-family: var(--pixel);
   font-size: 16px;
   line-height: 1.35;
@@ -52,6 +52,12 @@ body {
 }
 
 button { font: inherit; color: inherit; }
+
+/* The claude.ai artifact skeleton colours body text and headings for its own
+   light or dark theme; in a light theme that is dark ink on our dark page.
+   Text colour is set here with enough weight to win. */
+html body { color: var(--ink); }
+html body :is(h1, h2, h3, h4, h5, h6, p, li, a, label, small, span, div) { color: inherit; }
 
 /* One pixel face everywhere; faux bold would smear the pixels. */
 h1, h2, h3, b, strong, th { font-weight: 400; }
