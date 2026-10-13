@@ -88,7 +88,9 @@ export class Tutorial {
     const below = r.bottom + 14 + bh < window.innerHeight || r.top < bh + 20;
     const left = Math.max(12, Math.min(window.innerWidth - bw - 12, r.left + r.width / 2 - bw / 2));
     this.bubble.style.left = `${left}px`;
-    this.bubble.style.top = `${below ? r.bottom + 14 : r.top - bh - 14}px`;
+    // Never off-screen: if the target scrolled away, the bubble (and its button) stays at the screen edge.
+    const top = below ? r.bottom + 14 : r.top - bh - 14;
+    this.bubble.style.top = `${Math.max(12, Math.min(window.innerHeight - bh - 12, top))}px`;
     this.bubble.classList.toggle('below', below);
     this.bubble.style.setProperty('--arrow-x', `${Math.max(16, Math.min(bw - 16, r.left + r.width / 2 - left))}px`);
   }
