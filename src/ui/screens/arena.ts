@@ -44,6 +44,7 @@ import { FINALE_CROWNS, canAffordUpgrade, finaleEase, levelFormation } from '../
 import { FORMATION_NAMES } from '../../game/formations';
 import { featureOpen } from '../../game/features';
 import { spriteUrl, type Tier } from '../sprites';
+import { backdropUrl } from '../boardArt';
 import { plural, t } from '../../i18n';
 
 const TICK_MS = 100;
@@ -58,6 +59,8 @@ type Selection = { kind: PieceKind; from: { x: number; y: number } | null } | nu
 
 export class ArenaScreen implements Screen {
   readonly root = el('section', 'arena-screen');
+  /** The chapter's landscape along the bottom of the screen. */
+  private backdrop = el('div', 'arena-backdrop');
   private board: BoardView;
   private levelId = '1-1';
   private phase: Phase = 'prep';
@@ -154,6 +157,7 @@ export class ArenaScreen implements Screen {
       ambient.append(m);
     }
     boardWrap.append(ambient, this.board.frame);
+    this.root.append(this.backdrop);
     const bossHead = el('div', 'boss-bar-head');
     bossHead.append(this.bossName, this.bossPhase);
     const bossTrack = el('div', 'boss-bar-track');
@@ -309,6 +313,7 @@ export class ArenaScreen implements Screen {
     this.board.setTheme(chapter.id);
     this.board.setElite(isEliteBattle(s, this.levelId));
     this.root.dataset.theme = String(chapter.id);
+    this.backdrop.style.backgroundImage = `url(${backdropUrl(finale ? 5 : chapter.id)})`;
     document.body.dataset.chapter = String(chapter.id);
     const terrain = terrainFor(s, this.levelId);
     this.board.setTerrain(terrain);

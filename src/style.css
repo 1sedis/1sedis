@@ -158,16 +158,8 @@ img { image-rendering: pixelated; }
 .cell.light { background: var(--cell-light); }
 .cell.dark { background: var(--cell-dark); }
 
-/* Small pixel sparkle on light squares keeps the board from feeling flat. */
-.cell.light::before {
-  content: '';
-  position: absolute;
-  top: 10%;
-  left: 10%;
-  width: 6%;
-  height: 6%;
-  background: rgba(255, 255, 255, 0.07);
-}
+/* Each square carries its chapter's pixel texture (see boardArt.ts). */
+.cell { background-size: 100% 100%; image-rendering: pixelated; }
 
 .board.setup .cell.deploy { cursor: pointer; }
 .board.setup .cell.deploy::after {
@@ -966,14 +958,6 @@ img { image-rendering: pixelated; }
 .board-ranks { grid-template-rows: repeat(8, 1fr); }
 .board-files { grid-template-columns: repeat(8, 1fr); }
 
-/* Pixel dither on dark squares gives the tiles some texture. */
-.cell.dark {
-  background-image:
-    linear-gradient(45deg, rgba(0, 0, 0, 0.08) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.08) 75%),
-    linear-gradient(45deg, rgba(0, 0, 0, 0.08) 25%, transparent 25%, transparent 75%, rgba(0, 0, 0, 0.08) 75%);
-  background-size: 8px 8px;
-  background-position: 0 0, 4px 4px;
-}
 
 /* Stepped pixel shadow under every piece. */
 .unit-body::before {
@@ -2369,3 +2353,34 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 .almost-row.done .almost-fill { background: var(--mint); }
 .run-end-modal .modal-actions { flex-wrap: wrap; justify-content: center; }
 .run-end-modal .modal-actions .btn-primary { order: -1; flex: 1 1 100%; }
+
+/* ---------- Chapter landscape behind the arena ---------- */
+.arena-backdrop {
+  position: fixed; left: 0; right: 0; bottom: 0; height: min(34vh, 300px); z-index: 0; pointer-events: none;
+  background-repeat: repeat-x; background-size: auto 100%; background-position: center bottom;
+  image-rendering: pixelated; opacity: 0.85;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 35%);
+  mask-image: linear-gradient(180deg, transparent, #000 35%);
+}
+/* The arena's own blocks sit above the landscape (body paints over negative z-index). */
+.arena-screen > .arena-top, .arena-screen > .arena-grid { position: relative; z-index: 1; }
+/* Metal studs on the board frame's corners, in the chapter's material. */
+.board-frame { position: relative; --stud: #6d5bd0; --stud-hi: #b9a8ff; }
+.board-frame[data-theme='1'] { --stud: #b8862e; --stud-hi: #ffe27a; }
+.board-frame[data-theme='2'] { --stud: #7a5230; --stud-hi: #c9935a; }
+.board-frame[data-theme='3'] { --stud: #8f9ab8; --stud-hi: #eef2ff; }
+.board-frame[data-theme='4'] { --stud: #c99a2e; --stud-hi: #fff1b8; }
+.board-frame::after {
+  content: ''; position: absolute; inset: -11px; pointer-events: none; z-index: 2;
+  --s: 18px;
+  background:
+    linear-gradient(var(--stud-hi), var(--stud-hi)) 4px 4px / 6px 6px no-repeat,
+    linear-gradient(var(--stud), var(--stud)) 0 0 / var(--s) var(--s) no-repeat,
+    linear-gradient(var(--stud-hi), var(--stud-hi)) calc(100% - 4px) 4px / 6px 6px no-repeat,
+    linear-gradient(var(--stud), var(--stud)) 100% 0 / var(--s) var(--s) no-repeat,
+    linear-gradient(var(--stud-hi), var(--stud-hi)) 4px calc(100% - 4px) / 6px 6px no-repeat,
+    linear-gradient(var(--stud), var(--stud)) 0 100% / var(--s) var(--s) no-repeat,
+    linear-gradient(var(--stud-hi), var(--stud-hi)) calc(100% - 4px) calc(100% - 4px) / 6px 6px no-repeat,
+    linear-gradient(var(--stud), var(--stud)) 100% 100% / var(--s) var(--s) no-repeat;
+}
+.board-frame.elite-board { --stud: #ff2e63; --stud-hi: #ffd3de; }

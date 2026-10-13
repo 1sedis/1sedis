@@ -6,6 +6,7 @@ import { fmt } from './format';
 import { spriteUrl, type Team, type Tier } from './sprites';
 import { TERRAIN_INFO, walkable, type Terrain } from '../game/terrain';
 import { terrainUrl } from './terrainArt';
+import { cellTextureUrl, cellVariant } from './boardArt';
 import { traitUrl } from './traitIcons';
 import { handUrl } from './handArt';
 import { bossArtUrl, hasBossArt } from './bossArt';
@@ -92,6 +93,7 @@ export class BoardView {
     const files = el('div', 'board-files');
     for (const f of 'abcdefgh') files.append(el('span', '', f));
     this.frame.append(ranks, this.stage, el('span'), files);
+    this.setTheme(0);
   }
 
   /** A square of the board (for tutorial tips). */
@@ -114,7 +116,13 @@ export class BoardView {
 
   /** Colour the board for a chapter (1-4). */
   setTheme(chapter: number): void {
+    if (this.frame.dataset.theme === String(chapter)) return;
     this.frame.dataset.theme = String(chapter);
+    this.cells.forEach((c, i) => {
+      const x = i % BOARD_SIZE;
+      const y = Math.floor(i / BOARD_SIZE);
+      c.style.backgroundImage = `url(${cellTextureUrl(chapter, (x + y) % 2 === 1, cellVariant(x, y))})`;
+    });
   }
 
   /** An elite battle: the board burns with a warning frame. */
