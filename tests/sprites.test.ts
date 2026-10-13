@@ -4,12 +4,12 @@ import { RELIC_ICON_MAPS } from '../src/ui/relicIcons';
 import { SPRITE_MAPS, tierMap } from '../src/ui/sprites';
 
 describe('sprites', () => {
-  it('every piece map is 16x16 and uses known palette letters', () => {
+  it('every piece map is 24x24 and uses known palette letters', () => {
     for (const [kind, rows] of Object.entries(SPRITE_MAPS)) {
-      expect(rows, kind).toHaveLength(16);
+      expect(rows, kind).toHaveLength(24);
       for (const row of rows) {
-        expect(row, `${kind}: ${row}`).toHaveLength(16);
-        expect(row).toMatch(/^[.ofhsgwe]+$/);
+        expect(row, `${kind}: ${row}`).toHaveLength(24);
+        expect(row).toMatch(/^[.ofhsdgwe]+$/);
       }
     }
   });

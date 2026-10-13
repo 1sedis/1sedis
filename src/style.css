@@ -196,12 +196,13 @@ img { image-rendering: pixelated; }
 
 .unit-sprite {
   position: absolute;
-  inset: 2% 8% 14%;
-  width: 84%;
-  height: 84%;
-  animation: bob 1s steps(2) infinite;
+  inset: -2% 5% 12%;
+  width: 90%;
+  height: 90%;
+  animation: breathe 1.2s steps(1) infinite;
 }
-.unit.enemy .unit-sprite { animation-delay: -0.5s; }
+/* One sprite pixel (1/24 of the piece) up and back: a breath, not a hop. */
+@keyframes breathe { 0%, 45% { transform: none; } 50%, 95% { transform: translateY(-4.1667%); } }
 
 .unit.hit { animation: hit-flash 0.16s steps(1); }
 @keyframes hit-flash { 0% { filter: brightness(0) invert(1); } 100% { filter: none; } }
@@ -464,7 +465,7 @@ img { image-rendering: pixelated; }
 @keyframes toast-in { from { transform: translateY(12px); opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .unit-sprite, .brand-logo { animation: none; }
+  .unit-sprite, .brand-logo { animation: none !important; }
   .unit { transition: none; }
 }
 

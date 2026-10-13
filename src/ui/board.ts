@@ -178,6 +178,8 @@ export class BoardView {
         });
         const img = el('img', 'unit-sprite');
         img.alt = '';
+        // Each piece breathes on its own beat so a rank never bobs in lockstep.
+        img.style.animationDelay = `${-(Math.random() * 1.2).toFixed(2)}s`;
         body.append(img);
         const hp = el('div', 'hp');
         const fill = el('div', 'hp-fill');
