@@ -51,6 +51,9 @@ export class Tutorial {
     this.text.textContent = text;
     this.ring.hidden = this.bubble.hidden = this.pointer.hidden = false;
     target.addEventListener('pointerdown', this.onTargetPress, { once: true });
+    // A tip about something below the fold would hang off-screen with its button: bring the target into view.
+    const r = target.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: 'center', behavior: 'smooth' });
     this.position();
     return true;
   }
