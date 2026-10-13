@@ -37,7 +37,7 @@ import { skipScenes } from '../cutscene';
 import { handUrl } from '../handArt';
 import { openCodex } from '../codex';
 import type { Ctx, Screen } from '../context';
-import { el, infoBtn, openModal, setDisabled, setHidden, setText, toast } from '../dom';
+import { el, infoBtn, openModal, setDisabled, setHidden, setText, toast, wipe } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
 import { FINALE_CROWNS, canAffordUpgrade, finaleEase } from '../../game/state';
@@ -772,6 +772,7 @@ export class ArenaScreen implements Screen {
         // No fork ahead (the first lessons): straight on to the next battle.
         button(t('Дальше ▶'), 'btn-primary', () => {
           enterNode(this.ctx.state, ahead[0].id);
+          wipe();
           this.show(ahead[0].level!);
         });
       } else button(t('К карте ▶'), 'btn-primary', () => {
@@ -785,7 +786,10 @@ export class ArenaScreen implements Screen {
       });
       button(t('Переиграть'), '', () => this.enterPrep());
       const next = nextLevelId(this.levelId);
-      if (next) button(t('Дальше ▶'), 'btn-primary', () => this.show(next));
+      if (next) button(t('Дальше ▶'), 'btn-primary', () => {
+        wipe();
+        this.show(next);
+      });
     } else {
       button(t('Улучшения'), '', () => {
         this.enterPrep();

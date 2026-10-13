@@ -273,22 +273,41 @@ export class MapScreen implements Screen {
     });
   }
 
+  /** The army's king hops along the road to the chosen node before it opens. */
+  private async stepTo(node: RunNode): Promise<void> {
+    const king = this.path.querySelector<HTMLElement>('.map-king');
+    const target = this.path.querySelector<HTMLElement>(`.run-node[data-node="${node.id}"] .level-tile`);
+    if (!king || !target || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const from = king.getBoundingClientRect();
+    const to = target.getBoundingClientRect();
+    const dx = to.right - from.left - from.width * 0.6;
+    const dy = to.top - from.top - from.height * 0.4;
+    const hop = Math.min(60, Math.hypot(dx, dy) * 0.35);
+    await king.animate([
+      { translate: '0 0' },
+      { translate: `${dx * 0.5}px ${dy * 0.5 - hop}px`, offset: 0.5 },
+      { translate: `${dx}px ${dy}px` },
+    ], { duration: 360, easing: 'ease-in-out', fill: 'forwards' }).finished.catch(() => undefined);
+  }
+
   private onNode(node: RunNode): void {
     const s = this.ctx.state;
     // A fight is looked at before it is chosen: stepping on a node is final.
     if (node.level && s.run.at !== node.id) {
       audio.play('select');
-      openBattlePreview(this.ctx, node, () => this.enter(node));
+      openBattlePreview(this.ctx, node, () => void this.enter(node));
       return;
     }
-    this.enter(node);
+    void this.enter(node);
   }
 
-  private enter(node: RunNode): void {
+  private async enter(node: RunNode): Promise<void> {
     const s = this.ctx.state;
-    if (s.run.at !== node.id && !enterNode(s, node.id)) return;
+    const stepping = s.run.at !== node.id;
+    if (stepping && !enterNode(s, node.id)) return;
     this.ctx.save();
     audio.play('select');
+    if (stepping) await this.stepTo(node);
     if (node.level) {
       this.ctx.go('arena', node.level);
       return;

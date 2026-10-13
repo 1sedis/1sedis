@@ -6,7 +6,7 @@ import {
 } from '../game/state';
 import { audio } from './audio';
 import type { Ctx, Screen, ScreenId } from './context';
-import { confirmDialog, el, pulse, setHidden, setText, toast } from './dom';
+import { confirmDialog, el, pulse, setHidden, setText, toast, wipe } from './dom';
 import { fmt } from './format';
 import { buildMenu, openSettings } from './menu';
 import { getAchievement } from '../game/achievements';
@@ -315,28 +315,5 @@ export class App implements Ctx {
   }
 }
 
-let wipeEl: HTMLElement | null = null;
 
 /** A pixel-block reveal over the new screen. */
-function wipe(): void {
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  if (!wipeEl) {
-    wipeEl = el('div', 'wipe');
-    const cols = 12;
-    const rows = 8;
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const b = el('span');
-        b.style.animationDelay = `${(x + y) * 12}ms`;
-        wipeEl.append(b);
-      }
-    }
-    wipeEl.addEventListener('animationend', (e) => {
-      if ((e.target as HTMLElement) === wipeEl!.lastElementChild) wipeEl!.classList.remove('run');
-    });
-    document.body.append(wipeEl);
-  }
-  wipeEl.classList.remove('run');
-  void wipeEl.offsetWidth;
-  wipeEl.classList.add('run');
-}

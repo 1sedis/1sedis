@@ -131,3 +131,30 @@ export function setHidden(node: HTMLElement, hidden: boolean): void {
 export function setDisabled(node: HTMLButtonElement, disabled: boolean): void {
   if (node.disabled !== disabled) node.disabled = disabled;
 }
+
+let wipeEl: HTMLElement | null = null;
+
+/** The pixel wipe between screens (also between battles). */
+export function wipe(): void {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  if (!wipeEl) {
+    wipeEl = el('div', 'wipe');
+    const cols = 12;
+    const rows = 8;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const b = el('span');
+        b.style.animationDelay = `${(x + y) * 12}ms`;
+        wipeEl.append(b);
+      }
+    }
+    wipeEl.addEventListener('animationend', (e) => {
+      if ((e.target as HTMLElement) === wipeEl!.lastElementChild) wipeEl!.classList.remove('run');
+    });
+    document.body.append(wipeEl);
+  }
+  wipeEl.classList.remove('run');
+  void wipeEl.offsetWidth;
+  wipeEl.classList.add('run');
+}
+
