@@ -32,3 +32,17 @@ describe('auto formation', () => {
     }
   });
 });
+
+describe('pieces left in the reserve', () => {
+  it('join the line on free cells without moving what the player placed', async () => {
+    const { fillFormation } = await import('../src/game/autoformation');
+    const { newGame } = await import('../src/game/state');
+    const s = newGame(0);
+    s.army.pawn = 3;
+    s.formation = [{ kind: 'king', x: 3, y: 7 }, { kind: 'pawn', x: 0, y: 5 }];
+    expect(fillFormation(s, 4, '1-2')).toBe(2);
+    expect(s.formation.filter((f) => f.kind === 'pawn')).toHaveLength(3);
+    expect(s.formation).toContainEqual({ kind: 'pawn', x: 0, y: 5 });
+    expect(fillFormation(s, 4, '1-2')).toBe(0);
+  });
+});

@@ -146,4 +146,11 @@ export const screens: Record<string, string> = {
   '✦ {name} действует: {text}': '✦ {name} is active: {text}',
   'Забег': 'Run',
   'Побед: {w} · элит: {e} · боссов: {b}': 'Wins: {w} · elites: {e} · bosses: {b}',
+  'Из резерва в строй: {n} {pieces}': 'From the reserve into the line: {n} {pieces}',
+  'Бой продолжается. Ход можно сделать в любой момент: нажми на свою фигуру.': 'The battle goes on. You can move any time: tap your piece.',
+  'У вас {gold} золота. Потратьте его до следующего боя: наймите фигуру или поднимите уровень — враги дальше сильнее.': 'You have {gold} gold. Spend it before the next battle: recruit a piece or raise a level — foes ahead are stronger.',
+  'Улучшения ★': 'Upgrades ★',
+  'Забег закончился с {gold} золота. Тратьте золото между боями в «Улучшениях»: нанять фигуру или поднять уровень — главный способ стать сильнее.': 'The run ended with {gold} gold unspent. Spend gold between battles in Upgrades: recruiting a piece or raising a level is the main way to grow stronger.',
+  'Корон хватает на доктрину «{name}» в Древе короны — она останется навсегда.': 'You have enough crowns for the “{name}” doctrine in the Crown Tree — it stays forever.',
+  'Что дальше': 'What next',
 };

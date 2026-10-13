@@ -4,7 +4,7 @@ import {
 } from '../../game/battle';
 import { accentFor } from '../accents';
 import { adviceLabel, adviseUpgrade } from '../../game/advice';
-import { bestFormation } from '../../game/autoformation';
+import { bestFormation, fillFormation } from '../../game/autoformation';
 import { SYNERGIES, synergyProgress } from '../../game/synergies';
 import { BOSSES, bossFor } from '../../game/bosses';
 import { TERRAIN_INFO } from '../../game/terrain';
@@ -40,12 +40,14 @@ import type { Ctx, Screen } from '../context';
 import { el, infoBtn, openModal, setDisabled, setHidden, setText, toast } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
-import { FINALE_CROWNS, finaleEase } from '../../game/state';
+import { FINALE_CROWNS, canAffordUpgrade, finaleEase } from '../../game/state';
 import { featureOpen } from '../../game/features';
 import { spriteUrl, type Tier } from '../sprites';
-import { t } from '../../i18n';
+import { plural, t } from '../../i18n';
 
 const TICK_MS = 100;
+/** The first guided move holds the battle only this long if the player does nothing. */
+const GUIDE_WAIT_MS = 8000;
 /** More pending ticks than this means we are catching up: skip effects. */
 const LIVE_FX_LIMIT = 20;
 const TRAY_ORDER: PieceKind[] = ['pawn', 'knight', 'bishop', 'rook', 'queen', 'archbishop', 'chancellor', 'ghost'];
@@ -486,8 +488,16 @@ export class ArenaScreen implements Screen {
       this.moveTargets = legalMoves(b, best.uid);
       this.board.setMoveTargets(this.moveTargets);
       this.guideTarget = best;
+      this.guideSince = performance.now();
     }
     const tg = this.guideTarget;
+    // Nobody moved for a while: let the battle go on, the move can wait.
+    if (tg && performance.now() - this.guideSince > GUIDE_WAIT_MS) {
+      if (!s.tutorial.includes('t_moves')) s.tutorial.push('t_moves');
+      this.cancelPick();
+      toast(t('Бой продолжается. Ход можно сделать в любой момент: нажми на свою фигуру.'));
+      return;
+    }
     if (tg) {
       this.ctx.tip('t_moves', this.board.cellNode(tg.x, tg.y),
         tg.type === 'capture' ? t('Время замерло — твой ход! Нажми на клетку врага: взятие снимет его с доски.')
@@ -496,6 +506,7 @@ export class ArenaScreen implements Screen {
   }
 
   private guideTarget: PlayerMove | null = null;
+  private guideSince = 0;
 
   private cancelPick(): void {
     this.guideTarget = null;
@@ -566,6 +577,9 @@ export class ArenaScreen implements Screen {
     if (this.scene) return;
     const s = this.ctx.state;
     sanitizeFormation(s, this.limit(), this.levelId);
+    // Pieces forgotten in the reserve join the line on free cells instead of sitting the battle out.
+    const joined = fillFormation(s, this.limit(), this.levelId);
+    if (joined > 0) toast(t('Из резерва в строй: {n} {pieces}', { n: joined, pieces: plural(joined, ['фигура', 'фигуры', 'фигур'], ['piece', 'pieces']) }));
     if (fieldedCount(s) === 0) {
       toast(t('Поставьте на доску хотя бы одну фигуру'));
       return;
@@ -719,6 +733,7 @@ export class ArenaScreen implements Screen {
         fn();
       });
       actions.append(b);
+      return b;
     };
     const campaign = !isFinale(this.levelId);
     if (o.runOver) {
@@ -738,10 +753,19 @@ export class ArenaScreen implements Screen {
     }
     if (campaign) {
       // The run map decides where to go next; a loss saved by a spare banner retries the same battle.
-      button(t('Улучшения'), '', () => {
+      const s = this.ctx.state;
+      // Until the player has visited the upgrades once, a win with gold to spend points there plainly.
+      const nudge = o.win && !s.tutorial.includes('t_spend') && canAffordUpgrade(s);
+      const up = button(t('Улучшения'), nudge ? 'btn-up btn-hot' : '', () => {
+        if (!s.tutorial.includes('t_spend')) s.tutorial.push('t_spend');
         this.enterPrep();
         this.ctx.go('camp');
       });
+      if (nudge) {
+        content.append(el('div', 'result-unlock spend-nudge',
+          t('У вас {gold} золота. Потратьте его до следующего боя: наймите фигуру или поднимите уровень — враги дальше сильнее.', { gold: fmt(s.gold) })));
+        up.textContent = t('Улучшения ★');
+      }
       const ahead = availableNodes(this.ctx.state.run);
       if (!o.win) button(t('Ещё раз'), 'btn-primary', () => this.enterPrep());
       else if (o.win && !o.chapterDone && ahead.length === 1 && ahead[0].level) {

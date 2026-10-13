@@ -99,3 +99,26 @@ export function bestFormation(s: GameState, levelId: string, limit: number): For
   s.formation = best!.formation;
   return best!.t;
 }
+
+/**
+ * Pieces left in the reserve join the line on free cells, where "Авто" would put them,
+ * without moving anything the player placed. Returns how many joined.
+ */
+export function fillFormation(s: GameState, limit: number, levelId?: string): number {
+  const plan = structuredClone(s);
+  autoFormation(plan, limit, DEFAULT_TEMPLATE, levelId);
+  let fielded = s.formation.filter((f) => f.kind !== 'king').length;
+  let joined = 0;
+  const free = (x: number, y: number) => isPlayerCell(x, y, levelId) && !slotAt(s, x, y);
+  const spare: [number, number][] = [];
+  for (const y of [6, 5, 7]) for (const x of [3, 4, 2, 5, 1, 6, 0, 7]) spare.push([x, y]);
+  for (const slot of plan.formation) {
+    if (slot.kind === 'king' || fielded >= limit || available(s, slot.kind) <= 0) continue;
+    const at = free(slot.x, slot.y) ? [slot.x, slot.y] : spare.find(([x, y]) => free(x, y));
+    if (!at) break;
+    s.formation.push({ kind: slot.kind, x: at[0], y: at[1] });
+    fielded++;
+    joined++;
+  }
+  return joined;
+}

@@ -6,7 +6,9 @@ import { CHAPTERS, getLevel as levelOf } from '../game/levels';
 import {
   EVENTS, buyItem, campForge, campGain, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type EventId, type RunNode, type RunOver,
 } from '../game/run';
-import { battleGold, enemyLevel, startNextRun, upgradeCost, type GameState } from '../game/state';
+import { battleGold, canAffordUpgrade, enemyLevel, gameNumber, startNextRun, upgradeCost, type GameState } from '../game/state';
+import { NODES, nodeCost, nodeState } from '../game/crownTree';
+import { openCrownTree } from './crownTree';
 import { enemyPlacements } from '../game/levels';
 import { TRAITS, traitAdjective, withElites } from '../game/elites';
 import { BOSSES, bossFor } from '../game/bosses';
@@ -151,6 +153,20 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
     ? t('Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.')
     : t('Короны остаются с вами — потратьте их в Древе короны. {tip}Новый забег начнётся с 1-1.', { tip: o.crowns ? '' : t('Короны дают боссы — дойдите хотя бы до первого. ') })));
   const actions = el('div', 'modal-actions');
+  // What to do next, for the player who has not found it yet: unspent gold, crowns enough for a doctrine.
+  const next1 = el('ul', 'run-end-next');
+  if (!o.won && canAffordUpgrade(s)) {
+    next1.append(el('li', '', t('Забег закончился с {gold} золота. Тратьте золото между боями в «Улучшениях»: нанять фигуру или поднять уровень — главный способ стать сильнее.', { gold: fmt(s.gold) })));
+  }
+  const affordable = NODES.filter((n) => nodeState(s.crownTree, gameNumber(s), n) === 'available' && s.crowns >= nodeCost(n))
+    .sort((a, b) => nodeCost(a) - nodeCost(b))[0];
+  if (affordable) {
+    next1.append(el('li', '', t('Корон хватает на доктрину «{name}» в Древе короны — она останется навсегда.', { name: affordable.name })));
+    const tree = el('button', 'btn btn-buy', t('♛ Древо короны'));
+    tree.addEventListener('click', () => openCrownTree(ctx));
+    actions.append(tree);
+  }
+  if (next1.childElementCount) content.append(el('div', 'run-end-next-title', t('Что дальше')), next1);
   const next = el('button', 'btn btn-primary', o.won ? t('Новая партия ▶') : t('Новый забег ▶'));
   actions.append(next);
   content.append(actions);
