@@ -2502,3 +2502,13 @@ body:not([data-screen="arena"]) .topbar {
 .chip-delta.down { color: var(--coral); }
 @keyframes chip-delta { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) { .chip-delta { animation: none; opacity: 0; } .hp-lag { transition: none; } }
+
+/* ---------- Performance ---------- */
+/* Motes drift on the compositor: no glow to repaint every frame. */
+.mote { box-shadow: none; will-change: transform, opacity; }
+@media (max-width: 560px) { .mote:nth-child(n + 8) { display: none; } }
+/* Lite look for devices that cannot keep up in battle (set by the arena). */
+body.lite .ambient, body.lite .arena-backdrop { display: none; }
+body.lite .unit-sprite, body.lite .unit, body.lite .trait-badge, body.lite .terrain-tile { filter: none !important; }
+body.lite .board-frame.elite-board { animation: none; }
+body.lite .terrain-water { animation: none; }

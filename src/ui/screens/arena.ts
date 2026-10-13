@@ -845,7 +845,7 @@ export class ArenaScreen implements Screen {
 
   /** Composition bonuses: active ones lit, the rest dim with progress. */
   private renderSynergies(prep: boolean): void {
-    this.synergyRow.hidden = !prep || !featureOpen(this.ctx.state, 'synergies');
+    setHidden(this.synergyRow, !prep || !featureOpen(this.ctx.state, 'synergies'));
     if (!prep) return;
     const kinds = this.ctx.state.formation.map((f) => f.kind);
     const progress = synergyProgress(kinds, this.ctx.state.crownTree.includes('heralds') ? 1 : 0);
@@ -883,8 +883,27 @@ export class ArenaScreen implements Screen {
 
   // ---------- Frame ----------
 
+  /** Smoothed frame time in battle (ms) and how long it has stayed slow. */
+  private frameMs = 16;
+  private slowFrames = 0;
+
+  /**
+   * A weak device that cannot keep up in battle switches to a lighter look for the
+   * rest of the session: no drifting motes, no glow filters, fewer effects.
+   */
+  private watchFrameRate(dt: number): void {
+    if (document.body.classList.contains('lite') || dt <= 0 || dt > 500) return;
+    this.frameMs = this.frameMs * 0.95 + dt * 0.05;
+    this.slowFrames = this.frameMs > 22 ? this.slowFrames + 1 : 0;
+    if (this.slowFrames > 120) {
+      document.body.classList.add('lite');
+      this.board.setLite(true);
+    }
+  }
+
   frame(dt: number): void {
     const speed = this.timeLocked ? 1 : this.ctx.settings.speed;
+    if (this.phase === 'battle') this.watchFrameRate(dt);
     let events: BattleEvent[] = [];
     if (this.introUntil && performance.now() >= this.introUntil) {
       this.introUntil = 0;

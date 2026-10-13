@@ -41,6 +41,7 @@ export class App implements Ctx {
   private lastAchCheck = 0;
   private lastFrame = performance.now();
   private lastGold = -1;
+  private lastTop = 0;
 
   constructor(private root: HTMLElement) {
     this.state = loadGame();
@@ -247,7 +248,11 @@ export class App implements Ctx {
     this.lastFrame = now;
     if (this.screenId !== 'menu') {
       this.screens[this.screenId].frame(dt);
-      this.renderTop();
+      // The top bar changes rarely: a few refreshes a second are plenty.
+      if (now - this.lastTop > 200) {
+        this.lastTop = now;
+        this.renderTop();
+      }
       if (now - this.lastAchCheck > 1000) {
         this.lastAchCheck = now;
         this.checkAchievements();

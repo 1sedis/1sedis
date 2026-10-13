@@ -218,7 +218,7 @@ export class BoardView {
       u.node.classList.toggle('tier-2', u.tier === 2);
       const pos = `translate(${v.x * 100}%, ${v.y * 100}%)`;
       if (u.node.style.transform !== pos) {
-        if (u.at && !v.dead && !this.root.classList.contains('setup') && this.fxLevel > 0 && this.room()) this.dust(u.at[0], u.at[1]);
+        if (u.at && !v.dead && !this.lite && !this.root.classList.contains('setup') && this.fxLevel > 0 && this.room()) this.dust(u.at[0], u.at[1]);
         u.node.style.transform = pos;
       }
       u.at = [v.x, v.y];
@@ -268,7 +268,7 @@ export class BoardView {
       if (e.type === 'death') {
         const u = this.units.get(keyOf(e.uid));
         if (u) this.fall(e, u.img.src);
-        if (effects && (e.big || this.room())) this.soul(e);
+        if (effects && (e.big || (!this.lite && this.room()))) this.soul(e);
         if (effects && u && (e.big || this.room())) this.shatter(e.x, e.y, u.img.src);
       }
       if (effects && e.type === 'hit' && e.amount >= 1 && this.fxLevel > 0 && this.room()) {
@@ -291,7 +291,7 @@ export class BoardView {
             const to = `${(dx / len) * 28}% ${(dy / len) * 28}%`;
             body.animate([{ translate: '0 0' }, { translate: to, offset: 0.45 }, { translate: '0 0' }], { duration: 160, easing: 'ease-out' });
           }
-          if (effects && this.fxLevel > 0 && this.room()) this.slash(e);
+          if (effects && !this.lite && this.fxLevel > 0 && this.room()) this.slash(e);
         }
         if (e.crit && e.big) shake = Math.max(shake, 1);
       } else if (e.type === 'death' && e.big) shake = 2;
@@ -352,12 +352,19 @@ export class BoardView {
   private fxLevel: 0 | 1 | 2 = 2;
 
   setFxLevel(level: 0 | 1 | 2): void {
-    this.fxLevel = level;
+    this.fxLevel = this.lite ? (Math.max(0, level - 1) as 0 | 1) : level;
+  }
+
+  /** Lighter effects for a device that cannot keep up. */
+  private lite = false;
+
+  setLite(on: boolean): void {
+    this.lite = on;
   }
 
   /** Optional effects are skipped once this many are on screen. */
   private room(): boolean {
-    return this.fxLayer.childElementCount < [24, 45, 80][this.fxLevel];
+    return this.fxLayer.childElementCount < (this.lite ? [8, 14, 20] : [24, 45, 80])[this.fxLevel];
   }
 
   /** Scale a particle count by the effect level. */
