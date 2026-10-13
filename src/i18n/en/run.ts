@@ -262,8 +262,6 @@ export const run: Record<string, string> = {
   'Боссов': 'Bosses',
   '+{n} ♛ короны': '+{n} ♛ crowns',
   'Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.': 'The next game will be harder: the Black King brings a new distortion. Spend crowns in the Crown Tree.',
-  'Короны остаются с вами — потратьте их в Древе короны. {tip}Новый забег начнётся с 1-1.': 'Your crowns stay with you — spend them in the Crown Tree. {tip}A new run starts at 1-1.',
-  'Короны дают боссы — дойдите хотя бы до первого. ': 'Bosses give crowns — reach at least the first one. ',
   'Новая партия ▶': 'New Game ▶',
   'Новый забег ▶': 'New Run ▶',
   'Дальше': 'Next',
@@ -286,4 +284,6 @@ export const run: Record<string, string> = {
   '⚔ {n} · ур. {lv}': '⚔ {n} · Lv. {lv}',
   'Партия {g} · {army}': 'Game {g} · {army}',
   '{kind} · {id} «{name}»': '{kind} · {id} “{name}”',
+  'Короны остаются с вами — потратьте их в Древе короны. Новый забег начнётся с 1-1.': 'Crowns stay with you — spend them in the Crown Tree. A new run starts at 1-1.',
+  'Короны дают боссы — дойдите хотя бы до первого. Новый забег начнётся с 1-1.': 'Bosses give crowns — reach at least the first one. A new run starts at 1-1.',
 };

@@ -151,7 +151,8 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
   content.append(stats, el('div', 'result-reward', t('+{n} ♛ короны', { n: o.crowns })));
   content.append(el('p', 'hint', o.won
     ? t('Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.')
-    : t('Короны остаются с вами — потратьте их в Древе короны. {tip}Новый забег начнётся с 1-1.', { tip: o.crowns ? '' : t('Короны дают боссы — дойдите хотя бы до первого. ') })));
+    : o.crowns ? t('Короны остаются с вами — потратьте их в Древе короны. Новый забег начнётся с 1-1.')
+      : t('Короны дают боссы — дойдите хотя бы до первого. Новый забег начнётся с 1-1.')));
   const actions = el('div', 'modal-actions');
   // What to do next, for the player who has not found it yet: unspent gold, crowns enough for a doctrine.
   const next1 = el('ul', 'run-end-next');
