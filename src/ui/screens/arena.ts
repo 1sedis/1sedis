@@ -960,6 +960,7 @@ export class ArenaScreen implements Screen {
     setDisabled(this.fightBtn, this.phase === 'result');
     this.speedBtns.forEach(({ b, sp }) => b.classList.toggle('active', sp === speed));
     setHidden(this.infoPanel, !prep);
+    this.root.classList.toggle('in-battle', !prep);
     setHidden(this.strip, !prep);
     setHidden(this.battlePanel, prep);
     setHidden(this.prepTools, !prep);

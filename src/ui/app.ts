@@ -86,6 +86,7 @@ export class App implements Ctx {
     if (this.screenId !== screen || levelId) wipe();
     this.tutorial.reset();
     this.screenId = screen;
+    document.body.dataset.screen = screen;
     // The arena switches to battle music itself when a fight starts.
     audio.setTrack(screen === 'menu' ? 'menu' : 'map', this.state.run.chapter);
     if (screen === 'menu') {

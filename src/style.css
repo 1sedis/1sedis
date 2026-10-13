@@ -2436,3 +2436,31 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
   .run-node .level-name { max-width: 128px; width: max-content; font-size: 14px; }
 }
 @media (max-width: 360px) { .arena-top .moves-label { display: none; } }
+
+/* ---------- No-scroll arena: board, reserve and controls on one screen ---------- */
+@media (min-width: 1001px) {
+  .arena-screen .board { width: min(620px, calc(100vh - 330px), calc(100vw - 96px)); min-width: 380px; }
+  body[data-screen="arena"] .shell { padding-bottom: 12px; }
+  .arena-screen .board-frame { margin-bottom: 14px; }
+  .arena-screen .arena-side { max-height: calc(100vh - 190px); overflow-y: auto; scrollbar-width: thin; }
+}
+@media (max-width: 560px) {
+  body[data-screen="arena"] .topbar .topnav { display: none; }
+  /* In battle the reserve is idle: the kings' health takes its place under the board. */
+  .arena-screen.in-battle .bench-panel { display: none; }
+  .arena-screen.in-battle .arena-side .card { padding: 8px 12px; }
+  .arena-screen .board { width: min(calc(100vw - 92px), calc(100vh - 380px)); min-width: 250px; }
+  .bench-panel {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "head head" "tray tools" "syn syn";
+    gap: 6px 8px; padding: 8px; margin-top: 2px; min-height: 0;
+  }
+  .bench-panel > .panel-head { grid-area: head; margin: 0; font-size: 13px; }
+  .bench-panel > .panel-head .panel-title { font-size: 14px; }
+  .bench-panel > .tray { grid-area: tray; gap: 6px; flex-wrap: nowrap; }
+  .bench-panel .bench-item { width: 44px; height: 44px; padding: 3px; }
+  .bench-panel > .tray-tools { grid-area: tools; margin: 0; flex-direction: column; gap: 4px; justify-content: center; }
+  .bench-panel > .tray-tools .btn { padding: 4px 10px; font-size: 14px; min-height: 0; }
+  .bench-panel > .synergy-row { grid-area: syn; margin: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+  .bench-panel > .synergy-row::-webkit-scrollbar { display: none; }
+  .bench-panel .synergy { font-size: 13px; padding: 1px 6px; }
+}
