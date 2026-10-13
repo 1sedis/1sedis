@@ -2339,7 +2339,7 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 /* ---------- Phones: the run map never spills sideways (polish 6.5) ---------- */
 .level-path { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .level-node { min-width: 0; }
-.level-node .level-name { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; }
+.level-node .level-name { max-width: 100%; overflow-wrap: break-word; hyphens: manual; }
 /* Toasts never cover a dialog's or a tip's buttons: they sit under the dialog dimming and the tips,
    and taps go through them (polish 6.5). */
 .toast-layer { z-index: 25; pointer-events: none; }
@@ -2415,3 +2415,24 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 }
 @keyframes fx-dust { 0% { opacity: 0.9; transform: scale(0.6); } 100% { opacity: 0; transform: scale(1.8) translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .fx-slash, .fx-soul, .fx-dust { display: none; } }
+
+/* ---------- Phone arena: a compact header so the board starts higher ---------- */
+@media (max-width: 560px) {
+  .arena-top { gap: 8px 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .arena-top > .btn-ghost { padding: 6px 10px; font-size: 16px; min-height: 40px; }
+  .arena-titles { min-width: 0; flex: 1 1 0; }
+  .arena-title { font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .arena-sub { font-size: 13px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .arena-top .controls { width: 100%; gap: 8px; flex-wrap: nowrap; }
+  .arena-top .controls > .btn:last-child { flex: 1 1 auto; min-width: 0; padding-inline: 10px; white-space: nowrap; }
+  .board-wrap { padding: 4px 0; }
+  .board-frame { margin: 8px 6px 18px; }
+}
+@media (max-width: 560px) {
+  .arena-top .controls .seg-btn { padding-inline: 8px; }
+  .arena-top .controls > * { flex-shrink: 1; min-width: 0; }
+  .arena-top .controls > .btn:last-child { font-size: 15px; overflow: hidden; text-overflow: ellipsis; }
+  /* Run map labels may spill past the node a little rather than break a word. */
+  .run-node .level-name { max-width: 128px; width: max-content; font-size: 14px; }
+}
+@media (max-width: 360px) { .arena-top .moves-label { display: none; } }
