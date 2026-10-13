@@ -267,10 +267,26 @@ export class MapScreen implements Screen {
     requestAnimationFrame(() => {
       this.drawScene();
       this.drawEdges();
-      // The rows you can step on now are brought to the middle of the screen.
-      const cur = this.path.querySelector<HTMLElement>('.run-node.current');
-      if (cur && cur.getBoundingClientRect().top > window.innerHeight * 0.6) cur.scrollIntoView({ block: 'center' });
+      this.follow();
     });
+  }
+
+  /**
+   * The map follows the army: the king and the nodes it can step on next are kept
+   * in the middle of the screen, so the player never has to hunt for them.
+   */
+  private follow(): void {
+    const marks = [...this.path.querySelectorAll<HTMLElement>('.run-node.current, .map-king')];
+    if (!marks.length || this.root.hidden) return;
+    const rects = marks.map((m) => m.getBoundingClientRect());
+    const top = Math.min(...rects.map((r) => r.top));
+    const bottom = Math.max(...rects.map((r) => r.bottom));
+    const target = window.scrollY + (top + bottom) / 2 - window.innerHeight / 2;
+    const y = Math.max(0, Math.round(target));
+    if (Math.abs(y - window.scrollY) < 24) return;
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // A fresh visit jumps (the screen is still being revealed); a step on the map glides.
+    window.scrollTo({ top: y, behavior: still || window.scrollY === 0 ? 'auto' : 'smooth' });
   }
 
   /** The army's king hops along the road to the chosen node before it opens. */

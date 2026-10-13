@@ -2464,3 +2464,11 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
   .bench-panel > .synergy-row::-webkit-scrollbar { display: none; }
   .bench-panel .synergy { font-size: 13px; padding: 1px 6px; }
 }
+
+/* The map's side panel stays in view while the road scrolls. */
+@media (min-width: 1001px) { .map-side { position: sticky; top: 16px; align-self: start; } }
+/* The top bar stays at hand while long screens scroll, so nobody has to scroll back up for it. */
+body:not([data-screen="arena"]) .topbar {
+  position: sticky; top: 0; z-index: 40; padding: 8px 0; margin-top: -8px;
+  background: var(--bg); box-shadow: 0 6px 0 -2px rgba(0, 0, 0, 0.35);
+}
