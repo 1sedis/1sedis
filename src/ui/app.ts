@@ -256,8 +256,10 @@ export class App implements Ctx {
 
   private renderTop(): void {
     const s = this.state;
-    setText(this.chips.gold, fmt(s.gold));
-    if (s.gold > this.lastGold && this.lastGold >= 0) pulse(this.chips.gold);
+    if (this.lastGold >= 0 && s.gold !== this.lastGold) {
+      if (s.gold > this.lastGold) pulse(this.chips.gold);
+      this.countGold(s.gold, s.gold - this.lastGold);
+    } else if (this.goldFrame === 0) setText(this.chips.gold, fmt(s.gold));
     this.lastGold = s.gold;
     setText(this.chips.stars, t('{n}/4', { n: s.run.chapter }));
     this.navMap.classList.toggle('active', this.screenId === 'map');
@@ -273,6 +275,27 @@ export class App implements Ctx {
     setText(this.chips.lives, String(lives(s)));
     setText(this.chips.crowns, fmt(s.crowns));
     setHidden(this.chips.crownChip, s.crowns === 0 && s.prestige === 0 && s.stats.runs === 0);
+  }
+
+  private goldShown = 0;
+  private goldFrame = 0;
+
+  /** The gold chip counts to the new sum, and the change floats up beside it. */
+  private countGold(to: number, delta: number): void {
+    const chip = this.chips.gold.parentElement!;
+    const tag = el('span', `chip-delta ${delta > 0 ? 'up' : 'down'}`, `${delta > 0 ? '+' : '−'}${fmt(Math.abs(delta))}`);
+    tag.addEventListener('animationend', () => tag.remove());
+    chip.append(tag);
+    const from = this.goldFrame ? this.goldShown : to - delta;
+    cancelAnimationFrame(this.goldFrame);
+    const start = performance.now();
+    const step = (now: number) => {
+      const k = Math.min(1, (now - start) / 600);
+      this.goldShown = Math.round(from + (to - from) * (1 - (1 - k) ** 3));
+      setText(this.chips.gold, fmt(this.goldShown));
+      this.goldFrame = k < 1 ? requestAnimationFrame(step) : 0;
+    };
+    this.goldFrame = requestAnimationFrame(step);
   }
 
   private checkAchievements(): void {

@@ -617,7 +617,11 @@ export class ArenaScreen implements Screen {
       });
       this.introUntil = performance.now() + 2200;
       audio.play('warn');
-    } else audio.play('start');
+    } else {
+      audio.play('start');
+      // After the battle pieces are drawn, the whole board hops to attention.
+      setTimeout(() => this.board.hop('all'), 60);
+    }
     document.body.classList.toggle('finale-hand', bossId === 'hand');
     this.ctx.save();
   }
@@ -639,6 +643,7 @@ export class ArenaScreen implements Screen {
     this.ctx.save();
     this.phase = 'result';
     this.board.showBanner(outcome.win ? t('Победа') : t('Поражение'), outcome.win);
+    this.board.hop(outcome.win ? 'ally' : 'enemy', 3);
     audio.play(outcome.win ? 'win' : 'lose');
     if (outcome.ending) {
       this.setTimeLock(false);
@@ -885,6 +890,7 @@ export class ArenaScreen implements Screen {
       this.introUntil = 0;
       this.board.intro(null);
       audio.play('start');
+      this.board.hop('all');
     }
     const b = this.battle;
     if (this.phase === 'battle' && b && this.decisionUi && performance.now() >= this.decisionUi.deadline) this.answer();

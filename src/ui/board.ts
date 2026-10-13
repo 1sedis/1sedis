@@ -49,7 +49,7 @@ export class BoardView {
   private banner: HTMLElement;
   private calloutEl: HTMLElement;
   private introEl: HTMLElement;
-  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team; tier: Tier; at?: [number, number] }>();
+  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; lag: HTMLElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team; tier: Tier; at?: [number, number] }>();
 
   constructor(onCell: (x: number, y: number) => void) {
     this.root = el('div', 'board');
@@ -191,13 +191,16 @@ export class BoardView {
         img.style.animationDelay = `${-(Math.random() * 1.2).toFixed(2)}s`;
         body.append(img);
         const hp = el('div', 'hp');
+        const lag = el('div', 'hp-lag');
         const fill = el('div', 'hp-fill');
         const shield = el('div', 'hp-shield');
-        hp.append(fill, shield);
+        hp.append(lag, fill, shield);
         node.append(body, hp);
         node.style.transform = `translate(${v.x * 100}%, ${v.y * 100}%)`;
         this.unitLayer.append(node);
-        u = { node, body, img, fill, shield, kind: v.kind, team: v.team, tier: v.tier ?? 0 };
+        u = { node, body, img, lag, fill, shield, kind: v.kind, team: v.team, tier: v.tier ?? 0 };
+        // A piece set down before battle drops onto its square.
+        if (this.root.classList.contains('setup') && !REDUCED_MOTION) this.drop(body, v.x + v.y * 0.5);
         img.src = v.skin === 'hand' ? handUrl() : v.skin === 'blackKing' ? spriteUrl('king', 'enemy', 2)
           : hasBossArt(v.skin as BossId) ? bossArtUrl(v.skin as BossId) : spriteUrl(v.kind, v.team, u.tier);
         node.classList.toggle('hand-unit', v.skin === 'hand');
@@ -239,7 +242,11 @@ export class BoardView {
       u.node.classList.toggle('full-hp', v.hp >= v.maxHp);
       // scaleX instead of width: no layout work when health changes.
       const ratio = `scaleX(${Math.max(0, Math.min(1, v.hp / v.maxHp)).toFixed(3)})`;
-      if (u.fill.style.transform !== ratio) u.fill.style.transform = ratio;
+      if (u.fill.style.transform !== ratio) {
+        u.fill.style.transform = ratio;
+        // The lost chunk lingers white for a moment before it drains away.
+        u.lag.style.transform = ratio;
+      }
       const sh = `${Math.min(1, v.shield ?? 0) * 100}%`;
       if (u.shield.style.width !== sh) u.shield.style.width = sh;
     }
@@ -298,6 +305,38 @@ export class BoardView {
         { translate: '0 0' }, { translate: `${a}px ${-a * 0.6}px` }, { translate: `${-a}px ${a * 0.5}px` },
         { translate: `${a * 0.6}px ${a * 0.4}px` }, { translate: '0 0' },
       ], { duration: shake > 1 ? 320 : 220, easing: 'steps(4, end)' });
+    }
+  }
+
+  /** Drop a piece onto its square with a little squash. */
+  private drop(body: HTMLElement, order: number): void {
+    body.animate([
+      { translate: '0 -55%', opacity: 0 },
+      { translate: '0 0', opacity: 1, scale: '1 1', offset: 0.55 },
+      { scale: '1.14 0.86', offset: 0.75 },
+      { scale: '1 1' },
+    ], { duration: 300, delay: Math.min(order, 8) * 18, easing: 'ease-in', fill: 'backwards' });
+  }
+
+  /**
+   * Every piece of a team hops: once, rippling across the board, when a battle starts;
+   * three times when it wins.
+   */
+  hop(team: Team | 'all', times = 1): void {
+    if (REDUCED_MOTION) return;
+    for (const u of this.units.values()) {
+      if (team !== 'all' && u.team !== team) continue;
+      if (u.node.classList.contains('dead')) continue;
+      const m = /translate\(([-\d.]+)%, ([-\d.]+)%\)/.exec(u.node.style.transform);
+      const x = m ? Number(m[1]) / 100 : 0;
+      const y = m ? Number(m[2]) / 100 : 0;
+      u.body.animate([
+        { translate: '0 0', scale: '1 1' },
+        { translate: '0 0', scale: '1.1 0.9', offset: 0.15 },
+        { translate: '0 -30%', scale: '0.94 1.08', offset: 0.5 },
+        { translate: '0 0', scale: '1.08 0.92', offset: 0.85 },
+        { translate: '0 0', scale: '1 1' },
+      ], { duration: 360, delay: (x + Math.abs(y - 3.5)) * 35, iterations: times, easing: 'ease-out' });
     }
   }
 

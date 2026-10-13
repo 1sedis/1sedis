@@ -2489,3 +2489,16 @@ body:not([data-screen="arena"]) .topbar {
   .army-row .row-meta { font-size: 14px; }
   .camp-grid .card { padding: 10px; }
 }
+
+/* ---------- Juice: damage trail, gold count-up ---------- */
+.hp-lag { position: absolute; inset: 0; width: 100%; background: #fff4d6; transform-origin: left center; transition: transform .35s ease-in .28s; }
+.hp-fill { position: relative; }
+.chip-gold { position: relative; }
+.chip-delta {
+  position: absolute; right: 6px; top: 100%; z-index: 5; pointer-events: none; font-family: var(--pixel); font-size: 16px;
+  text-shadow: 0 2px 0 #0b0818; animation: chip-delta 1.1s steps(8, end) forwards;
+}
+.chip-delta.up { color: var(--gold); }
+.chip-delta.down { color: var(--coral); }
+@keyframes chip-delta { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) { .chip-delta { animation: none; opacity: 0; } .hp-lag { transition: none; } }
