@@ -1,6 +1,6 @@
-/** 8x8 pixel icons that replace system glyphs (★ 🔒 ❤ ⚔ ◎ ◆ ♛ ☠ ✦) in UI text. */
+/** 8x8 pixel icons that replace system glyphs (★ 🔒 ❤ ⚔ ◎ ◆ ♛ ☠ ✦ 🏆 ✝) in UI text. */
 export type IconId = 'coin' | 'star' | 'starEmpty' | 'lock' | 'heart' | 'sword' | 'range' | 'gem' | 'crown' | 'skull' | 'spark'
-  | 'fire' | 'bag' | 'question' | 'flag';
+  | 'fire' | 'bag' | 'question' | 'flag' | 'trophy' | 'fallen';
 
 const MAPS: Record<IconId, string[]> = {
   coin: ['..oooo..', '.ohhaao.', 'ohaooabo', 'oaaoaabo', 'oaaoaabo', 'oaaooabo', '.oabbbo.', '..oooo..'],
@@ -17,6 +17,8 @@ const MAPS: Record<IconId, string[]> = {
   fire: ['...o....', '..oho...', '.ohaho..', '.oaaao.o', 'oaabaaoo', 'oabbbao.', '.obbbo..', 'llllllll'],
   bag: ['..ooo...', '...o....', '.ooaoo..', 'ohaaaao.', 'oaacaao.', 'oacccao.', 'oaacabo.', '.oooooo.'],
   question: ['..oooo..', '.ohaaao.', '.oo..ao.', '....oao.', '...oao..', '...oo...', '........', '...ha...'],
+  trophy: ['oooooooo', 'ohaaaabo', '.oaaabo.', '.oaaabo.', '..oabo..', '...oo...', '..oaao..', '.oooooo.'],
+  fallen: ['...oo...', '..oaao..', 'oooaaooo', 'oaaaaaao', 'oooaaooo', '..oaao..', '..oaao..', '..oooo..'],
   flag: ['oaaaaa..', 'oahaaaa.', 'oaaaaaa.', 'oabbbb..', 'o.......', 'o.......', 'o.......', 'o.......'],
 };
 
@@ -35,14 +37,17 @@ const COLORS: Record<IconId, Record<string, string>> = {
   fire: { o: '#5a1a08', h: '#fff4c2', a: '#ff9a2e', b: '#ff4f1d', l: '#7a4a22' },
   bag: { o: '#3a2208', h: '#f2d29a', a: '#c48a3c', b: '#8a5a20', c: '#ffcf4a' },
   question: { o: '#3a2a7a', h: '#ffffff', a: '#c9b8ff' },
+  trophy: { o: '#6b4709', h: '#fff4c2', a: '#ffcf4a', b: '#e0a020' },
+  fallen: { o: '#3a2a4a', a: '#b8afd6' },
   flag: { o: '#d8d0ef', a: '#ff5d85', h: '#ffffff', b: '#c42a4a' },
 };
 
 const GLYPHS: Record<string, IconId> = {
   '★': 'star', '☆': 'starEmpty', '🔒': 'lock', '❤': 'heart', '⚔': 'sword', '◎': 'range', '◆': 'gem', '♛': 'crown', '☠': 'skull', '✦': 'spark',
+  '🏆': 'trophy', '✝': 'fallen',
 };
-const GLYPH_RE = /(★|☆|🔒|❤|⚔|◎|◆|♛|☠|✦)/u;
-const SPLIT_RE = /(★|☆|🔒|❤|⚔|◎|◆|♛|☠|✦)/gu;
+const GLYPH_RE = /(★|☆|🔒|❤|⚔|◎|◆|♛|☠|✦|🏆|✝)/u;
+const SPLIT_RE = /(★|☆|🔒|❤|⚔|◎|◆|♛|☠|✦|🏆|✝)/gu;
 
 const cache = new Map<IconId, string>();
 

@@ -764,7 +764,7 @@ export class ArenaScreen implements Screen {
       if (nudge) {
         content.append(el('div', 'result-unlock spend-nudge',
           t('У вас {gold} золота. Потратьте его до следующего боя: наймите фигуру или поднимите уровень — враги дальше сильнее.', { gold: fmt(s.gold) })));
-        up.textContent = t('Улучшения ★');
+        setText(up, t('Улучшения ★'));
       }
       const ahead = availableNodes(this.ctx.state.run);
       if (!o.win) button(t('Ещё раз'), 'btn-primary', () => this.enterPrep());
