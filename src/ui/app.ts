@@ -1,7 +1,7 @@
 import { installIconVars } from './icons';
 import { chapterOf } from '../game/levels';
 import {
-  canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, exportSave, hasSave, importSave, loadGame, newGame, saveGame,
+  canAffordUpgrade, checkAchievements, claimableAchievements, clearSave, currentLevelId, exportSave, hasSave, importSave, lastLoadIssue, loadGame, newGame, saveGame,
   type GameState,
 } from '../game/state';
 import { audio } from './audio';
@@ -44,6 +44,11 @@ export class App implements Ctx {
 
   constructor(private root: HTMLElement) {
     this.state = loadGame();
+    // A damaged save is never silent: say what was recovered.
+    const issue = lastLoadIssue();
+    if (issue !== 'ok') setTimeout(() => toast(issue === 'restored'
+      ? t('Сохранение повредилось — восстановили последнюю целую копию')
+      : t('Сохранение повредилось и не читается — начата новая игра'), issue === 'restored' ? 'good' : undefined), 800);
     // Saves from before the step-by-step opening already know everything they have reached.
     if (!this.state.tutorial.includes('features_v1')) {
       acknowledgeOpen(this.state);

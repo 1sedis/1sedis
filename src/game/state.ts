@@ -929,13 +929,27 @@ export function claimableAchievements(s: GameState): number {
 // ---------- Persistence ----------
 
 const SAVE_KEY = 'chess-autobattler-save';
+/** The last save that loaded fine, one write behind the main one. */
+const BACKUP_KEY = 'chess-autobattler-save-backup';
+/** A save that failed to load is kept here instead of being overwritten. */
+const BROKEN_KEY = 'chess-autobattler-save-broken';
 
 export function saveGame(s: GameState): void {
   try {
+    // Before overwriting, the previous save becomes the backup if it still reads.
+    const prev = localStorage.getItem(SAVE_KEY);
+    if (prev && prev !== localStorage.getItem(BACKUP_KEY) && parseSave(prev)) localStorage.setItem(BACKUP_KEY, prev);
     localStorage.setItem(SAVE_KEY, JSON.stringify(s));
   } catch {
-    // Storage may be unavailable (private mode); the game still works.
+    // Storage may be unavailable (private mode) or full; the game still works.
   }
+}
+
+/** What happened when the game was last loaded: fine, restored from the backup, or lost. */
+export type LoadIssue = 'ok' | 'restored' | 'lost';
+let loadIssue: LoadIssue = 'ok';
+export function lastLoadIssue(): LoadIssue {
+  return loadIssue;
 }
 
 /** Merge saved data over a fresh game so new fields get defaults. Null when the data is not a save. */
@@ -1042,14 +1056,26 @@ function migrateToRun(s: GameState): void {
 }
 
 export function loadGame(now = Date.now()): GameState {
-  let state = newGame(now);
+  loadIssue = 'ok';
   try {
     const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) state = parseSave(raw, now) ?? state;
+    if (!raw) return newGame(now);
+    const main = parseSave(raw, now);
+    if (main) return main;
+    // The main save is damaged: keep it aside and fall back to the backup.
+    localStorage.setItem(BROKEN_KEY, raw);
+    const backup = localStorage.getItem(BACKUP_KEY);
+    const restored = backup ? parseSave(backup, now) : null;
+    if (restored) {
+      loadIssue = 'restored';
+      localStorage.setItem(SAVE_KEY, backup!);
+      return restored;
+    }
+    loadIssue = 'lost';
   } catch {
     // Storage unavailable: keep the new game.
   }
-  return state;
+  return newGame(now);
 }
 
 const CODE_PREFIX = 'PG2:';
@@ -1077,8 +1103,8 @@ export function importSave(code: string, now = Date.now()): GameState | null {
 
 export function hasSave(): boolean {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    return raw !== null && (JSON.parse(raw) as { version?: number }).version === 2;
+    const readable = (key: string) => { const raw = localStorage.getItem(key); return raw !== null && parseSave(raw) !== null; };
+    return readable(SAVE_KEY) || readable(BACKUP_KEY);
   } catch {
     return false;
   }
@@ -1087,6 +1113,7 @@ export function hasSave(): boolean {
 export function clearSave(): void {
   try {
     localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem(BACKUP_KEY);
   } catch {
     // ignore
   }

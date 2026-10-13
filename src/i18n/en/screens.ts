@@ -153,4 +153,6 @@ export const screens: Record<string, string> = {
   'Забег закончился с {gold} золота. Тратьте золото между боями в «Улучшениях»: нанять фигуру или поднять уровень — главный способ стать сильнее.': 'The run ended with {gold} gold unspent. Spend gold between battles in Upgrades: recruiting a piece or raising a level is the main way to grow stronger.',
   'Корон хватает на доктрину «{name}» в Древе короны — она останется навсегда.': 'You have enough crowns for the “{name}” doctrine in the Crown Tree — it stays forever.',
   'Что дальше': 'What next',
+  'Сохранение повредилось — восстановили последнюю целую копию': 'Your save was damaged — restored the last good copy',
+  'Сохранение повредилось и не читается — начата новая игра': 'Your save was damaged and can\'t be read — a new game has started',
 };
