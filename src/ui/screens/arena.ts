@@ -40,7 +40,8 @@ import type { Ctx, Screen } from '../context';
 import { el, infoBtn, openModal, setDisabled, setHidden, setText, toast, wipe } from '../dom';
 import { fmt } from '../format';
 import { saveSettings, type Settings } from '../settings';
-import { FINALE_CROWNS, canAffordUpgrade, finaleEase } from '../../game/state';
+import { FINALE_CROWNS, canAffordUpgrade, finaleEase, levelFormation } from '../../game/state';
+import { FORMATION_NAMES } from '../../game/formations';
 import { featureOpen } from '../../game/features';
 import { spriteUrl, type Tier } from '../sprites';
 import { plural, t } from '../../i18n';
@@ -366,7 +367,9 @@ export class ArenaScreen implements Screen {
         t('Правило этого боя: {text}.\nВраги на уровень сильнее, за победу — реликвия.', { text: r.text })));
     }
     const enemies = this.enemies();
-    setText(this.enemyText, t('Враги: {n} · ур. {lv}', { n: enemies.length, lv: enemies[0]?.level ?? level.level }) + (level.boss ? ` · ${level.boss}` : ''));
+    const formation = finale ? 'classic' : levelFormation(s, this.levelId).formation;
+    setText(this.enemyText, t('Враги: {n} · ур. {lv}', { n: enemies.length, lv: enemies[0]?.level ?? level.level }) + (level.boss ? ` · ${level.boss}` : '')
+      + (formation !== 'classic' ? ` · ${FORMATION_NAMES[formation]}` : ''));
     if (finale) {
       const phase = finalePhase(this.levelId);
       setText(this.rewardText, phase < 3

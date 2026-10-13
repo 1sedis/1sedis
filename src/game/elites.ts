@@ -4,7 +4,8 @@ import type { PieceKind } from './pieces';
 
 /** Traits of elite enemy pieces. */
 export type Trait = 'armored' | 'furious' | 'vampire' | 'thorns' | 'swift' | 'explosive'
-  | 'healer' | 'summoner' | 'banner' | 'warder' | 'blinker';
+  | 'healer' | 'summoner' | 'banner' | 'warder' | 'blinker'
+  | 'splitter' | 'frost' | 'magnet' | 'bodyguard';
 
 export interface TraitDef {
   /** Adjective, masculine and feminine. */
@@ -24,9 +25,14 @@ export const TRAITS: Record<Trait, TraitDef> = {
   banner: { name: [t('Знаменный'), t('Знаменная')], text: t('соседние союзники бьют на 25% сильнее') },
   warder: { name: [t('Щитовой'), t('Щитовая')], text: t('каждые 4 с даёт соседним союзникам щит в 15% здоровья') },
   blinker: { name: [t('Призрачный'), t('Призрачная')], text: t('получив удар, исчезает и появляется рядом (раз в 3 с)') },
+  splitter: { name: [t('Раскалывающийся'), t('Раскалывающаяся')], text: t('при гибели распадается на две пешки') },
+  frost: { name: [t('Ледяной'), t('Ледяная')], text: t('его удары замораживают цель на полсекунды') },
+  magnet: { name: [t('Притягивающий'), t('Притягивающая')], text: t('каждые 5 с подтягивает ближайшую вражескую фигуру на клетку к себе') },
+  bodyguard: { name: [t('Телохранитель'), t('Телохранительница')], text: t('принимает на себя половину урона по соседнему королю') },
 };
 
-export const TRAIT_ORDER: Trait[] = ['armored', 'furious', 'vampire', 'thorns', 'swift', 'explosive', 'healer', 'summoner', 'banner', 'warder', 'blinker'];
+export const TRAIT_ORDER: Trait[] = ['armored', 'furious', 'vampire', 'thorns', 'swift', 'explosive', 'healer', 'summoner', 'banner', 'warder', 'blinker',
+  'splitter', 'frost', 'magnet', 'bodyguard'];
 
 const FEMININE = new Set<PieceKind>(['pawn', 'rook']);
 
@@ -37,8 +43,8 @@ export function traitAdjective(trait: Trait, kind: PieceKind): string {
 
 /** Traits that can appear per chapter; chapter 1 has no elites. */
 const POOLS: Record<number, Trait[]> = {
-  2: ['swift', 'thorns', 'banner', 'healer', 'furious'],
-  3: ['armored', 'explosive', 'warder', 'summoner', 'vampire', 'blinker'],
+  2: ['swift', 'thorns', 'banner', 'healer', 'furious', 'frost'],
+  3: ['armored', 'explosive', 'warder', 'summoner', 'vampire', 'blinker', 'splitter', 'magnet', 'bodyguard'],
   4: TRAIT_ORDER,
 };
 
@@ -71,7 +77,7 @@ function hash(text: string): number {
  * plan around them. Kings and bosses stay plain; pawns too, unless the
  * "Чёрная гвардия" distortion is on and there is nobody else.
  */
-export function withElites(levelId: string, enemies: Placement[], guard = false): Placement[] {
+export function withElites(levelId: string, enemies: Placement[], guard = false, salt = ''): Placement[] {
   const { count, pool } = eliteCount(levelId, guard);
   if (!count) return enemies;
   const officers = enemies.filter((p) => !p.boss && p.kind !== 'king' && p.kind !== 'pawn').length;
@@ -79,11 +85,11 @@ export function withElites(levelId: string, enemies: Placement[], guard = false)
     .map((p, i) => ({ p, i }))
     .filter(({ p }) => !p.boss && p.kind !== 'king' && (p.kind !== 'pawn' || (guard && officers < count)))
     .sort((a, b) => Number(a.p.kind === 'pawn') - Number(b.p.kind === 'pawn')
-      || hash(`${levelId}:${a.i}`) - hash(`${levelId}:${b.i}`))
-    .sort((a, b) => hash(`${levelId}:${a.i}`) - hash(`${levelId}:${b.i}`));
+      || hash(`${levelId}${salt}:${a.i}`) - hash(`${levelId}${salt}:${b.i}`))
+    .sort((a, b) => hash(`${levelId}${salt}:${a.i}`) - hash(`${levelId}${salt}:${b.i}`));
   const out = enemies.map((p) => ({ ...p }));
   candidates.slice(0, count).forEach(({ i }, n) => {
-    out[i].trait = pool[hash(`${levelId}#${n}`) % pool.length];
+    out[i].trait = pool[hash(`${levelId}${salt}#${n}`) % pool.length];
   });
   return out;
 }

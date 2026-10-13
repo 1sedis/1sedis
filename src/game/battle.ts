@@ -769,6 +769,14 @@ function pierce(b: Battle, u: Unit, target: Unit, damage: number): void {
 }
 
 function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean, reflected = false): void {
+  // "Телохранитель": a guard next to the king takes half of every blow aimed at him.
+  if (target.kind === 'king' && !reflected) {
+    const guard = alive(b, target.side).find((f) => f.trait === 'bodyguard' && chebyshev(f, target.x, target.y) === 1);
+    if (guard) {
+      raw *= 0.5;
+      dealDamage(b, u, guard, raw, crit, true);
+    }
+  }
   let damage = raw * defense(b, target);
   const shot = RANGED.has(u.kind) && chebyshev(u, target.x, target.y) > 1;
   if (target.trait === 'armored' && shot) damage *= 0.6;
@@ -819,6 +827,7 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
       }
     }
     if (target.trait === 'explosive') explode(b, target);
+    if (target.trait === 'splitter') split(b, target);
     if (target.kind === 'pawn' && has(b, target.side, 'powderKeg')) explode(b, target, target.maxHp * 0.5);
     if (target.side === 'enemy' && has(b, u.side, 'feast')) {
       for (const f of alive(b, u.side)) f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.05);
@@ -840,6 +849,8 @@ function dealDamage(b: Battle, u: Unit, target: Unit, raw: number, crit: boolean
     traitEvent(b, target, t('Ярость!'));
   }
   if (target.trait === 'blinker' && target.hp > 0 && b.tick >= target.blinkReady) blink(b, target);
+  // "Ледяной": its blows freeze the target for half a second.
+  if (u.trait === 'frost' && target.hp > 0 && !reflected) target.wait = Math.max(target.wait, 5);
   const thorns = (target.trait === 'thorns' ? 0.3 : 0) + (has(b, target.side, 'thornMail') ? 0.2 : 0);
   if (thorns && !reflected && !shot && u.hp > 0 && damage > 0) {
     dealDamage(b, target, u, damage * thorns, false, true);
@@ -947,7 +958,41 @@ function traitTick(b: Battle): void {
       u.traitUses++;
       traitEvent(b, u, t('Ко мне!'));
     }
+    if (u.trait === 'magnet' && b.tick % 50 === 0) pull(b, u);
   }
+}
+
+/** "Раскалывающийся": a fallen piece breaks into two pawns on free cells next to it. */
+function split(b: Battle, u: Unit): void {
+  let made = 0;
+  for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    if (made >= 2) break;
+    const x = u.x + dx;
+    const y = u.y + dy;
+    if (!inside(x, y) || !standable(b.terrain, x, y) || unitAt(b, x, y)) continue;
+    const uid = Math.max(...b.units.map((v) => v.uid), ...Object.keys(b.report).map(Number)) + 1;
+    const p = makeUnit(uid, u.side, { kind: 'pawn', x, y, level: Math.max(1, u.level - 1) }, 1, 1, 1, true);
+    p.wait = 6;
+    b.units.push(p);
+    b.report[uid] = { uid, side: p.side, kind: 'pawn', boss: false, promoted: false, startX: x, startY: y, dealt: 0, taken: 0, healed: 0, kills: 0 };
+    b.events.push({ type: 'summon', uid, side: p.side, x, y, amount: 0, fromX: u.x, fromY: u.y, fromUid: u.uid, fromKind: 'pawn' });
+    made++;
+  }
+  if (made) traitEvent(b, u, t('Раскол!'));
+}
+
+/** "Притягивающий": the nearest enemy piece within three cells is dragged one cell closer. */
+function pull(b: Battle, u: Unit): void {
+  const foe = b.units.filter((f) => f.side !== u.side && f.hp > 0 && !f.boss && f.kind !== 'king' && chebyshev(u, f.x, f.y) <= 3 && chebyshev(u, f.x, f.y) > 1)
+    .sort((a, c) => chebyshev(u, a.x, a.y) - chebyshev(u, c.x, c.y) || a.uid - c.uid)[0];
+  if (!foe) return;
+  const x = foe.x + Math.sign(u.x - foe.x);
+  const y = foe.y + Math.sign(u.y - foe.y);
+  if (!standable(b.terrain, x, y) || unitAt(b, x, y)) return;
+  foe.x = x;
+  foe.y = y;
+  foe.wait = Math.max(foe.wait, 3);
+  traitEvent(b, u, t('Притяжение!'));
 }
 
 function explode(b: Battle, u: Unit, power = u.atk * 1.5): void {

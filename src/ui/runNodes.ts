@@ -6,10 +6,10 @@ import { CHAPTERS, getLevel as levelOf } from '../game/levels';
 import {
   EVENTS, buyItem, campForge, campGain, campTrain, canBuy, chooseEvent, finishNode, lives, shopItems, type EventId, type RunNode, type RunOver,
 } from '../game/run';
-import { battleGold, canAffordUpgrade, enemyLevel, gameNumber, startNextRun, upgradeCost, type GameState } from '../game/state';
+import { battleGold, canAffordUpgrade, enemyLevel, gameNumber, levelFormation, runSalt, startNextRun, upgradeCost, type GameState } from '../game/state';
 import { NODES, nodeCost, nodeState } from '../game/crownTree';
 import { openCrownTree } from './crownTree';
-import { enemyPlacements } from '../game/levels';
+import { FORMATION_NAMES } from '../game/formations';
 import { TRAITS, traitAdjective, withElites } from '../game/elites';
 import { BOSSES, bossFor } from '../game/bosses';
 import { traitUrl } from './traitIcons';
@@ -248,12 +248,14 @@ export function openBattlePreview(ctx: Ctx, node: RunNode, onGo: () => void): vo
   const s = ctx.state;
   const level = levelOf(node.level!);
   const elite = node.kind === 'elite';
-  const enemies = withElites(level.id, enemyPlacements(level), elite);
+  const formed = levelFormation(s, level.id);
+  const enemies = withElites(level.id, formed.pieces, elite, runSalt(s, level.id));
   const lv = enemyLevel(s, level.id, elite);
   const kind = node.kind === 'boss' ? t('Босс') : elite ? t('Элита') : t('Бой');
   const { content, body, actions } = modal(nodeLabel(node), t('{kind} · {id} «{name}»', { kind, id: level.id, name: level.name }));
   content.classList.add('preview-dialog', `preview-${node.kind}`);
   body.append(el('div', 'preview-line', t('Враги: {n} · ур. {lv}', { n: enemies.length + (elite && node.rule === 'mirror' ? 0 : 0), lv })));
+  if (formed.formation !== 'classic') body.append(el('div', 'preview-line formation-line', t('Построение: {name}', { name: FORMATION_NAMES[formed.formation] })));
   const traits = enemies.filter((p) => p.trait);
   if (traits.length) {
     const row = el('div', 'preview-traits');

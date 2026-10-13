@@ -1,4 +1,5 @@
 import { t } from '../i18n';
+import { arrangeEnemies, type FormationId } from './formations';
 import { nicePrice } from './price';
 import { BOARD_SIZE, MOVES_PER_BATTLE, enemyDamageShare, type Battle, type BattleSetup, type Placement } from './battle';
 import {
@@ -582,6 +583,25 @@ export function enemyLevel(s: GameState, levelId: string, elite: boolean): numbe
     + (CHAPTER_ENEMY_LEVELS[chapterOf(levelId).id] ?? 0) + (elite ? ELITE_LEVELS + tm.eliteLevels : 0);
 }
 
+/** Levels that teach the first lessons keep the layout they were drawn with. */
+const FIXED_LEVELS = new Set(['1-1', '1-2', '1-3']);
+
+/** What makes a run's battle its own: the run seed, unless the layout is fixed. */
+export function runSalt(s: GameState, levelId: string): string {
+  return isFinale(levelId) || FIXED_LEVELS.has(levelId) ? '' : `@${s.run.seed}`;
+}
+
+/** The enemies of a run battle in this run's formation (see formations.ts). */
+export function levelEnemies(s: GameState, levelId: string): Placement[] {
+  return levelFormation(s, levelId).pieces;
+}
+
+export function levelFormation(s: GameState, levelId: string): { pieces: Placement[]; formation: FormationId } {
+  const drawn = enemyPlacements(getLevel(levelId));
+  if (!runSalt(s, levelId)) return { pieces: drawn, formation: 'classic' };
+  return arrangeEnemies(drawn, levelTerrain(levelId), `${s.run.seed}:${levelId}`);
+}
+
 function plainSetup(s: GameState, levelId: string): BattleSetup {
   const allies: Placement[] = s.formation.map((f) => ({ ...f, level: s.levels[f.kind] }));
   const m = forgeMultiplier(s);
@@ -594,7 +614,7 @@ function plainSetup(s: GameState, levelId: string): BattleSetup {
   const campaignLevel = !isFinale(levelId);
   const tm = threatMods(campaignLevel ? s.run.threat ?? 0 : 0);
   const eliteUp = elite ? ELITE_LEVELS + tm.eliteLevels : 0;
-  let enemies = withElites(levelId, enemyPlacements(getLevel(levelId)), distortions.includes('guard') || elite)
+  let enemies = withElites(levelId, levelEnemies(s, levelId), distortions.includes('guard') || elite, runSalt(s, levelId))
     .map((p) => ({ ...p, level: p.level + bonus + tm.enemyLevels + eliteUp + (campaignLevel ? CHAPTER_ENEMY_LEVELS[chapterOf(levelId).id] ?? 0 : 0) }));
   if (rule === 'mirror') {
     // "Зеркало": your own formation in black, at this battle's level.

@@ -70,6 +70,14 @@ const EXTRA: Partial<Record<Trait, string[]>> = {
   banner: ['oo......', 'ohooooo.', 'ohaaaaao', 'ohaaaao.', 'ohaaabo.', 'oboooo..', 'ob......', 'oo......'],
   warder: ['.oooooo.', 'ohhaaabo', 'ohaoobao', 'ohaoobao', 'oaabbbbo', '.oabbbo.', '..obbo..', '...oo...'],
   blinker: ['..oooo..', '.ohhhao.', 'ohhaaaao', 'ohoaaoao', 'oaaaaaao', 'oaaaaaao', 'oaoaoaoo', 'o.o.o.o.'],
+  // A cracked stone: splits in two.
+  splitter: ['.oooooo.', 'ohhaobao', 'ohaaobbo', 'oaaao.bo', 'oaao.abo', 'oaob.abo', 'oobbaabo', '.oooooo.'],
+  // A snowflake.
+  frost: ['...oo...', '.o.hh.o.', '..ohho..', 'ohhaahho', 'ohhaahho', '..ohho..', '.o.hh.o.', '...oo...'],
+  // A horseshoe magnet.
+  magnet: ['oooooooo', 'ohaaaabo', 'oao..oao', 'oao..oao', 'oao..oao', 'ohh..hho', 'ohh..hho', 'oooooooo'],
+  // A shield with a crown mark.
+  bodyguard: ['oooooooo', 'ohhaaabo', 'ohahabao', 'ohaaaabo', '.oaaabo.', '.oahabo.', '..obbo..', '...oo...'],
 };
 Object.assign(MAPS, EXTRA);
 
@@ -85,6 +93,10 @@ const COLORS: Record<Trait, Record<string, string>> = {
   banner: { o: '#1a1433', h: '#ffd0dc', a: '#ff4f7b', b: '#8a5a2a' },
   warder: { o: '#1a1433', h: '#fff4c2', a: '#ffcf4a', b: '#b8861e' },
   blinker: { o: '#1a1433', h: '#ffffff', a: '#bfeaff', b: '#7aaed0' },
+  splitter: { o: '#1a1433', h: '#e6dccb', a: '#a8957a', b: '#5e4f3d' },
+  frost: { o: '#1a1433', h: '#ffffff', a: '#7fd8ff' },
+  magnet: { o: '#1a1433', h: '#e8e8f0', a: '#e0304e', b: '#8a1a2e' },
+  bodyguard: { o: '#1a1433', h: '#fff4c2', a: '#7b8ccf', b: '#3e4a80' },
 };
 
 const cache = new Map<Trait, string>();
