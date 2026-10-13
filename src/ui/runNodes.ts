@@ -175,11 +175,22 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
     actions.append(tree);
   }
   if (next1.childElementCount) content.append(el('div', 'run-end-next-title', t('Что дальше')), next1);
-  const next = el('button', 'btn btn-primary', o.won ? t('Новая партия ▶') : t('Новый забег ▶'));
-  actions.append(next);
+  content.append(almostView(s, o));
+  const again = !o.won ? el('button', 'btn btn-primary', t('Ещё раз ▶')) : null;
+  const next = el('button', `btn ${again ? '' : 'btn-primary'}`, o.won ? t('Новая партия ▶') : t('Другая армия'));
+  // One tap to the next run with the same army and threat; the picker is one step aside.
+  if (again && (s.armies.length > 1 || s.threatMax > 0)) actions.append(next);
+  if (again) actions.append(again);
+  else actions.append(next);
   content.append(actions);
   const close = openModal(content, { dismissable: false, cls: 'run-end-modal' });
   audio.play(o.won ? 'achievement' : 'lose');
+  again?.addEventListener('click', () => {
+    close();
+    startNextRun(s, Date.now(), s.run.army ?? 'guard', s.run.threat ?? 0);
+    ctx.save();
+    onNext();
+  });
   next.addEventListener('click', () => {
     close();
     pickArmy(ctx, (army, threat) => {
@@ -188,6 +199,37 @@ export function openRunEnd(ctx: Ctx, onNext: () => void): void {
       onNext();
     });
   });
+}
+
+/**
+ * "So close": the goals this run brought nearer, each with a bar — the record, the next army,
+ * the next doctrine — so the next run has a reason before it starts.
+ */
+function almostView(s: GameState, o: RunOver): HTMLElement {
+  const box = el('div', 'almost');
+  const row = (label: string, have: number, need: number, done = false) => {
+    const line = el('div', `almost-row${done ? ' done' : ''}`);
+    const bar = el('div', 'almost-bar');
+    const fill = el('div', 'almost-fill');
+    fill.style.width = `${Math.max(4, Math.min(100, (have / Math.max(1, need)) * 100))}%`;
+    bar.append(fill);
+    line.append(el('div', 'almost-label', label), bar);
+    box.append(line);
+  };
+  if (o.record) row(t('★ Новый рекорд: {n} побед за забег!', { n: o.wins }), 1, 1, true);
+  else if (o.best && o.best > o.wins) row(t('Рекорд — {best} побед, не хватило {n}', { best: o.best, n: o.best - o.wins + 1 }), o.wins, o.best + 1);
+  const army = ARMY_ORDER.find((id) => !s.armies.includes(id));
+  if (army) {
+    const def = ARMIES[army];
+    const bossChapter = def.unlockedBy ? Number(def.unlockedBy[0]) : CHAPTERS.length;
+    row(t('Новая армия «{name}»: {how}', { name: def.name, how: def.unlock.toLowerCase() }), Math.min(o.chapter, bossChapter) - (o.won ? 0 : 1), bossChapter);
+  }
+  const doctrine = NODES.filter((n) => nodeState(s.crownTree, gameNumber(s), n) === 'available')
+    .sort((a, b) => nodeCost(a) - nodeCost(b))[0];
+  if (doctrine && s.crowns < nodeCost(doctrine)) {
+    row(t('До доктрины «{name}»: {have} из {need} ♛', { name: doctrine.name, have: s.crowns, need: nodeCost(doctrine) }), s.crowns, nodeCost(doctrine));
+  }
+  return box;
 }
 
 function modal(title: string, text: string): { content: HTMLElement; body: HTMLElement; actions: HTMLElement } {

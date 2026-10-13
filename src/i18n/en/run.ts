@@ -263,7 +263,6 @@ export const run: Record<string, string> = {
   '+{n} ♛ короны': '+{n} ♛ crowns',
   'Следующая партия будет труднее: Чёрный король принесёт новое искажение. Короны тратятся в Древе короны.': 'The next game will be harder: the Black King brings a new distortion. Spend crowns in the Crown Tree.',
   'Новая партия ▶': 'New Game ▶',
-  'Новый забег ▶': 'New Run ▶',
   'Дальше': 'Next',
   'Бродячий торговец разложил товар у дороги. Купить можно один раз.': 'A wandering merchant has laid out wares by the road. Each item can be bought once.',
   'Армия разбила лагерь у костра. Есть время на одно дело.': 'The army makes camp by the fire. There is time for one task.',
@@ -286,4 +285,10 @@ export const run: Record<string, string> = {
   '{kind} · {id} «{name}»': '{kind} · {id} “{name}”',
   'Короны остаются с вами — потратьте их в Древе короны. Новый забег начнётся с 1-1.': 'Crowns stay with you — spend them in the Crown Tree. A new run starts at 1-1.',
   'Короны дают боссы — дойдите хотя бы до первого. Новый забег начнётся с 1-1.': 'Bosses give crowns — reach at least the first one. A new run starts at 1-1.',
+  'Ещё раз ▶': 'Again ▶',
+  'Другая армия': 'Another army',
+  '★ Новый рекорд: {n} побед за забег!': '★ New record: {n} wins in one run!',
+  'Рекорд — {best} побед, не хватило {n}': 'Record is {best} wins — {n} short',
+  'Новая армия «{name}»: {how}': 'New army “{name}”: {how}',
+  'До доктрины «{name}»: {have} из {need} ♛': 'To the “{name}” doctrine: {have} of {need} ♛',
 };

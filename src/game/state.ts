@@ -103,6 +103,8 @@ export interface GameState {
     elites: number; events: number; cleanChapters: number; runs: number;
     /** The highest threat level a game was won at. */
     bestThreat?: number;
+    /** The most battles won in one run. */
+    bestRun?: number;
   };
 }
 

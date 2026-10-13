@@ -53,6 +53,10 @@ export interface RunOver {
   elites: number;
   bosses: number;
   crowns: number;
+  /** This run won more battles than any before it (the first run sets the mark quietly). */
+  record?: boolean;
+  /** The best run before this one, in battles won. */
+  best?: number;
 }
 
 export interface RunState {
@@ -385,8 +389,11 @@ export function endRun(s: GameState, won: boolean, at: string): RunOver {
   if (won && threat >= s.threatMax) s.threatMax = Math.min(MAX_THREAT, threat + 1);
   if (won) s.stats.bestThreat = Math.max(s.stats.bestThreat ?? -1, threat);
   s.stats.runs++;
+  const best = s.stats.bestRun ?? 0;
+  const record = s.run.wins > best && s.stats.runs > 1;
+  s.stats.bestRun = Math.max(best, s.run.wins);
   s.run.over = {
-    won, chapter: s.run.chapter, at, wins: s.run.wins, elites: s.run.elites, bosses: s.run.bosses, crowns,
+    won, chapter: s.run.chapter, at, wins: s.run.wins, elites: s.run.elites, bosses: s.run.bosses, crowns, record, best,
   };
   s.run.at = null;
   return s.run.over;
