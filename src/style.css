@@ -2350,3 +2350,11 @@ button.synergy { font: inherit; cursor: pointer; border: 0; }
 @keyframes overlay-in { from { opacity: 0; } }
 @keyframes modal-in { from { transform: scale(.94) translateY(8px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .modal-overlay, .modal-overlay > .modal { animation: none; } }
+
+/* ---------- Phones: the run map never spills sideways (polish 6.5) ---------- */
+.level-path { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.level-node { min-width: 0; }
+.level-node .level-name { max-width: 100%; overflow-wrap: anywhere; hyphens: auto; }
+/* Toasts never cover a dialog's or a tip's buttons: they sit under the dialog dimming and the tips,
+   and taps go through them (polish 6.5). */
+.toast-layer { z-index: 25; pointer-events: none; }
