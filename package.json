@@ -12,9 +12,11 @@
     "typecheck": "tsc --noEmit",
     "build:artifact": "node scripts/build-artifact.mjs",
     "bot:matrix": "node scripts/bot-matrix.mjs",
-    "bot:relics": "node scripts/relic-audit.mjs"
+    "bot:relics": "node scripts/relic-audit.mjs",
+    "e2e": "node scripts/build-artifact.mjs && node scripts/e2e.mjs"
   },
   "devDependencies": {
+    "playwright": "^1.56.1",
     "typescript": "5.9",
     "vite": "^8.3.4",
     "vitest": "^5.0.3"

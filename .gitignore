@@ -3,3 +3,4 @@ dist
 *.log
 .DS_Store
 dist-artifact
+e2e-failure.png

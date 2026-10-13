@@ -26,6 +26,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # The browser walks the whole loop: new game → first battle → map → death → new run.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
