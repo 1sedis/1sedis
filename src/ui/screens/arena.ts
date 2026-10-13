@@ -270,7 +270,7 @@ export class ArenaScreen implements Screen {
   }
 
   private enterPrep(): void {
-    audio.setTrack('map');
+    audio.setTrack('map', this.ctx.state.run.chapter);
     this.phase = 'prep';
     this.battle = null;
     this.cancelPick();
@@ -588,7 +588,7 @@ export class ArenaScreen implements Screen {
     this.battle = createBattle({ ...battleSetup(s, this.levelId), playerMoves: playerMoves(s, this.levelId), decisions: true });
     this.cancelPick();
     this.phase = 'battle';
-    audio.setTrack(getLevel(this.levelId).boss ? 'boss' : 'battle');
+    audio.setTrack(getLevel(this.levelId).boss ? 'boss' : isEliteBattle(s, this.levelId) ? 'elite' : 'battle', chapterOf(this.levelId).id);
     this.acc = 0;
     const bossId = this.battle.bossId;
     if (bossId) {

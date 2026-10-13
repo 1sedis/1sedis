@@ -5,7 +5,7 @@ export type Sfx =
   | 'win' | 'lose' | 'start' | 'star' | 'click' | 'select' | 'buy' | 'levelup' | 'relic' | 'coins' | 'achievement'
   | 'roar' | 'warn' | 'quake' | 'bossDown' | 'doom';
 
-export type TrackId = 'menu' | 'map' | 'battle' | 'boss';
+export type TrackId = 'menu' | 'map' | 'battle' | 'elite' | 'boss';
 
 export interface AudioSettings {
   sound: boolean;
@@ -64,6 +64,12 @@ const TRACKS: Record<TrackId, Track> = {
       + 'A5 ~ G5 E5 A5 ~ G5 E5 | C5 D5 E5 ~ D5 C5 B4 ~ | D5 F5 A5 ~ F5 D5 A4 ~ | G#4 ~ B4 ~ E5 ~ - -',
     bass: 'R.R.O.R.R.R.O.F.', drums: 'k.h.s.h.k.k.s.h.',
   },
+  // Elite fights: a darker E minor theme, faster than an ordinary battle.
+  elite: {
+    bpm: 146, chords: ['Em', 'C', 'Am', 'B'], arp: false, leadVolume: 0.12,
+    melody: 'E5 ~ G5 F#5 E5 ~ B4 ~ | C5 ~ E5 D5 C5 ~ A4 ~ | A4 C5 E5 ~ D5 C5 B4 A4 | B4 ~ D#5 ~ F#5 ~ - -',
+    bass: 'R.RRO.R.R.RRO.F.', drums: 'k.hsk.s.k.hkk.sh',
+  },
   boss: {
     bpm: 150, chords: ['Dm', 'Bb', 'Gm', 'A'], arp: false, leadVolume: 0.12,
     melody: 'D5 ~ F5 ~ A5 ~ G#5 A5 | F5 ~ D5 ~ Bb4 ~ C5 D5 | G5 ~ Bb5 ~ G5 F5 E5 D5 | C#5 ~ E5 ~ A5 ~ - -',
@@ -93,6 +99,19 @@ const MELODIES = Object.fromEntries(
 
 const freq = (semi: number) => 440 * 2 ** (semi / 12);
 
+/** Each chapter plays the battle and map themes in its own key and pace (semitones, tempo factor). */
+const CHAPTER_KEY: Record<number, { shift: number; pace: number }> = {
+  1: { shift: 0, pace: 0.94 }, 2: { shift: 2, pace: 1 }, 3: { shift: -3, pace: 1.03 }, 4: { shift: 5, pace: 1.07 },
+};
+/** Big moments dip the music (level, seconds held) so they are heard. */
+const DUCK: Partial<Record<Sfx, [number, number]>> = {
+  roar: [0.3, 1], doom: [0.25, 2.2], bossDown: [0.3, 1.6], win: [0.35, 1], lose: [0.3, 1.4],
+  achievement: [0.5, 0.8], relic: [0.5, 0.8], promote: [0.6, 0.5], save: [0.5, 0.8], start: [0.6, 0.5],
+};
+/** Random pick and a small random detune, so frequent sounds never repeat exactly. */
+const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
+const detune = (k = 0.08) => 1 + (Math.random() * 2 - 1) * k;
+
 // ---------- Engine ----------
 
 class AudioEngine {
@@ -100,6 +119,9 @@ class AudioEngine {
   private master!: GainNode;
   private sfxGain!: GainNode;
   private musicGain!: GainNode;
+  /** Between the tracks and the music volume: dips the music under big moments (boss roar, victory...). */
+  private duckGain!: GainNode;
+  private chapter = 1;
   private noiseBuffer!: AudioBuffer;
   private pulse!: PeriodicWave;
   private settings: AudioSettings = { sound: true, music: true, soundVolume: 0.8, musicVolume: 0.6 };
@@ -151,11 +173,23 @@ class AudioEngine {
     this.syncMusic();
   }
 
-  /** Switch the background music, crossfading from the current track. */
-  setTrack(id: TrackId): void {
-    if (id === this.track) return;
+  /** Switch the background music, crossfading from the current track; battle and map themes follow the chapter. */
+  setTrack(id: TrackId, chapter = this.chapter): void {
+    if (id === this.track && chapter === this.chapter) return;
     this.track = id;
+    this.chapter = chapter;
     if (this.timer !== null) this.startTrack(true);
+  }
+
+  /** Dip the music to `level` for `hold` seconds, so a big sound effect is heard over it. */
+  private duck(level: number, hold: number): void {
+    const g = this.duckGain.gain;
+    const t = this.ctx!.currentTime;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(level, t + 0.08);
+    g.setValueAtTime(level, t + 0.08 + hold);
+    g.linearRampToValueAtTime(1, t + 0.08 + hold + 0.7);
   }
 
   private ensure(): boolean {
@@ -179,6 +213,8 @@ class AudioEngine {
     this.sfxGain.connect(this.master);
     this.musicGain = ctx.createGain();
     this.musicGain.connect(this.master);
+    this.duckGain = ctx.createGain();
+    this.duckGain.connect(this.musicGain);
     this.applyVolumes();
 
     const len = ctx.sampleRate;
@@ -267,24 +303,38 @@ class AudioEngine {
     if (delay === 0 && t - (this.lastPlayed.get(name) ?? -1) < minGap) return;
     this.lastPlayed.set(name, t);
     const out = this.sfxGain;
+    const dip = DUCK[name];
+    if (dip) this.duck(dip[0], dip[1] + delay);
     switch (name) {
-      case 'hit':
-        this.noise(t, 0.06, 0.5, out, 'bandpass', 1500);
-        this.voice(200, t, 0.07, 0.18, out, { slideTo: 90 });
+      case 'hit': {
+        // Four timbres of a blow, each slightly detuned.
+        const [band, tone, low] = pick([[1500, 200, 90], [1100, 170, 80], [2000, 230, 100], [1300, 185, 70]] as const);
+        const k = detune();
+        this.noise(t, 0.06, 0.5, out, 'bandpass', band * k);
+        this.voice(tone * k, t, 0.07, 0.18, out, { slideTo: low * k, type: pick(['square', 'square', 'triangle'] as const) });
         break;
-      case 'shot':
-        this.voice(1100, t, 0.09, 0.1, out, { pulse: true, slideTo: 320 });
-        this.noise(t, 0.04, 0.15, out, 'highpass', 4000);
+      }
+      case 'shot': {
+        const k = detune(0.1);
+        const [from, to] = pick([[1100, 320], [950, 260], [1250, 380]] as const);
+        this.voice(from * k, t, 0.09, 0.1, out, { pulse: true, slideTo: to * k });
+        this.noise(t, 0.04, 0.15, out, 'highpass', pick([3500, 4000, 5000]));
         break;
-      case 'crit':
-        this.noise(t, 0.1, 0.6, out, 'bandpass', 2600);
-        this.voice(520, t, 0.12, 0.18, out, { slideTo: 1560 });
-        this.voice(1040, t + 0.04, 0.1, 0.1, out, { pulse: true });
+      }
+      case 'crit': {
+        const k = detune(0.06);
+        this.noise(t, 0.1, 0.6, out, 'bandpass', 2600 * k);
+        this.voice(520 * k, t, 0.12, 0.18, out, { slideTo: 1560 * k });
+        this.voice(pick([1040, 1170, 1320]) * k, t + 0.04, 0.1, 0.1, out, { pulse: true });
         break;
-      case 'death':
-        this.voice(420, t, 0.32, 0.16, out, { slideTo: 55 });
-        this.noise(t, 0.25, 0.35, out, 'lowpass', 900);
+      }
+      case 'death': {
+        const k = detune(0.06);
+        const [from, to, cut] = pick([[420, 55, 900], [360, 48, 700], [480, 62, 1100]] as const);
+        this.voice(from * k, t, 0.32, 0.16, out, { slideTo: to });
+        this.noise(t, 0.25, 0.35, out, 'lowpass', cut);
         break;
+      }
       case 'promote':
         this.arp([note('C5'), note('E5'), note('G5'), note('C6'), note('E6')], t, 0.055, 0.12);
         break;
@@ -321,14 +371,14 @@ class AudioEngine {
         this.voice(freq(note('B6')), t + 0.05, 0.18, 0.08, out, { type: 'triangle' });
         break;
       case 'click':
-        this.voice(880, t, 0.025, 0.05, out, { pulse: true });
+        this.voice(880, t, 0.025, 0.035, out, { pulse: true });
         break;
       case 'select':
-        this.voice(660, t, 0.04, 0.07, out, { pulse: true, slideTo: 990 });
+        this.voice(660, t, 0.04, 0.05, out, { pulse: true, slideTo: 990 });
         break;
       case 'buy':
-        this.voice(784, t, 0.05, 0.1, out, { pulse: true });
-        this.voice(1047, t + 0.05, 0.09, 0.1, out, { pulse: true });
+        this.voice(784, t, 0.05, 0.075, out, { pulse: true });
+        this.voice(1047, t + 0.05, 0.09, 0.075, out, { pulse: true });
         break;
       case 'levelup':
         this.arp([note('C5'), note('G5'), note('C6'), note('G6')], t, 0.05, 0.11);
@@ -401,7 +451,7 @@ class AudioEngine {
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, ctx.currentTime);
     g.gain.linearRampToValueAtTime(1, ctx.currentTime + (crossfade ? 0.6 : 1.2));
-    g.connect(this.musicGain);
+    g.connect(this.duckGain);
     this.trackGain = g;
     this.step = 0;
     this.nextTime = ctx.currentTime + 0.1;
@@ -412,7 +462,9 @@ class AudioEngine {
     if (!ctx || !this.trackGain) return;
     const t = TRACKS[this.track];
     const melody = MELODIES[this.track];
-    const sixteenth = 60 / t.bpm / 4;
+    const key = this.track === 'battle' || this.track === 'map' ? CHAPTER_KEY[this.chapter] ?? CHAPTER_KEY[1] : { shift: 0, pace: 1 };
+    const sixteenth = 60 / (t.bpm * key.pace) / 4;
+    const f = (n: number) => freq(n + key.shift);
     const out = this.trackGain;
     while (this.nextTime < ctx.currentTime + 0.15) {
       const total = t.chords.length * 16;
@@ -423,17 +475,17 @@ class AudioEngine {
       const time = this.nextTime;
 
       const lead = melody[s];
-      if (lead) this.voice(freq(lead.n), time, sixteenth * lead.len * 0.95, t.leadVolume, out, { pulse: true, attack: 0.01 });
+      if (lead) this.voice(f(lead.n), time, sixteenth * lead.len * 0.95, t.leadVolume, out, { pulse: true, attack: 0.01 });
 
       const b = t.bass[pos];
       if (b !== '.') {
         const n = tones[0] - 12 + (b === 'O' ? 12 : b === 'F' ? 7 : 0);
-        this.voice(freq(n), time, sixteenth * 1.8, 0.32, out, { type: 'triangle' });
+        this.voice(f(n), time, sixteenth * 1.8, 0.32, out, { type: 'triangle' });
       }
 
       if (t.arp && pos % 2 === 0) {
         const n = tones[(pos / 2) % 3] + 12;
-        this.voice(freq(n), time, sixteenth * 1.5, 0.035, out, { pulse: true });
+        this.voice(f(n), time, sixteenth * 1.5, 0.035, out, { pulse: true });
       }
 
       switch (t.drums[pos]) {
