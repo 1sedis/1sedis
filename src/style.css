@@ -2472,3 +2472,20 @@ body:not([data-screen="arena"]) .topbar {
   position: sticky; top: 0; z-index: 40; padding: 8px 0; margin-top: -8px;
   background: var(--bg); box-shadow: 0 6px 0 -2px rgba(0, 0, 0, 0.35);
 }
+
+/* ---------- Compact camp: fewer screens of scrolling ---------- */
+.army-row { padding: 6px 10px; }
+.army-row .portrait { width: 64px; height: 64px; }
+.army-row .portrait .row-icon { width: 50px; height: 50px; margin-bottom: 8px; }
+.army-row .row-meta { margin-top: 4px; }
+.army-row .row-actions .btn { padding-block: 6px; }
+@media (max-width: 560px) {
+  .army-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; padding: 8px; }
+  .army-row .row-actions { grid-column: 1 / -1; gap: 6px; }
+  .army-row .row-actions .btn { padding: 4px 6px; font-size: 15px; line-height: 1.15; }
+  .army-row .row-actions .btn small, .army-row .row-actions .btn .btn-sub { font-size: 12px; }
+  .army-row .row-name { font-size: 17px; gap: 6px; }
+  .army-row .ability-chip { font-size: 13px; padding: 0 6px; }
+  .army-row .row-meta { font-size: 14px; }
+  .camp-grid .card { padding: 10px; }
+}
