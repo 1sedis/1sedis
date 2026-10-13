@@ -7,6 +7,7 @@ import { spriteUrl, type Team, type Tier } from './sprites';
 import { TERRAIN_INFO, walkable, type Terrain } from '../game/terrain';
 import { terrainUrl } from './terrainArt';
 import { cellTextureUrl, cellVariant } from './boardArt';
+import { slashUrl, soulUrl } from './fxArt';
 import { traitUrl } from './traitIcons';
 import { handUrl } from './handArt';
 import { bossArtUrl, hasBossArt } from './bossArt';
@@ -48,7 +49,7 @@ export class BoardView {
   private banner: HTMLElement;
   private calloutEl: HTMLElement;
   private introEl: HTMLElement;
-  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team; tier: Tier }>();
+  private units = new Map<string, { node: HTMLElement; body: HTMLElement; img: HTMLImageElement; fill: HTMLElement; shield: HTMLElement; kind: PieceKind; team: Team; tier: Tier; at?: [number, number] }>();
 
   constructor(onCell: (x: number, y: number) => void) {
     this.root = el('div', 'board');
@@ -213,7 +214,11 @@ export class BoardView {
       u.node.classList.toggle('tier-1', u.tier === 1);
       u.node.classList.toggle('tier-2', u.tier === 2);
       const pos = `translate(${v.x * 100}%, ${v.y * 100}%)`;
-      if (u.node.style.transform !== pos) u.node.style.transform = pos;
+      if (u.node.style.transform !== pos) {
+        if (u.at && !v.dead && !this.root.classList.contains('setup') && this.fxLevel > 0 && this.room()) this.dust(u.at[0], u.at[1]);
+        u.node.style.transform = pos;
+      }
+      u.at = [v.x, v.y];
       u.node.classList.toggle('boss', !!v.boss);
       u.node.classList.toggle('champion', !!v.champion);
       if (u.node.dataset.trait !== (v.trait ?? '')) {
@@ -256,6 +261,7 @@ export class BoardView {
       if (e.type === 'death') {
         const u = this.units.get(keyOf(e.uid));
         if (u) this.fall(e, u.img.src);
+        if (effects && (e.big || this.room())) this.soul(e);
         if (effects && u && (e.big || this.room())) this.shatter(e.x, e.y, u.img.src);
       }
       if (effects && e.type === 'hit' && e.amount >= 1 && this.fxLevel > 0 && this.room()) {
@@ -278,6 +284,7 @@ export class BoardView {
             const to = `${(dx / len) * 28}% ${(dy / len) * 28}%`;
             body.animate([{ translate: '0 0' }, { translate: to, offset: 0.45 }, { translate: '0 0' }], { duration: 160, easing: 'ease-out' });
           }
+          if (effects && this.fxLevel > 0 && this.room()) this.slash(e);
         }
         if (e.crit && e.big) shake = Math.max(shake, 1);
       } else if (e.type === 'death' && e.big) shake = 2;
@@ -563,6 +570,34 @@ export class BoardView {
     const ghost = el('div', `fx-fall ${e.side}`);
     ghost.style.backgroundImage = `url(${src})`;
     this.place(ghost, e.x, e.y);
+  }
+
+  /** A pixel crescent swipes across the target of a melee blow. */
+  private slash(e: BattleEvent): void {
+    const s = el('img', 'fx-slash');
+    s.src = slashUrl(e.side === 'ally' ? 'enemy' : 'ally');
+    s.alt = '';
+    s.style.setProperty('--rot', `${Math.atan2(e.y - e.fromY, e.x - e.fromX)}rad`);
+    s.style.setProperty('--flip', Math.random() < 0.5 ? '1' : '-1');
+    this.place(s, e.x, e.y);
+  }
+
+  /** A small wisp rises from where a piece fell. */
+  private soul(e: BattleEvent): void {
+    const s = el('img', `fx-soul${e.big ? ' big' : ''}`);
+    s.src = soulUrl(e.side === 'ally' ? 'ally' : 'enemy');
+    s.alt = '';
+    s.style.setProperty('--sway', `${Math.random() < 0.5 ? -1 : 1}`);
+    this.place(s, e.x, e.y);
+  }
+
+  /** A puff of dust where a piece stepped off. */
+  private dust(x: number, y: number): void {
+    const d = el('div', 'fx-dust');
+    d.style.left = `${(x + 0.5) * 12.5}%`;
+    d.style.top = `${(y + 0.82) * 12.5}%`;
+    d.addEventListener('animationend', () => d.remove());
+    this.fxLayer.append(d);
   }
 
   /** A shot leaves a thin line from the shooter to its target for a moment. */
